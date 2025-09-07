@@ -141,7 +141,7 @@
           <!-- Conformance cell removed -->
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name || '')}</td>
-          <td>${escapeHtml(r.assignee || '')}</td>
+          <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
           <td>${actionButtonHtml(r.id ?? '')}</td>
           <td>
             <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"

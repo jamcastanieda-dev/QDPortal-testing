@@ -192,7 +192,7 @@
         <td>${renderCloseDue(r.close_due_date)}</td>
         <td>${badgeForStatus(r.status)}</td>
         <td>${escapeHtml(r.originator_name)}</td>
-        <td>${escapeHtml(r.assignee)}</td>
+        <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
         <td>${actionButtonHtml(r.id ?? '', r.assignee)}</td>
         <td>
           <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"

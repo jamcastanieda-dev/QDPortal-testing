@@ -1,5 +1,5 @@
 <?php
-// pages/rcpa/api/rcpa-list.php
+// rcpa-list-approval-valid.php
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 date_default_timezone_set('Asia/Manila');
@@ -91,12 +91,17 @@ if ($type !== '') {
 }
 
 if ($q !== '') {
-    $where[]  = "(project_name LIKE CONCAT('%', ?, '%')
-              OR wbs_number   LIKE CONCAT('%', ?, '%')
-              OR assignee     LIKE CONCAT('%', ?, '%'))";
-    $params[] = $q; $params[] = $q; $params[] = $q;
-    $types   .= 'sss';
+    $where[]  = "(
+        project_name LIKE CONCAT('%', ?, '%')
+        OR wbs_number LIKE CONCAT('%', ?, '%')
+        OR assignee   LIKE CONCAT('%', ?, '%')
+        OR section    LIKE CONCAT('%', ?, '%')
+        OR CONCAT(assignee, ' - ', COALESCE(section, '')) LIKE CONCAT('%', ?, '%')
+    )";
+    $params[] = $q; $params[] = $q; $params[] = $q; $params[] = $q; $params[] = $q;
+    $types   .= 'sssss';
 }
+
 
 if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     $where[]  = "status = ?";
@@ -165,6 +170,7 @@ $sql = "SELECT
             conformance,
             originator_name,
             assignee,
+            section,            -- 👈 add this
             project_name,
             wbs_number,
             reply_due_date
@@ -172,6 +178,7 @@ $sql = "SELECT
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
         LIMIT ? OFFSET ?";
+
 
 if (!($stmt = $mysqli->prepare($sql))) {
     http_response_code(500);
@@ -197,10 +204,9 @@ while ($r = $res->fetch_assoc()) {
         'status'           => (string)($r['status'] ?? ''),
         'originator_name'  => (string)($r['originator_name'] ?? ''),
         'assignee'         => (string)($r['assignee'] ?? ''),
+        'section'          => (string)($r['section'] ?? ''),    // 👈 add this
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
-
-        // pass as YYYY-MM-DD for the JS formatter
         'reply_due_date'   => $r['reply_due_date'] ? date('Y-m-d', strtotime($r['reply_due_date'])) : null,
     ];
 }

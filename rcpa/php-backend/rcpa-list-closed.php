@@ -107,12 +107,21 @@ if ($type !== '') {
 }
 
 if ($q !== '') {
-    $where[]  = "(project_name LIKE CONCAT('%', ?, '%')
-              OR wbs_number   LIKE CONCAT('%', ?, '%')
-              OR assignee     LIKE CONCAT('%', ?, '%'))";
-    $params[] = $q; $params[] = $q; $params[] = $q;
-    $types   .= 'sss';
+    $where[]  = "(
+        project_name LIKE CONCAT('%', ?, '%')
+        OR wbs_number LIKE CONCAT('%', ?, '%')
+        OR assignee   LIKE CONCAT('%', ?, '%')
+        OR section    LIKE CONCAT('%', ?, '%')
+        OR CONCAT(assignee, ' - ', COALESCE(section, '')) LIKE CONCAT('%', ?, '%')
+    )";
+    $params[] = $q;
+    $params[] = $q;
+    $params[] = $q;
+    $params[] = $q;
+    $params[] = $q;
+    $types   .= 'sssss';
 }
+
 
 // Status: if a valid specific status was requested, use it; else include both allowed
 if ($statusNorm !== '' && in_array($statusNorm, $allowed_statuses, true)) {
@@ -182,6 +191,7 @@ $sql = "SELECT
             conformance,
             originator_name,
             assignee,
+            section,
             project_name,
             wbs_number,
             close_due_date
@@ -214,6 +224,7 @@ while ($r = $res->fetch_assoc()) {
         'status'           => (string)($r['status'] ?? ''),
         'originator_name'  => (string)($r['originator_name'] ?? ''),
         'assignee'         => (string)($r['assignee'] ?? ''),
+        'section'          => (string)($r['section'] ?? ''),
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'close_due_date'   => $r['close_due_date'] ? date('Y-m-d', strtotime($r['close_due_date'])) : null,

@@ -7,8 +7,8 @@ date_default_timezone_set('Asia/Manila');
 
 $user = json_decode($_COOKIE['user'] ?? 'null', true);
 if (!$user || !is_array($user)) {
-  header('Location: ../../login.php');
-  exit;
+    header('Location: ../../login.php');
+    exit;
 }
 $current_user = $user;
 $user_name = $current_user['name'] ?? '';
@@ -81,10 +81,17 @@ if ($type !== '') {
 }
 
 if ($q !== '') {
-    $where[]  = "(project_name LIKE CONCAT('%', ?, '%') OR wbs_number LIKE CONCAT('%', ?, '%') OR assignee LIKE CONCAT('%', ?, '%'))";
-    $params[] = $q; $params[] = $q; $params[] = $q;
-    $types   .= 'sss';
+    $where[]  = "(
+        project_name LIKE CONCAT('%', ?, '%')
+        OR wbs_number LIKE CONCAT('%', ?, '%')
+        OR assignee LIKE CONCAT('%', ?, '%')
+        OR section  LIKE CONCAT('%', ?, '%')
+        OR CONCAT(assignee, ' - ', COALESCE(section, '')) LIKE CONCAT('%', ?, '%')
+    )";
+    $params[] = $q; $params[] = $q; $params[] = $q; $params[] = $q; $params[] = $q;
+    $types   .= 'sssss';
 }
+
 
 if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     $where[]  = "status = ?";
@@ -149,12 +156,14 @@ $sql = "SELECT
             conformance,
             originator_name,
             assignee,
+            section,          -- 👈 add this
             project_name,
             wbs_number
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
         LIMIT ? OFFSET ?";
+
 
 if (!($stmt = $mysqli->prepare($sql))) {
     http_response_code(500);
@@ -180,6 +189,7 @@ while ($r = $res->fetch_assoc()) {
         'status'           => (string)($r['status'] ?? ''),
         'originator_name'  => (string)($r['originator_name'] ?? ''),
         'assignee'         => (string)($r['assignee'] ?? ''),
+        'section'          => (string)($r['section'] ?? ''),   // 👈 add this
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
     ];

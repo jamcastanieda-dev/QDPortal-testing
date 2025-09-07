@@ -1172,7 +1172,8 @@
       <td>${renderCloseDue(r?.close_due_date)}</td>
       <td>${badgeForStatus(r?.status)}</td>
       <td>${esc(r?.originator_name)}</td>
-      <td>${esc(r?.assignee)}</td>
+      <td>${esc(r?.section ? `${r.assignee} - ${r.section}` : r?.assignee)}</td>
+
       <td>
         <button type="button" class="rcpa-btn rcpa-view" data-id="${esc(id)}">View</button>
       </td>

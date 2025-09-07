@@ -1,5 +1,5 @@
 <?php
-
+// rcpa-submit-request.php
 declare(strict_types=1);
 header('Content-Type: application/json');
 
@@ -33,6 +33,13 @@ try {
 
   if ($rcpaType === '') throw new Exception('RCPA Type is required.');
   if ($assignee === '') throw new Exception('Assignee is required.');
+
+  // Split "Department - Section" into parts. If no " - ", section stays null.
+  $assigneeDept = $assignee;
+  $assigneeSect = null;
+  if (strpos($assignee, ' - ') !== false) {
+    [$assigneeDept, $assigneeSect] = array_map('trim', explode(' - ', $assignee, 2));
+  }
 
   /* ---------- Compute sem_year ---------- */
   $semYear = trim($_POST['sem_year_calc'] ?? '');
@@ -161,36 +168,38 @@ try {
   }
 
   /* ---------- INSERT ---------- */
+  /* ---------- INSERT (now includes section) ---------- */
   $sql = "INSERT INTO rcpa_request
-    (rcpa_type, sem_year, project_name, wbs_number, quarter, category,
-     originator_name, originator_department, date_request, conformance,
-     remarks, remarks_attachment, system_applicable_std_violated,
-     standard_clause_number, originator_supervisor_head, assignee, status)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+  (rcpa_type, sem_year, project_name, wbs_number, quarter, category,
+   originator_name, originator_department, date_request, conformance,
+   remarks, remarks_attachment, system_applicable_std_violated,
+   standard_clause_number, originator_supervisor_head, assignee, section, status)
+  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
   $stmt = $conn->prepare($sql);
   if (!$stmt) throw new Exception('MySQLi prepare failed: ' . $conn->error);
 
-  $p1 = $rcpaType ?: null;
-  $p2 = $semYear ?: null;
-  $p3 = $projectName ?: null;
-  $p4 = $wbsNumber ?: null;
-  $p5 = $quarter ?: null;
-  $p6 = $category ?: null;
-  $p7 = $originatorName ?: null;
-  $p8 = $originatorDept ?: null;
-  $p9 = $dateRequest;
+  $p1  = $rcpaType ?: null;
+  $p2  = $semYear ?: null;
+  $p3  = $projectName ?: null;
+  $p4  = $wbsNumber ?: null;
+  $p5  = $quarter ?: null;
+  $p6  = $category ?: null;
+  $p7  = $originatorName ?: null;
+  $p8  = $originatorDept ?: null;
+  $p9  = $dateRequest; // DATETIME or null
   $p10 = $conformance ?: null;
   $p11 = $remarks ?: null;
-  $p12 = $attachmentsStr;
+  $p12 = $attachmentsStr; // json or null
   $p13 = $systemViolated ?: null;
   $p14 = $clauseNumbers ?: null;
   $p15 = $originatorSupervisor ?: null;
-  $p16 = $assignee ?: null;
+  $p16 = $assigneeDept ?: null;   // department only
+  $p16b = $assigneeSect ?: null;   // section (nullable)
   $p17 = $status;
 
   $stmt->bind_param(
-    'sssssssssssssssss',
+    'ssssssssssssssssss',
     $p1,
     $p2,
     $p3,
@@ -207,8 +216,10 @@ try {
     $p14,
     $p15,
     $p16,
+    $p16b,
     $p17
   );
+
 
   if (!$stmt->execute()) {
     throw new Exception('MySQLi execute failed: ' . $stmt->error);

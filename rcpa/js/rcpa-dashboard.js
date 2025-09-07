@@ -58,13 +58,17 @@
     const int = v => String(Math.round(Number(v)));
 
     // Backend: assignee counts per department (optionally by year)
-    async function fetchAssigneeByDept(year) {
-      const q = (year ? `?year=${encodeURIComponent(year)}` : '');
-      const url = `../php-backend/rcpa-assignee-by-dept.php${q}`;
+    // Backend: assignee counts per department (by year AND site)
+    async function fetchAssigneeByDept(year, site) {
+      const q = new URLSearchParams();
+      if (year) q.set('year', year);
+      if (site) q.set('site', site);
+      const url = `../php-backend/rcpa-assignee-by-dept.php?${q.toString()}`;
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error(`Assignee-by-dept HTTP ${res.status}`);
-      return res.json(); // { labels, data:[{x,y}], total, max, year }
+      return res.json(); // { labels, data:[{x,y}], total, max, year, site }
     }
+
 
     // Backend: monthly data
     async function fetchMonthly(year) {
@@ -158,7 +162,7 @@
         states: { active: { filter: { type: 'none' } } },
         tooltip: { theme: 'light', y: { formatter: int } }
       });
-      charts.assignee.render().then(() => loadAssignee(state.year));
+      charts.assignee.render().then(() => loadAssignee(state.year, state.site));
 
       // MONTHLY (start empty; load via backend)
       charts.monthly = new ApexCharts(els.chartMonthly, {
@@ -269,12 +273,11 @@
       loadReplyAndClosing(state.year);
     }
 
-    function loadAssignee(year) {
-      fetchAssigneeByDept(year).then(payload => {
+    function loadAssignee(year, site) {
+      fetchAssigneeByDept(year, site).then(payload => {
         const seriesData = Array.isArray(payload.data) ? payload.data : [];
         const maxVal = Math.max(0, payload.max || 0);
 
-        // --- X-axis scaling: 0, 5, 10, 15 ... ---
         const STEP = 5;
         const xMax = Math.max(STEP, STEP * Math.ceil(maxVal / STEP));
         const tickAmount = Math.max(2, xMax / STEP);
@@ -284,9 +287,7 @@
         charts.assignee.updateOptions({
           chart: { animations: CHART_ANIMS },
           xaxis: {
-            min: 0,
-            max: xMax,
-            tickAmount,
+            min: 0, max: xMax, tickAmount,
             decimalsInFloat: 0,
             title: { text: 'Count', style: { color: TOKENS.MUTED, fontWeight: 700 } },
             labels: { style: { colors: TOKENS.MUTED }, formatter: int }
@@ -357,17 +358,20 @@
     }
 
     function updateCharts() {
-      // Refresh monthly & pies using selected year
+      // Monthly & pies remain year-only (unchanged)
       loadMonthly(state.year);
       loadReplyAndClosing(state.year);
 
-      // Refresh assignee-by-department chart (also by year)
-      loadAssignee(state.year);
+      // Assignee now depends on year + site
+      loadAssignee(state.year, state.site);
     }
 
     /* ------- TOOLBAR BINDING ------- */
     if (els.siteSelect) {
-      els.siteSelect.addEventListener('change', () => { state.site = els.siteSelect.value; updateCharts(); });
+      els.siteSelect.addEventListener('change', () => {
+        state.site = els.siteSelect.value;
+        updateCharts();
+      });
     }
     if (els.yearSelect) {
       els.yearSelect.addEventListener('change', () => { state.year = els.yearSelect.value; updateCharts(); });

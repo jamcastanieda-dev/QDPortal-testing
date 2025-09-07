@@ -79,7 +79,7 @@ try {
   $stmt->close();
 
   // ---- Rows (now includes originator_name)
-  $sql = "SELECT
+$sql = "SELECT
           id,
           rcpa_type,
           category,
@@ -88,11 +88,14 @@ try {
           status,
           originator_name,
           assignee,
-          close_due_date          -- NEW
+          section,                -- NEW
+          close_due_date
         FROM rcpa_request
         $whereSql
         ORDER BY id DESC
         LIMIT ? OFFSET ?";
+
+
 
   $stmt = $conn->prepare($sql);
   if (!$stmt) throw new Exception('MySQLi prepare failed: ' . $conn->error);
