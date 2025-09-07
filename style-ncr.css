@@ -1,0 +1,1228 @@
+/* Content Container styling */
+.container {
+  /* Adjust for the sidebar's width */
+  padding: 20px;
+  background-color: white;
+  /* White background */
+  border: 1px solid #ccc;
+  /* Light gray border */
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  /* Subtle shadow for a soft effect */
+  position: relative;
+  /* Relative positioning for button */
+  margin: 20px;
+  height: calc(100% - 200px);
+}
+
+/* Create Button */
+.create-button {
+  position: absolute;
+  /* Position the button inside the container */
+  top: 20px;
+  /* Place the button at the top */
+  right: 20px;
+  /* Align the button to the right */
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  /* Green color */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.5s ease;
+  transition-property: background-color, transform, box-shadow;
+  font-weight: bold;
+}
+
+.create-button:hover {
+  background-color: #45a049;
+  /* Slightly darker green when hovering */
+  transform: scale(1.05);
+  box-shadow: 5px 5px 5px rgba(76, 175, 80, 0.5);
+}
+
+.create-button:active {
+  transform: scale(0.9);
+}
+
+/* Modal Styling */
+.modal {
+  display: none;
+  /* Hidden by default */
+  position: fixed;
+  /* Fixed at the top of the page */
+  left: 0;
+  top: -150px;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  /* Semi-transparent background */
+  z-index: 2;
+  /* Ensure it's above other content */
+  opacity: 0;
+  /* Initially hidden */
+  transition: opacity 0.3s ease;
+  /* Add transition for opacity */
+}
+
+.modal.show {
+  display: block;
+  opacity: 1;
+}
+
+/* Modal content */
+.modal-content {
+  background-color: white;
+  margin: 2% auto;
+  /* Center vertically and horizontally */
+  padding: 20px;
+  border: 1px solid #888;
+  width: 75%;
+  max-height: 85vh;
+  /* Limit height to 90% of viewport height */
+  overflow-y: auto;
+  /* Enable vertical scrolling when needed */
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+/* Close button inside the container with red background */
+.close-btn {
+  /* Red background */
+
+  color: #99f;
+  /* White text color */
+  font-size: 40px;
+  font-weight: bold;
+  border: none;
+  /* No border */
+  cursor: pointer;
+  position: absolute;
+  /* Position it inside the container */
+  top: 0;
+  /* Adjust vertical position */
+  right: 20px;
+  /* Adjust horizontal position */
+  padding: 3px 10px;
+  /* Reduced padding for smaller height */
+  border-radius: 5px;
+  /* Rounded corners for the close button */
+}
+
+.close-btn:hover,
+.close-btn:focus {
+  /* Dark red background on hover */
+  color: #0350A1;
+  /* White text on hover */
+  text-decoration: none;
+}
+
+/* New Modal Container */
+.modal-container {
+  border: 1px solid #ccc;
+  padding: 20px;
+  margin: 20px 10px;
+  border-radius: 8px;
+  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Column styling */
+.modal-column {
+  width: 48%;
+  flex: 1 1 30%;
+  /* Flexbox layout to fit three columns */
+}
+
+/* Large label styling */
+.large-label {
+  font-size: 24px;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.left-title {
+  float: left;
+}
+
+/* Medium label styling */
+.medium-label,
+.order-label {
+  font-size: 18px;
+  font-weight: bold;
+  margin-right: 10px;
+
+}
+
+/* Large label styling */
+.medium-label-underline {
+  font-size: 18px;
+  font-weight: bold;
+  margin-right: 10px;
+  text-decoration: underline;
+}
+
+.medium-label {
+  float: left;
+}
+
+/* Textbox styling */
+.textbox {
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  width: 100%;
+  /* Full width of the column */
+}
+
+/* Row and Column Flex layout fixes */
+.modal-row {
+  display: flex;
+  gap: 20px;
+}
+
+.underline-input {
+  border: none;
+  border-bottom: 1px solid #000;
+  outline: none;
+  margin-left: 5px;
+  transition: border-bottom 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.long-underline-input {
+  border: none;
+  border-bottom: 1px solid #000;
+  outline: none;
+  margin-left: 5px;
+  transition: border-bottom 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  width: 50%;
+}
+
+/* Specific styling for checkbox rows */
+.modal-row.checkbox-row {
+  gap: 10px;
+  margin: 8px 0;
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+}
+
+textarea {
+  resize: none;
+  width: 100%;
+  height: 120px;
+  font-size: 16px;
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+
+/* Add these new styles */
+.checkbox-row {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
+.checkbox-row .checkbox-item {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Existing styles */
+.checkbox-container-left {
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+
+/* PPIC Section Styling */
+.ppic-section {
+  padding: 10px 0;
+}
+
+.ppic-row {
+  display: flex;
+  flex-wrap: wrap;
+  /* Allow wrapping on smaller screens */
+  gap: 20px;
+  /* Consistent spacing between fields */
+  align-items: flex-start;
+  /* Align items at the top */
+}
+
+.ppic-field {
+  display: flex;
+  flex-direction: column;
+  /* Stack label and input vertically */
+  flex: 1 1 45%;
+  /* Each field takes roughly half the width, with flexibility */
+  min-width: 200px;
+  /* Minimum width to prevent squashing */
+}
+
+.ppic-field label {
+  margin-bottom: 5px;
+  /* Space between label and input */
+  white-space: nowrap;
+  /* Prevent label text from wrapping */
+}
+
+.ppic-input {
+  padding: 8px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  width: 100%;
+  /* Full width of the container */
+  box-sizing: border-box;
+  /* Include padding and border in width */
+}
+
+/* Ensure consistent indentation */
+.indent {
+  margin-left: 20px;
+}
+
+.indent-twice {
+  margin-left: 40px;
+}
+
+/* Three-column layout styling */
+.three-column-container {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.three-column-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* Vertically center all items */
+  gap: 20px;
+  /* Consistent spacing between columns */
+  margin-bottom: 15px;
+}
+
+.three-column-item {
+  flex: 1;
+  /* Equal width for all columns */
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  /* Prevent overflow */
+}
+
+/* Text input column */
+.text-input-column {
+  justify-content: flex-start;
+}
+
+.label-input-pair {
+  display: flex;
+  align-items: center;
+  /* Vertically center label and textbox */
+  gap: 10px;
+  /* Space between label and textbox */
+  width: 100%;
+  padding: 5px 0;
+}
+
+.label-input-pair label {
+  white-space: nowrap;
+  /* Prevent label wrapping */
+  flex-shrink: 0;
+  /* Prevent label from shrinking */
+  line-height: 1;
+  /* Consistent line height */
+  padding: 0;
+  /* Remove any default padding */
+  padding: 10px 0;
+}
+
+/* Checkbox column */
+.checkbox-column {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Space between checkbox and label */
+  white-space: nowrap;
+}
+
+.checkbox-column input[type="checkbox"] {
+  margin: 0;
+  flex-shrink: 0;
+  width: 16px;
+  /* Consistent checkbox size */
+  height: 16px;
+  vertical-align: middle;
+  /* Ensure checkbox aligns with text */
+}
+
+.checkbox-column label {
+  line-height: 1;
+  /* Match textbox height */
+  padding: 0;
+  /* Remove any default padding */
+}
+
+/* Base textbox styling */
+.small-textbox {
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  padding: 10px 12px;
+  /* Consistent padding, reduced slightly for better fit */
+  box-sizing: border-box;
+  line-height: 1;
+  /* Match label and checkbox height */
+  width: 100%;
+  margin: 2px;
+}
+
+/* Wrapper for table to control overflow */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  /* Horizontal scrolling if needed */
+  margin-top: 15px;
+}
+
+/* Table styling */
+.approvals-table {
+  width: 100%;
+  max-width: 100%;
+  /* Ensure it doesn't exceed container */
+  border-collapse: collapse;
+  table-layout: auto;
+  /* Allow columns to adjust based on content */
+}
+
+.approvals-table th,
+.approvals-table td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+  min-width: 100px;
+  /* Minimum width for readability */
+}
+
+.approvals-table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+  white-space: nowrap;
+  /* Prevent header text wrapping */
+}
+
+.approvals-table td {
+  vertical-align: middle;
+}
+
+/* Input and Select styling */
+.table-input,
+.table-select {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 12px;
+  background-color: white;
+}
+
+.table-select {
+  cursor: pointer;
+}
+
+.table-select:hover,
+.table-input:hover {
+  border-color: #999;
+}
+
+.table-select:focus,
+.table-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 3px rgba(76, 175, 80, 0.5);
+}
+
+/* Row styling */
+.approvals-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.approvals-table tr:hover {
+  background-color: #f5f5f5;
+}
+
+/* Upload Button */
+.upload-btn {
+  background-color: #0350A1;
+  color: white;
+  border: 2px solid #07326A;
+  padding: 6px 12px;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.upload-btn:hover {
+  transform: scale(1.05);
+  background-color: #07326A;
+}
+
+.upload-btn:active {
+  transform: scale(0.95);
+  background-color: #0350A1;
+}
+
+.upload-btn .fas.fa-caret-up {
+  font-size: 16px;
+}
+
+/* Custom File Upload Container */
+.custom-file-upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+/* Drop Zone Styling */
+.drop-zone {
+  border: 2px dashed #ccc;
+  padding: 20px;
+  text-align: center;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  cursor: pointer;
+}
+
+.drop-zone.active {
+  background-color: #f0f0f0;
+  border-color: #4CAF50;
+}
+
+/* File List Styling */
+#ncr-file-list,
+#assignee-file-list {
+  list-style: none;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#ncr-file-list li,
+#assignee-file-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+#ncr-file-list button,
+#assignee-file-list button {
+  background: none;
+  border: none;
+  color: red;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+#ncr-file-list button:hover,
+#assignee-file-list button:hover {
+  color: darkred;
+}
+
+/* Confirm Button Styling */
+#ncr-confirm-button,
+#assignee-confirm-button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+#ncr-confirm-button:hover,
+#assignee-confirm-button:hover {
+  background-color: #45a049;
+}
+
+.date-style {
+  width: 100%;
+  font-size: 14px;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+/* Table Container Styling */
+.table-container {
+  width: 100%;
+  max-height: 425px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-top: 15px;
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* NCR Table Styling */
+.ncr-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-family: 'Arial', sans-serif;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Table Headers */
+.ncr-table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+  vertical-align: middle;
+  color: #333;
+}
+
+/* NCR No */
+.ncr-table th:nth-child(1),
+.ncr-table td:nth-child(1) {
+  width: 5%;
+}
+
+/* WBS */
+.ncr-table th:nth-child(2),
+.ncr-table td:nth-child(2) {
+  width: 10%;
+}
+
+/* Description */
+.ncr-table th:nth-child(3),
+.ncr-table td:nth-child(3) {
+  width: 20%;
+}
+
+/* Requestor */
+.ncr-table th:nth-child(4),
+.ncr-table td:nth-child(4) {
+  width: 10%;
+}
+
+/* Assignee */
+.ncr-table th:nth-child(5),
+.ncr-table td:nth-child(5) {
+  width: 10%;
+}
+
+/* Date of Request */
+.ncr-table th:nth-child(6),
+.ncr-table td:nth-child(6) {
+  width: 15%;
+}
+
+/* Status */
+.ncr-table th:nth-child(7),
+.ncr-table td:nth-child(7) {
+  width: 15%;
+}
+
+/* Action */
+.ncr-table th:nth-child(8),
+.ncr-table td:nth-child(8) {
+  width: 10%;
+}
+
+/* History */
+.ncr-table th:nth-child(9),
+.ncr-table td:nth-child(9) {
+  width: 5%;
+}
+
+
+/* Table Cells */
+.ncr-table td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  vertical-align: middle;
+}
+
+/* Alternating Row Colors */
+.ncr-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* Hover Effect */
+.ncr-table tr:hover {
+  background-color: #e6f7ff;
+}
+
+.history-button {
+  font-size: 16px;
+  color: #0350A1;
+  cursor: pointer;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.status-requested {
+  background-color: #ccccff;
+  color: #023f7d;
+  font-weight: bold;
+}
+
+/* Styling for Closed Rows */
+.closed-row {
+  background-color: #e0e0e0;
+  color: #666;
+}
+
+/* Ensure Closed Rows Don’t Change on Hover */
+.closed-row:hover {
+  background-color: #e0e0e0;
+}
+
+/* Styling for the CLOSED Label */
+.closed-label {
+  display: inline-block;
+  padding: 6px 12px;
+  background-color: #b0b0b0;
+  color: white;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Styling for the View Button */
+.view-btn {
+  padding: 6px 23px;
+  background-color: #0350A1;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.view-btn:hover {
+  background-color: #023f7d;
+  transform: scale(1.05);
+}
+
+.view-btn:active {
+  transform: scale(1);
+}
+
+/* Center the Button/Label in the Last Column */
+.ncr-table td:last-child {
+  text-align: center;
+  vertical-align: middle;
+}
+
+h2 {
+  color: #07326A;
+  margin-left: 30px;
+}
+
+#reworkSections {
+  display: none;
+}
+
+.radio-group {
+  padding-left: 20px;
+  padding-top: 20px;
+  text-align: left;
+}
+
+#replacementTable,
+#view_replacementTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+#replacementTable th,
+#view_replacementTable th,
+#replacementTable td,
+#view_replacementTable td {
+  border: 1px solid #ccc;
+  padding: 5px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+#replacementTable th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+/* Column widths */
+#replacementTable th:nth-child(1),
+#replacementTable td:nth-child(1) {
+  width: 15%;
+}
+
+/* P.N. */
+#replacementTable th:nth-child(2),
+#replacementTable td:nth-child(2) {
+  width: 50%;
+}
+
+/* Specifications */
+#replacementTable th:nth-child(3),
+#replacementTable td:nth-child(3) {
+  width: 10%;
+}
+
+/* Quantity */
+#replacementTable th:nth-child(4),
+#replacementTable td:nth-child(4) {
+  width: 10%;
+}
+
+/* Unit */
+#replacementTable th:nth-child(5),
+#replacementTable td:nth-child(5) {
+  width: 15%;
+  text-align: center;
+}
+
+/* Action */
+#view_replacementTable th:nth-child(1),
+#view_replacementTable td:nth-child(1) {
+  width: 20%;
+}
+
+/* P.N. */
+#view_replacementTable th:nth-child(2),
+#view_replacementTable td:nth-child(2) {
+  width: 50%;
+}
+
+/* Specifications */
+#view_replacementTable th:nth-child(3),
+#view_replacementTable td:nth-child(3) {
+  width: 15%;
+}
+
+/* Quantity */
+#view_replacementTable th:nth-child(4),
+#view_replacementTable td:nth-child(4) {
+  width: 15%;
+}
+
+/* Unit */
+
+/* Input and Textarea styling */
+#replacementTable .textbox,
+#view_replacementTable .textbox,
+#replacementTable .textarea,
+#view_replacementTable .textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+#replacementTable .textarea,
+#view_replacementTable .textarea {
+  resize: none;
+  font-size: 14px;
+  height: 35px;
+  overflow: hidden;
+}
+
+#view_replacementTable .textbox:disabled,
+#view_replacementTable .textarea:disabled {
+  background-color: #f0f0f0;
+  color: #666;
+  border: 1px solid #ccc;
+}
+
+/* Minus icon */
+.minus-icon {
+  cursor: pointer;
+  color: #ff0000;
+  font-size: 16px;
+  padding: 5px;
+}
+
+.minus-icon:hover {
+  color: #cc0000;
+}
+
+/* Add Row button */
+#addRowBtn {
+  background-color: #4CAF50;
+  color: white;
+  padding: 8px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+#addRowBtn:hover {
+  background-color: #45a049;
+}
+
+.status-label {
+  font-size: 14px;
+  position: relative;
+  bottom: 5px;
+}
+
+#view_attachments a.attachment-link,
+#view_pmo_attachments a.attachment-link {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background-color: #4CAF50;
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  font-size: 16px;
+  transition: background-color 0.3s;
+  margin: 10px 20px;
+}
+
+
+#view_attachments a.attachment-link:hover,
+#view_pmo_attachments a.attachment-link:hover {
+  background-color: #17772C;
+}
+
+.status-rejected {
+  background-color: #ffcccc;
+  color: #d8000c;
+  font-weight: bold;
+}
+
+.status-released {
+  background-color: #65ee83;
+  color: #17772C;
+  font-weight: bold;
+}
+
+#reject-remarks {
+  min-height: 150px;
+  /* Adjust as needed */
+  width: 100%;
+  resize: none;
+}
+
+.search-container {
+  position: relative;
+  width: 100%;
+  display: none;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.search-container.visible {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dropdown-container {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ccc;
+  z-index: 9999;
+  display: none;
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-container.visible {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.option {
+  padding: 8px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s ease;
+}
+
+.option:last-child {
+  border-bottom: none;
+}
+
+.option:hover {
+  background-color: #f0f0f0;
+}
+
+/* Styling for the View Button */
+.fill-btn {
+  padding: 6px 23px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.fill-btn:hover {
+  background-color: #45a049;
+  transform: scale(1.05);
+}
+
+.fill-btn:active {
+  transform: scale(1);
+}
+
+.file-modal-content {
+  background-color: white;
+  margin: 2% auto;
+  /* Center vertically and horizontally */
+  padding: 20px;
+  border: 1px solid #888;
+  width: 60%;
+  max-height: 85vh;
+  /* Limit height to 90% of viewport height */
+  overflow-y: auto;
+  /* Enable vertical scrolling when needed */
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+  top: 15%;
+}
+
+.file-close-btn {
+  background-color: red;
+  /* Red background */
+  color: white;
+  /* White text color */
+  font-size: 24px;
+  font-weight: bold;
+  border: none;
+  /* No border */
+  cursor: pointer;
+  position: fixed;
+  /* Position it inside the container */
+  top: 17%;
+  /* Adjust vertical position */
+  right: 17%;
+  /* Adjust horizontal position */
+  padding: 3px 10px;
+  /* Reduced padding for smaller height */
+  border-radius: 5px;
+  /* Rounded corners for the close button */
+}
+
+.file-close-btn:hover,
+.file-close-btn:focus {
+  background-color: darkred;
+  /* Dark red background on hover */
+  color: white;
+  /* White text on hover */
+  text-decoration: none;
+}
+
+#view_ncr_no {
+  color: red;
+}
+
+.huge-label {
+  font-size: 32px;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem 1rem;
+}
+
+.checkbox-grid label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: sans-serif;
+  font-size: 18px;
+}
+
+/* Media Query */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    margin: 10px auto;
+  }
+}
+
+/* Responsive Design with Media Queries */
+@media (max-width: 768px) {
+
+  .ncr-table th,
+  .ncr-table td {
+    padding: 6px;
+    min-width: 80px;
+    /* Adjusted for smaller screens */
+  }
+}
+
+@media (max-width: 480px) {
+  .ncr-table {
+    font-size: 12px;
+    /* Smaller text */
+  }
+
+  .ncr-table th,
+  .ncr-table td {
+    padding: 4px;
+    min-width: 60px;
+    /* Further reduced */
+  }
+}
+
+@media (max-width: 768px) {
+  .file-upload-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .file-upload-btn {
+    width: 100%;
+    padding: 8px 15px;
+    font-size: 12px;
+  }
+
+  .file-name-display {
+    width: 100%;
+    max-width: none;
+    /* Full width on smaller screens */
+  }
+}
+
+@media (max-width: 768px) {
+
+  .approvals-table th,
+  .approvals-table td {
+    padding: 6px;
+    min-width: 80px;
+    /* Reduced minimum width for smaller screens */
+  }
+
+  .table-input,
+  .table-select {
+    font-size: 11px;
+  }
+
+  .modal-container {
+    padding: 10px;
+    /* Reduce padding on smaller screens */
+  }
+}
+
+@media (max-width: 480px) {
+  .approvals-table {
+    font-size: 12px;
+  }
+
+  .approvals-table th,
+  .approvals-table td {
+    padding: 4px;
+    min-width: 60px;
+    /* Further reduced for very small screens */
+  }
+}
+
+@media (max-width: 768px) {
+  .three-column-row {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .three-column-item {
+    width: 100%;
+  }
+
+  .label-input-pair {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .inline-textbox {
+    max-width: none;
+    flex-grow: 1;
+  }
+
+  .checkbox-column {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .ppic-row {
+    flex-direction: column;
+    /* Stack fields vertically on small screens */
+  }
+
+  .ppic-field {
+    flex: 1 1 100%;
+    /* Full width on small screens */
+  }
+}

@@ -1,0 +1,378 @@
+/* General Styles */
+body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    padding: 10px;
+    background-image: url('images/abstract-background.jpg');
+    background-repeat: no-repeat;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+/* Wrapper for the two-column layout with a max-width */
+.page-layout {
+    display: flex;
+    width: 90%;
+    max-width: 900px;
+    /* limit overall width */
+    min-height: 80vh;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+/* Column 1: Login Container */
+.login-container {
+    background-color: #fff;
+    padding: 40px 20px;
+    width: 300px;
+    /* fixed width; adjust if needed */
+}
+
+/* Two-column layout for logo and label in the login container */
+.two-column-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 5px solid #034892;
+    border-radius: 20px;
+    transition: all 0.5s ease;
+    /* increased margin for clarity */
+}
+
+.two-column-layout:hover {
+    box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5);
+    transform: scale(1.05);
+    transform: translate(-5px, -5px);
+}
+
+/* Company Logo Styles */
+.company-logo-image {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.company-logo {
+    display: block;
+    margin: 0 auto;
+    max-height: 45px;
+    background-color: #fff;
+    border-radius: 10px;
+}
+
+/* System Label Styles */
+.system-label h2 {
+    color: #034892;
+    text-align: center;
+    font-size: 24px;
+    /* slightly reduced size */
+}
+
+/* Header Text */
+.system-title {
+    color: #034892;
+    text-align: center;
+    font-size: 16px;
+    padding: 10px 0;
+}
+
+/* Input Styles */
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+    font-weight: bold;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+}
+
+.input-group select {
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,\%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%204%205'%3E%3Cpath%20fill='%23666'%20d='M2%200L0%202h4zm0%205L0%203h4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 8px 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
+}
+
+.input-group select:focus {
+  border-color: #257EAF;
+  box-shadow: 2px 2px 10px rgba(0, 123, 255, 0.3);
+  outline: none;
+}
+
+.input-group select option[value=""] {
+  color: #888;
+}
+
+/* Button Styles */
+.login-button {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, #0350A1, #0A84FF);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: transform 0.5s ease;
+    z-index: 0;
+}
+
+.login-button:hover {
+    transform: scale(1.02);
+}
+
+.login-button::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #0A84FF, #0350A1);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: 1;
+}
+
+.login-button:hover::before {
+    opacity: 1;
+}
+
+.login-button span {
+    position: relative;
+    z-index: 2;
+    color: #fff;
+}
+
+/* Input Focus */
+input {
+    transition: all 0.3s ease-in-out;
+}
+
+input:focus {
+    border-color: #257EAF;
+    box-shadow: 2px 2px 10px rgba(0, 123, 255, 0.3);
+    outline: none;
+}
+
+/* Column 2: Info Panel (Background with Overlay) */
+.info-panel {
+    flex: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    min-width: 250px;
+    /* ensure a minimum size */
+}
+
+.info-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #0A84FF, #0350A1);
+    backdrop-filter: blur(6px);
+    z-index: 1;
+}
+
+/* Wrapper for the floating circles, placed at the back */
+.floating-circles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+}
+
+/* Base style for floating circles */
+.floating-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgb(170, 212, 255), rgba(79, 158, 243, 0.8));
+    opacity: 0.7;
+}
+
+/* Individual circle positions, sizes, and animations */
+.circle1 {
+    width: 250px;
+    height: 250px;
+    top: -10%;
+    left: -10%;
+    animation: float1 12s infinite ease-in-out;
+}
+
+.circle2 {
+    width: 125px;
+    height: 125px;
+    top: 20%;
+    left: 80%;
+    animation: float2 10s infinite ease-in-out;
+}
+
+.circle3 {
+    width: 200px;
+    height: 200px;
+    top: 80%;
+    left: 40%;
+    animation: float3 15s infinite ease-in-out;
+}
+
+.circle4 {
+    width: 100px;
+    height: 100px;
+    top: 80%;
+    left: 10%;
+    animation: float4 8s infinite ease-in-out;
+}
+
+/* Keyframes to slightly move the circles back and forth */
+@keyframes float1 {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    50% {
+        transform: translate(20px, -20px);
+    }
+
+    100% {
+        transform: translate(0, 0);
+    }
+}
+
+@keyframes float2 {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    50% {
+        transform: translate(10px, -25px);
+    }
+
+    100% {
+        transform: translate(0, 0);
+    }
+}
+
+@keyframes float3 {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    50% {
+        transform: translate(10px, -15px);
+    }
+
+    100% {
+        transform: translate(0, 0);
+    }
+}
+
+@keyframes float4 {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    50% {
+        transform: translate(-25px, -35px);
+    }
+
+    100% {
+        transform: translate(0, 0);
+    }
+}
+
+/* Ensure overlay content sits above the floating circles */
+.overlay {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    color: #fff;
+    padding: 20px;
+}
+
+
+.welcome-img {
+    max-width: 100px;
+    /* reduced image size */
+    margin: 0;
+}
+
+.info-label {
+    font-size: 2rem;
+    /* slightly smaller text */
+    font-weight: bold;
+    color: #fff;
+    margin: 0;
+}
+
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: #0A84FF;
+    transform: scale(0);
+    opacity: 0.75;
+    animation: ripple-effect 0.6s linear;
+    pointer-events: none;
+}
+
+.ripple-body {
+    position: fixed;
+    z-index: 1000;
+}
+
+@keyframes ripple-effect {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+.toggle-register,
+.toggle-login {
+  margin-top: 12px;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.toggle-register a,
+.toggle-login a {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+#department-group {
+  margin-top: 12px;
+}

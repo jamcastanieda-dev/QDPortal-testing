@@ -1,0 +1,105 @@
+<?php
+// php-backend/rcpa-assignee-approval-tab-counters.php
+header('Content-Type: application/json; charset=UTF-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
+try {
+    // --- Cookie auth ---
+    if (!isset($_COOKIE['user'])) {
+        http_response_code(401);
+        echo json_encode(['ok' => false, 'error' => 'Not authenticated']);
+        exit;
+    }
+    $user = json_decode($_COOKIE['user'], true);
+    if (!$user || !is_array($user)) {
+        http_response_code(401);
+        echo json_encode(['ok' => false, 'error' => 'Invalid user']);
+        exit;
+    }
+    $user_name = trim($user['name'] ?? '');
+
+    // DB
+    require '../../connection.php';
+    if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
+        if (isset($conn) && $conn instanceof mysqli)      $mysqli = $conn;
+        elseif (isset($link) && $link instanceof mysqli)  $mysqli = $link;
+        else                                              $mysqli = @new mysqli('localhost', 'DB_USER', 'DB_PASS', 'DB_NAME');
+    }
+    if (!$mysqli || $mysqli->connect_errno) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'DB unavailable']);
+        exit;
+    }
+
+    // Lookup user's department
+    $department = '';
+    if ($user_name !== '') {
+        $sql = "SELECT department
+                  FROM system_users
+                 WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
+                 LIMIT 1";
+        if ($stmt = $mysqli->prepare($sql)) {
+            $stmt->bind_param('s', $user_name);
+            $stmt->execute();
+            $stmt->bind_result($db_department);
+            if ($stmt->fetch()) $department = (string)$db_department;
+            $stmt->close();
+        }
+    }
+
+    // QA/QMS full visibility
+    $dept_norm = strtolower(trim($department));
+    $is_qms = in_array($dept_norm, ['qms', 'qa'], true);
+
+    $valid_approval   = 0; // status = 'VALID APPROVAL'
+    $invalid_approval = 0; // status = 'IN-VALID APPROVAL'
+
+    if ($is_qms) {
+        // Global counts
+        $sql = "SELECT
+                    SUM(CASE WHEN status = 'VALID APPROVAL'    THEN 1 ELSE 0 END) AS valid_approval,
+                    SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
+                FROM rcpa_request
+                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL')";
+        if ($stmt = $mysqli->prepare($sql)) {
+            $stmt->execute();
+            $stmt->bind_result($v, $nv);
+            if ($stmt->fetch()) {
+                $valid_approval   = (int)($v  ?? 0);
+                $invalid_approval = (int)($nv ?? 0);
+            }
+            $stmt->close();
+        }
+    } elseif ($department !== '') {
+        // Scoped to user's department (assignee)
+        $sql = "SELECT
+                    SUM(CASE WHEN status = 'VALID APPROVAL'    THEN 1 ELSE 0 END) AS valid_approval,
+                    SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
+                FROM rcpa_request
+                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL')
+                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+        if ($stmt = $mysqli->prepare($sql)) {
+            $stmt->bind_param('s', $department);
+            $stmt->execute();
+            $stmt->bind_result($v, $nv);
+            if ($stmt->fetch()) {
+                $valid_approval   = (int)($v  ?? 0);
+                $invalid_approval = (int)($nv ?? 0);
+            }
+            $stmt->close();
+        }
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'is_qms' => $is_qms,
+        'counts' => [
+            'valid_approval'   => $valid_approval,
+            'invalid_approval' => $invalid_approval
+        ]
+    ]);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Server error']);
+}

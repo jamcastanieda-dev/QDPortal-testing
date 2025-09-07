@@ -1,0 +1,200 @@
+/* ===== General Styles ===== */
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f5;
+}
+
+.mrb-header {
+  margin: 50px 30px 0 350px;
+  font-size: 24px;
+  color: #07326A;
+}
+
+.mrb-content-container {
+  margin: 20px 30px 30px 350px;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== Grid & Layout ===== */
+/* Ensure the grid container doesn’t reserve space unnecessarily */
+.input-fields-top {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  align-items: start; /* Prevents stretching of grid rows */
+}
+
+.input-group {
+  margin-bottom: 15px;
+}
+
+.top-form-section .input-group {
+  margin-bottom: 0;
+}
+
+.input-group.full-width {
+  grid-column: span 2;
+}
+
+.input-group.half-width {
+  width: 50%;
+}
+
+.submit-container {
+  text-align: right;
+  margin-top: 20px;
+}
+
+/* ===== Input Elements ===== */
+.input-group label,
+.group-label,
+.extra-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.custom-input,
+select,
+textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+  outline: none;
+}
+
+/* ===== Textareas ===== */
+.text-area-container {
+  margin-bottom: 10px;
+}
+
+textarea {
+  resize: none;
+  height: 100px;
+}
+
+#additional-comments-text {
+  height: 50px;
+}
+
+/* ===== Radio Buttons & Checkboxes ===== */
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* ===== Buttons ===== */
+.submit-btn {
+  background-color: #0350A1;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s ease, transform 0.5s ease;
+}
+
+.submit-btn:hover {
+  background-color: #07326A;
+  transform: scale(1.1);
+}
+
+.submit-btn:active {
+  transform: scale(0.95);
+}
+
+/* ===== File Upload ===== */
+.file-upload-container {
+  display: flex;
+  align-items: center;
+  width: 50%;
+  height: 40px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 8px 12px;
+  background-color: #fff;
+}
+
+.file-display {
+  width: 100%;
+  font-size: 16px;
+  color: #555;
+  margin: 0;
+}
+
+.file-upload-label {
+  margin-left: 8px;
+  cursor: pointer;
+}
+
+/* ===== Caret ===== */
+.caret {
+  color: #0350A1;
+  font-size: 24px;
+  cursor: pointer;
+  margin-top: 5px;
+  transition: transform 0.5s ease, color 0.3s ease;
+}
+
+.caret:hover {
+  color: #07326A;
+  transform: scale(1.1);
+}
+
+.caret:active {
+  transform: scale(1);
+}
+
+/* ===== Additional Specific Styles ===== */
+#customer-approval-select {
+  width: 50%;
+  box-sizing: border-box;
+}
+
+.reason-label {
+  font-weight: bold;
+  margin-top: 20px;
+}
+
+.others-label {
+  font-weight: normal;
+}
+
+/* Add to style-mrb.css */
+
+/* Ensure the container collapses fully and doesn’t leave space */
+#uploadApprovalContainer {
+  opacity: 1;
+  max-height: 100px; /* Matches the natural height of the content */
+  transition: opacity 0.3s ease-in-out, max-height 0.3s ease-in-out;
+  overflow: hidden;
+  margin-bottom: 0; /* Prevent lingering margin when hidden */
+}
+
+/* Hidden state: collapse completely */
+#uploadApprovalContainer.hidden {
+  opacity: 0;
+  max-height: 0;
+  margin: 0; /* Remove any margin that might reserve space */
+  padding: 0; /* Remove padding to avoid residual height */
+}

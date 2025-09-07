@@ -1,0 +1,637 @@
+<style>
+  h2 {
+    color: #07326a;
+    margin-left: 20px;
+  }
+
+  /* Content Container styling */
+  .container {
+    display: flex;
+    flex-direction: column;
+    margin: 0 20px;
+    padding: 20px;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    position: relative;
+    height: 74vh;
+  }
+
+  /* Table Container Styling */
+  .inspection-container {
+    flex: 1 1 auto;
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin-top: 15px;
+    position: relative;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  /* NCR Table Styling */
+  .inspection-table,
+  .ncr-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-family: "Arial", sans-serif;
+    font-size: 12px;
+  }
+
+  /* Table Headers */
+  .inspection-table th,
+  .ncr-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: left;
+    vertical-align: middle;
+    color: #333;
+    text-align: center;
+  }
+
+  .inspection-table th:nth-child(1),
+  .inspection-table td:nth-child(1),
+  .ncr-table th:nth-child(1),
+  .ncr-table td:nth-child(1) {
+    width: 5%;
+  }
+
+  .inspection-table th:nth-child(2),
+  .inspection-table td:nth-child(2),
+  .ncr-table th:nth-child(2),
+  .ncr-table td:nth-child(2) {
+    width: 3%;
+  }
+
+  .inspection-table th:nth-child(3),
+  .inspection-table td:nth-child(3),
+  .ncr-table th:nth-child(3),
+  .ncr-table td:nth-child(3) {
+    width: 3%;
+  }
+
+  .inspection-table th:nth-child(4),
+  .inspection-table td:nth-child(4),
+  .ncr-table th:nth-child(4),
+  .ncr-table td:nth-child(4) {
+    width: 5%;
+  }
+
+  .inspection-table th:nth-child(5),
+  .inspection-table td:nth-child(5),
+  .ncr-table th:nth-child(5),
+  .ncr-table td:nth-child(5) {
+    width: 10%;
+  }
+
+  .inspection-table th:nth-child(6),
+  .inspection-table td:nth-child(6),
+  .ncr-table th:nth-child(6),
+  .ncr-table td:nth-child(6) {
+    width: 25%;
+  }
+
+  .inspection-table th:nth-child(7),
+  .inspection-table td:nth-child(7),
+  .ncr-table th:nth-child(7),
+  .ncr-table td:nth-child(7) {
+    width: 5%;
+  }
+
+  .inspection-table th:nth-child(8),
+  .inspection-table td:nth-child(8),
+  .ncr-table th:nth-child(8),
+  .ncr-table td:nth-child(8) {
+    width: 8%;
+  }
+
+  .inspection-table th:nth-child(9),
+  .inspection-table td:nth-child(9),
+  .ncr-table th:nth-child(9),
+  .ncr-table td:nth-child(9) {
+    width: 8%;
+  }
+
+  .inspection-table th:nth-child(10),
+  .inspection-table td:nth-child(10) {
+    width: 5%;
+  }
+
+  .inspection-table th:nth-child(11),
+  .inspection-table td:nth-child(11) {
+    width: 5%;
+  }
+
+  .inspection-table th:nth-child(12),
+  .inspection-table td:nth-child(12) {
+    width: 10%;
+  }
+
+  .inspection-table th:nth-child(13),
+  .inspection-table td:nth-child(13) {
+    width: 5%;
+  }
+
+  .inspection-table th:nth-child(14),
+  .inspection-table td:nth-child(14) {
+    width: 5%;
+  }
+
+  /* Table Cells */
+  .inspection-table td,
+  .ncr-table td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  /* Alternating Row Colors */
+  .inspection-table tr:nth-child(even),
+  .ncr-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+
+  /* Hover Effect */
+  .inspection-table tr:hover,
+  .ncr-table tr:hover {
+    background-color: #eeffff;
+  }
+
+  /* Text Align */
+  .inspection-table td,
+  .ncr-table td {
+    text-align: center;
+  }
+
+  #inspection-tbody tr.rti {
+    background-color: #cce5ff;
+    /* light blue */
+  }
+
+  #inspection-tbody tr.ssd {
+    background-color: #e2e3e5;
+    /* light gray */
+  }
+
+  #filter-date {
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    padding: 6px 12px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 160px;
+  }
+
+  .flatpickr-calendar {
+    border: none;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    font-family: "Segoe UI", sans-serif;
+  }
+
+  .flatpickr-day.today {
+    background: #3b82f6;
+    color: #fff;
+  }
+
+  .flatpickr-day:hover {
+    background: #bfdbfe;
+    color: #111;
+  }
+
+  .flatpickr-day.selected,
+  .flatpickr-day.selected:hover {
+    background: #2563eb;
+    color: #fff;
+  }
+
+  #th-date-completed {
+    user-select: none;
+    cursor: pointer;
+  }
+
+  /* Base style for the arrow indicator */
+  .sort-indicator {
+    margin-left: 4px;
+    font-size: 0.8em;
+    transition: transform 0.2s, color 0.2s;
+  }
+
+  /* When in “descending” state: rotate and color it red */
+  #th-date-completed.sorted-desc .sort-indicator {
+    transform: rotate(180deg);
+    color: #c0392b;
+  }
+
+  /* When in “ascending” state: no rotation, color it green */
+  #th-date-completed.sorted-asc .sort-indicator {
+    transform: rotate(0deg);
+    color: #27ae60;
+  }
+
+  /* Create Button */
+  .create-button {
+    position: absolute;
+    right: 20px;
+    /* Align the button to the right */
+    padding: 10px 20px;
+    background-color: #4caf50;
+    /* Green color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.5s ease;
+    transition-property: background-color, transform, box-shadow;
+    font-weight: bold;
+  }
+
+  .create-button:hover {
+    background-color: #45a049;
+    /* Slightly darker green when hovering */
+    transform: scale(1.05);
+    box-shadow: 5px 5px 5px rgba(76, 175, 80, 0.5);
+  }
+
+  .create-button:active {
+    transform: scale(0.9);
+  }
+
+  .create-ncr-btn-container {
+    text-align: right;
+    margin-bottom: 20px;
+  }
+
+  .create-ncr-btn {
+    padding: 10px 20px;
+    background-color: #4caf50;
+    /* Green color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.5s ease;
+    transition-property: background-color, transform, box-shadow;
+    font-weight: bold;
+  }
+
+  .create-ncr-btn:hover {
+    background-color: #45a049;
+    /* Slightly darker green when hovering */
+    transform: scale(1.05);
+    box-shadow: 5px 5px 5px rgba(76, 175, 80, 0.5);
+  }
+
+  .create-ncr-btn:active {
+    transform: scale(0.9);
+  }
+
+  .view-button {
+    padding: 6px 23px;
+    background-color: #0350a1;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+
+  .view-button:hover {
+    background-color: #023f7d;
+    transform: scale(1.05);
+  }
+
+  .view-button:active {
+    transform: scale(1);
+  }
+
+  .status-requested {
+    background-color: #ccccff;
+    color: #023f7d;
+    font-weight: bold;
+  }
+
+  .status-pending {
+    background-color: #ffcccc;
+    color: #d8000c;
+    font-weight: bold;
+  }
+
+  .status-for-reschedule {
+    background-color: #ffcc99;
+    color: #cc6600;
+    font-weight: bold;
+  }
+
+  .status-rescheduled,
+  .status-pass-fail {
+    background-color: #b266ff;
+    color: #4c0099;
+    font-weight: bold;
+  }
+
+  .status-completed,
+  .status-passed {
+    background-color: #99ff99;
+    color: #009900;
+    font-weight: bold;
+  }
+
+  .status-rejected,
+  .status-failed {
+    background-color: #fda7a7;
+    color: #500c0c;
+    font-weight: bold;
+  }
+
+  .status-cancelled {
+    background-color: #c0c0c0;
+    color: #606060;
+    font-weight: bold;
+  }
+
+  .status-for-approval {
+    background-color: #9cf;
+    color: #004c99;
+    font-weight: bold;
+  }
+
+  .reschedule-button {
+    position: absolute;
+    right: 40px;
+    padding: 10px 20px;
+    background-color: #4caf50;
+    /* Green color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.5s ease;
+    transition-property: background-color, transform, box-shadow;
+    font-weight: bold;
+  }
+
+  .reschedule-button:hover {
+    background-color: #45a049;
+    /* Slightly darker green when hovering */
+    transform: scale(1.05);
+    box-shadow: 5px 5px 5px rgba(76, 175, 80, 0.5);
+  }
+
+  .reschedule-button:active {
+    transform: scale(0.9);
+  }
+
+  .icon-clock {
+    font-size: 18px;
+    margin-right: 10px;
+  }
+
+  /* container for pages */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    list-style: none;
+    padding: 0;
+    margin: 1em 0 0;
+  }
+
+  /* generic page link and arrows */
+  .pagination li {
+    margin: 0 5px;
+    padding: 4px 8px;
+    color: #0350a1;
+    background-color: #fff;
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+  }
+
+  /* style the arrow items */
+  .pagination li.arrow {
+    font-weight: bold;
+  }
+
+  /* current page */
+  .pagination li.active {
+    background-color: #0350a1;
+    color: #fff;
+    border: none;
+    cursor: default;
+  }
+
+  /* disable arrow when at ends */
+  .pagination li.disabled {
+    color: #aaa;
+    cursor: default;
+  }
+
+  /* Jump-to controls */
+  .jump-to {
+    margin-top: 0.5em;
+    text-align: center;
+    font-size: 0.9em;
+  }
+
+  .jump-to input[type="number"] {
+    width: 100px;
+    border: none;
+    border-bottom: 1px solid #333;
+    text-align: center;
+    margin: 0 0.2em;
+    font-size: 1em;
+  }
+
+  .jump-to input:focus {
+    outline: none;
+  }
+
+  .input-with-icon {
+    position: relative;
+    display: inline-block;
+  }
+
+  .input-with-icon input {
+    width: 3em;
+    padding-right: 1.8em;
+    /* room for the icon */
+    border: none;
+    border-bottom: 1px solid #333;
+    text-align: center;
+    font-size: 1em;
+  }
+
+  .input-with-icon input:focus {
+    outline: none;
+  }
+
+  .input-with-icon .fa-magnifying-glass {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    /* so clicks go to the input */
+    color: #0350a1;
+    font-size: 0.9em;
+  }
+
+  .immovable {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    /* ← stack children vertically */
+    align-items: center;
+    /* center horizontally */
+    justify-content: flex-start;
+    /* push them toward the top */
+    padding-top: 1em;
+    /* optional spacing from top */
+  }
+
+
+
+
+  .history-button {
+    font-size: 16px;
+    color: #0350a1;
+    cursor: pointer;
+    transition: color 0.3s ease, transform 0.3s ease;
+  }
+
+  .history-button:hover {
+    color: #023f7d;
+    transform: scale(1.1);
+  }
+
+  .history-button:active {
+    transform: scale(1);
+  }
+
+  .inspection-filters {
+    display: flex;
+    gap: 1em;
+    align-items: center;
+    margin: 0 0 1em;
+    flex-wrap: wrap;
+  }
+
+  .inspection-filters label {
+    margin-right: 0.25em;
+    font-weight: bold;
+  }
+
+  .inspection-filters input,
+  .inspection-filters select {
+    padding: 0.25em 0.5em;
+    font-size: 1em;
+  }
+
+  .tooltip-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  .unviewed-request {
+    color: #f00;
+    background-color: #ff6;
+    border-radius: 50%;
+    font-size: 12px;
+    padding: 5px 10px;
+    position: relative;
+    left: -10px;
+  }
+
+  .viewed-request {
+    color: #fff;
+    background-color: #0f0;
+    border-radius: 50%;
+    font-size: 12px;
+    padding: 5px;
+    position: relative;
+    left: -10px;
+  }
+
+  .tooltip-text {
+    visibility: hidden;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 5px;
+    font-size: 12px;
+
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 200%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    white-space: nowrap;
+  }
+
+  .tooltip-container:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 1em 0;
+    justify-content: center;
+    font-family: sans-serif;
+  }
+
+  .pagination li {
+    margin: 0 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    user-select: none;
+    transition: background-color 0.2s;
+  }
+
+  .pagination li:hover:not(.active):not(.disabled):not(.ellipsis) {
+    background-color: #e0e0e0;
+  }
+
+  .pagination li.active {
+    background-color: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+    cursor: default;
+  }
+
+  .pagination li.disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .pagination li.nav {
+    font-weight: bold;
+  }
+
+  .pagination li.ellipsis {
+    cursor: default;
+    border: none;
+    padding: 6px;
+  }
+</style>

@@ -1,0 +1,205 @@
+body {
+    overflow: hidden;
+}
+
+h2 {
+    color: #07326A;
+}
+
+/* CSS */
+.rfd-content-container {
+    margin: 20px 30px 30px 320px;
+}
+
+.rfd-container {
+    border: 1px solid #ccc;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px;
+    position: relative;
+    max-height: 450px;
+    background-color: #fff;
+    box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+.input-container {
+    border: 1px solid #ccc; /* Gray border */
+    padding: 15px;          /* Spacing around the content */
+    border-radius: 8px;     /* Rounded corners */
+    margin: 20px;           /* Space around the container */
+    position: relative;
+    height: 150px;          /* Fixed height */
+    overflow-y: auto;       /* Enable vertical scrollbar when content overflows */
+    background-color: #fff;
+    transition: height 0.3s ease-in-out; /* Smooth height adjustment (optional) */
+}
+
+.icon-container {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+.plus-icon-btn, .minus-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #07326A;
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    transition: transform 0.3s ease-in-out, color 0.3s ease-in-out; /* Added transition */
+}
+
+.plus-icon-btn:hover, .minus-icon-btn:hover {
+    color: #0350A1;
+    transform: scale(1.2); /* Slight scale increase on hover */
+}
+
+.plus-icon-btn:active, .minus-icon-btn:active {
+    transform: scale(0.9); /* Slight scale decrease on click */
+}
+
+.input-fields-top {
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.additional-row {
+    margin-top: 15px;
+    opacity: 1; /* Default opacity */
+}
+
+.input-group {
+    display: inline-block;
+    vertical-align: top;
+}
+
+.number-div {
+    width: 15%;
+}
+
+.title-group {
+    width: 50%; /* Increased width for Title/Description */
+}
+
+.input-group:not(.number-div):not(.title-group) {
+    width: 30%;
+}
+
+.custom-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    outline: none;
+}
+
+.short-input {
+    width: 60px;
+    text-align: center;
+}
+
+.number-div {
+    width: 15%;
+    /* Adjusted to make it smaller */
+}
+
+
+/* Plus Icon Styling */
+.plus-icon-btn {
+
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #07326A;
+}
+
+.plus-icon-btn:hover {
+    color: #07326A;
+}
+
+textarea {
+    width: 100%;
+    height: 150px;
+    padding: 10px;
+    font-size: 16px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+    resize: none;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Checkbox Group Container */
+/* Checkbox Container - Flexbox for alignment */
+.checkbox-container {
+    display: flex;
+    margin-top: 15px;
+    align-items: center;
+    justify-content: space-between;
+    /* Align checkboxes left, button right */
+    width: 100%;
+    
+    /* Adjust width as needed */
+}
+
+/* Checkbox Group */
+.checkbox-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    /* Space between checkboxes */
+}
+
+/* Checkbox Label */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    /* Space between checkbox and text */
+}
+
+/* Enhanced Submit Button with Transition */
+.submit-btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    background-color: #0350A1;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transform: scale(1);
+    transition: transform 0.3s ease-in-out, background-color 0.3s ease-in-out;
+  }
+  
+.submit-btn:hover {
+    background-color: #07326A;
+    transform: scale(1.1);
+}
+
+.submit-btn:active {
+    transform: scale(1);
+}
+
+.input-container {
+    border: 1px solid #ccc; /* Gray border */
+    padding: 15px;          /* Spacing around the content */
+    border-radius: 8px;     /* Optional: adds rounded corners */
+    margin: 20px;           /* Optional: space around the container */
+}
+
+.custom-radio {
+    top: -3px;
+}

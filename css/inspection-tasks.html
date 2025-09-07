@@ -1,0 +1,37 @@
+<style>
+    .action-container {
+        position: fixed;
+        background: #f9f9f9;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+        z-index: 100;
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(0);
+        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0s;
+    }
+
+    .action-container.hidden {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateX(20px);
+        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+    }
+
+    .action-btn {
+        padding: 4px 8px;
+        border: none;
+        background: #e0e0e0;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+
+    .action-btn:hover {
+        background: #ccc;
+    }
+</style>

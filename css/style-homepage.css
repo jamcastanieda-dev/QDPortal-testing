@@ -1,0 +1,398 @@
+/* Global Styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Roboto', sans-serif;
+  overflow: hidden;
+}
+
+/* Header Section */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #0350A1;
+  padding: 10px;
+  width: 100%;
+}
+
+.company-logo-image {
+  display: flex;
+  align-items: center;
+  position: fixed;
+  left: 10%;
+}
+
+.company-logo {
+  max-height: 50px;
+  margin-right: 10px;
+  background-color: #fff;
+  border-radius: 10px;
+  padding-left: 3px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.system-title {
+  font-size: 1.5em;
+  color: #fff;
+  font-weight: bold;
+}
+
+.user-profile-section {
+  display: flex;
+  align-items: center;
+  margin-right: 30px;
+}
+
+.profile {
+  margin-right: 10px;
+  text-align: right;
+}
+
+.greetings {
+  font-size: 1.2em;
+  margin: 0;
+  color: #fff;
+}
+
+.date-time {
+  font-size: 0.9em;
+  margin: 0;
+  color: #fff;
+}
+
+.profile-image .user-icon {
+  font-size: 30px;
+  /* adjust icon size inside the circle */
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #fff;
+  /* optional: background to mimic image fill */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0350A1;
+  cursor: pointer;
+}
+
+.module {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  /* Changed to 2 columns instead of 3 */
+  gap: 20px;
+  height: calc(100% - 120px);
+  margin: 20px;
+}
+
+.module-container {
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+  background-color: #fff;
+  padding: 20px;
+  /* Added padding for content spacing */
+  font-size: 20px;
+}
+
+.module-label {
+  color: #07326A;
+  font-weight: bold;
+  padding: 10px;
+  font-size: 24px;
+}
+
+.module-link {
+  display: inline-block;
+  text-decoration: none;
+  color: #07326A;
+  padding: 8px 15px;
+  border: 1px solid #fff;
+  border-radius: 5px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+/* Print Styles */
+@media print {
+  body {
+    display: none;
+  }
+}
+
+.border-module a {
+  display: inline-block;
+  text-align: center;
+  /* Center the text inside the label */
+  width: 100%;
+  /* Ensure the label takes up full width to center it */
+  margin: 0;
+  text-decoration: none;
+  color: #fff;
+  padding: 10px 0;
+  font-weight: bold;
+}
+
+/* Task Badge Styles */
+.task-badge {
+  background-color: #ff4444;
+  color: white;
+  font-size: 0.7em;
+  padding: 2px;
+  /* Equal padding for circle */
+  border-radius: 50%;
+  /* Makes it perfectly circular */
+  float: right;
+  font-weight: bold;
+  width: 18px;
+  /* Fixed width for circle */
+  height: 18px;
+  /* Fixed height for circle */
+  text-align: center;
+  display: inline-flex;
+  /* Changed to inline-flex for centering */
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  top: -15px;
+  /* Moves badge up */
+  left: 20px;
+}
+
+/* Adjust indent class to work with badges */
+.long-indentation {
+  margin-left: 30px;
+  color: #333;
+  line-height: 1.5;
+  /* Adjusts line height for better spacing */
+}
+
+/* Update the existing .level-label class to use flexbox for alignment */
+.level-label {
+  display: flex;
+  align-items: center;
+  background-color: #0350A1;
+  border-radius: 5px;
+  color: #FFF;
+  margin: 5px 0;
+  padding: 0 10px;
+  width: 90%;
+}
+
+/* Add a glowing green circle before each level-label */
+.level-label::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #00ff00;
+  /* Bright green color */
+  margin-right: 5px;
+  /* Space between circle and text */
+  animation: fade 4s ease-in-out infinite;
+  /* Animation for fading and glowing */
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  padding-top: 150px;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  animation: fadeIn 0.2s ease forwards;
+}
+
+/* Modal Content */
+.modal-content {
+  background-color: #fff;
+  margin: auto;
+  padding: 30px;
+  border-radius: 10px;
+  width: 400px;
+  text-align: center;
+  transform: translateY(-20px);
+  opacity: 0;
+  animation: slideIn 0.2s ease forwards;
+}
+
+/* Modal Buttons (As Links) */
+.modal-btn {
+  display: block;
+  width: 100%;
+  margin: 10px 0;
+  background-color: #0350A1;
+  color: white;
+  padding: 10px 0;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.modal-btn:hover {
+  background-color: #07326A;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    background-color: rgba(0, 0, 0, 0);
+  }
+
+  to {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+
+/* Define the fade animation with glow effect */
+@keyframes fade {
+  0% {
+    opacity: 0;
+    box-shadow: none;
+    /* No glow when fully faded */
+  }
+
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 9px 3px #00ff00;
+    /* Strong glow at peak visibility */
+  }
+
+  100% {
+    opacity: 0;
+    box-shadow: none;
+    /* No glow when fully faded again */
+  }
+}
+
+.task-badge {
+  background-color: #ff4444;
+  animation: tasks 5s ease-in-out infinite;
+}
+
+@keyframes tasks {
+  0% {
+    transform: translateY(0px);
+  }
+
+  3% {
+    transform: translateY(-5px);
+  }
+
+  6% {
+    transform: translateY(0px);
+  }
+
+  9% {
+    transform: translateY(-3px);
+  }
+
+  12% {
+    transform: translateY(0px);
+  }
+
+  15% {
+    transform: translateY(-1px);
+  }
+
+  18% {
+    transform: translateY(0px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.short-indentation-task {
+  margin-left: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.short-indentation {
+  margin-left: 30px;
+}
+
+.short-indentation label {
+  font-size: 20px;
+}
+
+.task-button {
+  /* 1. reset only the defaults we need to remove: */
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  /* 2. now re-apply your task styling: */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  background-color: #0350A1;
+  /* MAKE SURE this comes *after* your reset */
+  color: #fff;
+  /* and likewise for your text color */
+  padding: 10px 20px;
+  /* your original padding */
+  margin: 10px 0;
+  /* your original margin */
+  border-radius: 10px;
+  width: 80%;
+
+  box-shadow: 4px 4px rgba(9, 2, 73, 0.3);
+  transition: transform 0.5s ease, box-shadow 0.5s ease;
+}
+
+.task-button:hover {
+  transform: scale(1.05);
+}
+
+.task-button:active {
+  transform: scale(0.95);
+}
+
+.task-icon {
+  font-size: 1.4em;
+  /* tweak as desired */
+  color: #0350A1;
+  background-color: #fff;
+  margin-bottom: 0.5em;
+  padding: 20px;
+  border-radius: 50%;
+}
+
+.task-text {
+  text-align: center;
+  font-size: 24px;
+  color: #fff;
+}

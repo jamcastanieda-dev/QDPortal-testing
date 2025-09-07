@@ -1,0 +1,384 @@
+----
+2025-07-30 14:53:25
+Array
+(
+    [inspection_no] => 2481
+)
+
+Array
+(
+)
+
+----
+2025-07-31 01:26:59
+Array
+(
+    [inspection_no] => 2446
+)
+
+Array
+(
+)
+
+----
+2025-07-31 11:41:24
+Array
+(
+    [inspection_no] => 2486
+)
+
+Array
+(
+)
+
+----
+2025-08-01 08:23:34
+Array
+(
+    [inspection_no] => 2513
+)
+
+Array
+(
+)
+
+----
+2025-08-01 22:47:43
+Array
+(
+    [inspection_no] => 2585
+)
+
+Array
+(
+)
+
+----
+2025-08-02 09:19:18
+Array
+(
+    [inspection_no] => 2570
+)
+
+Array
+(
+)
+
+----
+2025-08-02 13:19:45
+Array
+(
+    [inspection_no] => 2618
+)
+
+Array
+(
+)
+
+----
+2025-08-02 13:20:41
+Array
+(
+    [inspection_no] => 2622
+)
+
+Array
+(
+)
+
+----
+2025-08-02 13:21:18
+Array
+(
+    [inspection_no] => 2623
+)
+
+Array
+(
+)
+
+----
+2025-08-08 02:29:26
+Array
+(
+    [inspection_no] => 2825
+)
+
+Array
+(
+)
+
+----
+2025-08-09 05:56:52
+Array
+(
+    [inspection_no] => 2835
+)
+
+Array
+(
+)
+
+----
+2025-08-09 12:14:10
+Array
+(
+    [inspection_no] => 2700
+)
+
+Array
+(
+)
+
+----
+2025-08-12 18:47:19
+Array
+(
+    [inspection_no] => 2976
+)
+
+Array
+(
+)
+
+----
+2025-08-14 08:35:49
+Array
+(
+    [inspection_no] => 3011
+)
+
+Array
+(
+    [attachments] => Array
+        (
+            [name] => Array
+                (
+                    [0] => JN24-HP054 (U-LINE COS MACHINE) - Sub-Assembly Inspection Report.pdf
+                )
+
+            [type] => Array
+                (
+                    [0] => application/pdf
+                )
+
+            [tmp_name] => Array
+                (
+                    [0] => C:\xampp\tmp\php4730.tmp
+                )
+
+            [error] => Array
+                (
+                    [0] => 0
+                )
+
+            [size] => Array
+                (
+                    [0] => 592383
+                )
+
+        )
+
+)
+
+----
+2025-08-14 14:03:11
+Array
+(
+    [inspection_no] => 3062
+)
+
+Array
+(
+)
+
+----
+2025-08-15 04:00:40
+Array
+(
+    [inspection_no] => 3030
+)
+
+Array
+(
+)
+
+----
+2025-08-15 08:53:06
+Array
+(
+    [inspection_no] => 3089
+)
+
+Array
+(
+    [attachments] => Array
+        (
+            [name] => Array
+                (
+                    [0] => Steam Kettle.png
+                )
+
+            [type] => Array
+                (
+                    [0] => image/png
+                )
+
+            [tmp_name] => Array
+                (
+                    [0] => C:\xampp\tmp\php6F88.tmp
+                )
+
+            [error] => Array
+                (
+                    [0] => 0
+                )
+
+            [size] => Array
+                (
+                    [0] => 700597
+                )
+
+        )
+
+)
+
+----
+2025-08-15 11:25:39
+Array
+(
+    [inspection_no] => 3125
+)
+
+Array
+(
+    [attachments] => Array
+        (
+            [name] => Array
+                (
+                    [0] => Screenshot 2025-08-15 172522.png
+                )
+
+            [type] => Array
+                (
+                    [0] => image/png
+                )
+
+            [tmp_name] => Array
+                (
+                    [0] => C:\xampp\tmp\php1C20.tmp
+                )
+
+            [error] => Array
+                (
+                    [0] => 0
+                )
+
+            [size] => Array
+                (
+                    [0] => 58369
+                )
+
+        )
+
+)
+
+----
+2025-08-15 15:05:27
+Array
+(
+    [inspection_no] => 3132
+)
+
+Array
+(
+)
+
+----
+2025-08-18 07:27:32
+Array
+(
+    [inspection_no] => 3224
+)
+
+Array
+(
+)
+
+----
+2025-08-19 00:27:02
+Array
+(
+    [inspection_no] => 3115
+)
+
+Array
+(
+)
+
+----
+2025-08-19 00:29:17
+Array
+(
+    [inspection_no] => 3118
+)
+
+Array
+(
+)
+
+----
+2025-08-19 00:32:38
+Array
+(
+    [inspection_no] => 3169
+)
+
+Array
+(
+)
+
+----
+2025-08-19 18:39:30
+Array
+(
+    [inspection_no] => 3302
+)
+
+Array
+(
+)
+
+----
+2025-08-19 21:56:58
+Array
+(
+    [inspection_no] => 3134
+)
+
+Array
+(
+)
+
+----
+2025-08-20 00:15:30
+Array
+(
+    [inspection_no] => 3298
+)
+
+Array
+(
+)
+
+----
+2025-08-20 13:59:28
+Array
+(
+    [inspection_no] => 3292
+)
+
+Array
+(
+)
+

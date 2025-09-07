@@ -1,0 +1,139 @@
+<style>
+    /* Tracking Container */
+    .tracking-container {
+        display: flex;
+        justify-content: flex-start;
+        align-items: flex-start;
+        padding: 45px 15px 10px 15px;
+        position: relative;
+        flex-wrap: nowrap; /* Ensure nodes stay in one line */
+        overflow-x: auto; /* Allow horizontal scrolling if needed */
+    }
+
+    /* Add a container for the popup */
+    .tracking-node {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        flex: 0 0 auto;
+        width: 100px;
+    }
+
+    /* Style for the popup name */
+    .tracking-node .node::before {
+        content: attr(data-name); /* We'll use a data attribute for the name */
+        position: absolute;
+        bottom: 30px; /* Position above the node */
+        left: 50%;
+        transform: translateX(-50%) scale(0); /* Start scaled down */
+        background-color: #0350A1;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 10px;
+        white-space: nowrap;
+        opacity: 0;
+        transition: all 0.3s ease; /* Smooth transition */
+        z-index: 2;
+        pointer-events: none; /* Prevent popup from interfering with hover */
+    }
+
+    /* Show popup on hover for connected nodes only */
+    .tracking-node .node:hover::before {
+        transform: translateX(-50%) scale(1); /* Scale up to normal size */
+        opacity: 1;
+    }
+
+    /* Optional: Add a small triangle pointing down to the popup */
+    .tracking-node .node::after {
+        content: '';
+        position: absolute;
+        bottom: 25px; /* Adjust based on popup position */
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 5px solid #0350A1;
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 2;
+    }
+
+    .tracking-node .node:hover::after {
+        opacity: 1;
+    }
+
+    .node {
+        width: 10px;
+        height: 10px;
+        background-color: #0350A1;
+        border-radius: 50%;
+        position: relative;
+        z-index: 1;
+        border: 5px solid #0350A1; /* Initial border matching background */
+        transition: background-color 0.3s ease, border-color 0.3s ease; /* Transition for background and border */
+    }
+
+    .tracking-node .node:hover {
+        background-color: #fff; /* Slightly darker shade on hover */
+        border-color: #0350A1; /* White border on hover for contrast */
+        box-shadow: 0 0 6px 3px #3333FF;
+    }
+
+    /* Disconnected Node Circle */
+    .disconnected-node {
+        width: 20px;
+        height: 20px;
+        background-color: #ccc;
+        border-radius: 50%;
+        position: relative;
+        z-index: 1;
+    }
+
+    .red-node {
+        width: 20px;
+        height: 20px;
+        background-color: #FF0000;
+        border-radius: 50%;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Connecting Line Between Nodes */
+    .tracking-node:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 9px; /* Center vertically with node */
+        left: 50%;
+        width: 100%; /* Full width minus node size */
+        height: 2px;
+        background-color: #0350A1;
+        z-index: 0;
+    }
+
+    /* Dashed and Greyed-Out Line for Disconnected Nodes */
+    .tracking-node:has(.disconnected-node):not(:last-child)::after {
+        background-color: #ccc;
+        background-image: linear-gradient(to right, #ccc 50%, transparent 50%);
+        background-size: 10px 2px;
+        background-repeat: repeat-x;
+    }
+
+    /* Grey out the line from Released to Replied */
+    .tracking-node:has(.node):has(+ .tracking-node .disconnected-node)::after {
+        background-color: #ccc; /* Grey color */
+    }
+
+    /* Node Label */
+    .node-label {
+        margin-top: 5px;
+        font-size: 0.9em;
+        color: #07326A;
+        text-align: center;
+        word-wrap: break-word; /* Handle long labels */
+        max-width: 100px; /* Match node width */
+    }
+</style>

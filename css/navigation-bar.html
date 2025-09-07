@@ -1,0 +1,430 @@
+<style>
+    /* General Styles */
+    body {
+        font-family: 'Roboto', sans-serif;
+        padding: 10px;
+        margin: 0 50px;
+        background-image: url('images/abstract-background.jpg');
+        background-repeat: no-repeat;
+        background-size: cover;
+    }
+
+    /* Sidebar Styles */
+    #sidebar {
+        width: 300px;
+        height: 100%;
+        background-color: #0350A1;
+        color: #fff;
+        transition: transform 0.3s ease;
+        position: fixed;
+        top: 0;
+        left: 0;
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+        transform: translateX(-100%);
+        /* Sidebar visible for testing */
+        z-index: 4;
+        margin-top: 70px;
+        box-shadow: 0px -5px 5px rgba(50, 50, 50, 0.75);
+    }
+
+    #sidebar.open {
+        transform: translateX(0);
+        /* Slides in to visible position */
+    }
+
+    #side-hamburger i {
+        transition: opacity 0.2s ease;
+    }
+
+    .side-hamburger-icon {
+        font-size: 30px;
+        /* Adjust size as needed */
+        cursor: pointer;
+        /* Indicates it’s clickable */
+        color: #fff;
+        /* Match your design’s color scheme */
+        padding: 10px 20px;
+        /* Optional: adds space between the icon and the logo */
+        transition: transform 0.5s ease;
+        z-index: 3;
+    }
+
+    .side-hamburger-icon:hover {
+        transform: scale(1.1);
+    }
+
+    .side-hamburger-icon:active {
+        transform: scale(0.9);
+    }
+
+    .left-section {
+        display: flex;
+        align-items: center;
+    }
+
+    .home-selected {
+        background-color: #fff;
+        color: #0350A1;
+        box-shadow: 5px 5px rgba(0, 0, 0, 0.3);
+        border-radius: 5px;
+        margin-left: 10px;
+        font-size: 20pt;
+        transition: transform 0.5s ease;
+        z-index: 1000;
+        padding: 5px 100px;
+    }
+
+    /* Icon Styles */
+    .home-icon {
+        margin-left: 100px;
+        background-color: #0350A1;
+        color: #fff;
+        cursor: pointer;
+        font-size: 20pt;
+        transition: transform 0.5s ease;
+        z-index: 1000;
+        /* Ensure it stays above other elements */
+    }
+
+    .home-icon:hover {
+        transform: scale(1.2);
+    }
+
+    .home-icon:active {
+        transform: scale(1);
+    }
+
+    .not-selected a {
+        padding: 0 10px;
+        color: #fff;
+    }
+
+    /* Selection States */
+    .not-selected:hover {
+        background-color: #fff;
+        border-radius: 5px;
+        color: #07326A;
+        box-shadow: 5px 5px rgba(0, 0, 0, 0.3);
+        transition: all 0.5s ease;
+        transition-property: background-color, box-shadow;
+    }
+
+    .not-selected:active {
+        transform: scale(0.9);
+        transition: transform 0.1s ease-in-out;
+        box-shadow: 1px 1px rgba(0, 0, 0, 0.3);
+    }
+
+    .selected {
+        background-color: #fff;
+        box-shadow: 5px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    .selected a {
+        color: #07326A;
+    }
+
+    /* When menu item is selected */
+    .selected .notification-badge {
+        background-color: #0350A1;
+        color: #fff;
+    }
+
+    /* Hover effect for menu items with notification-badges */
+    .not-selected:hover .notification-badge {
+        background-color: #fff;
+        color: #ff4444;
+        transition: all 0.5s ease;
+    }
+
+    /* Active state for menu items with notification-badges */
+    .not-selected:active .notification-badge {
+        transform: scale(0.9);
+    }
+
+    /* notification-badge Styles */
+    .notification-badge {
+        background-color: #ff4444;
+        /* Red background for visibility */
+        color: white;
+        padding: 2px 6px;
+        font-size: 0.8em;
+        border-radius: 10px;
+        margin-left: 10px;
+        min-width: 5px;
+        text-align: center;
+        display: inline-block;
+        animation: notification 5s ease-in-out infinite;
+    }
+
+    @keyframes notification {
+        0% {
+            transform: translateX(0px);
+        }
+
+        20% {
+            transform: translateX(0px);
+        }
+
+        23% {
+            transform: translateX(-3px);
+        }
+
+        26% {
+            transform: translateX(3px);
+        }
+
+        29% {
+            transform: translateX(-2px);
+        }
+
+        32% {
+            transform: translateX(2px);
+        }
+
+        35% {
+            transform: translateX(-1px);
+        }
+
+        38% {
+            transform: translateX(1px);
+        }
+
+        41% {
+            transform: translateX(0px);
+        }
+
+        100% {
+            transform: translateX(0px);
+        }
+    }
+
+    /* Sidebar Footer */
+    .sidebar-footer {
+        margin-top: auto;
+        /* Pushes the footer to the bottom */
+        padding: 20px;
+        background-color: #0350A1;
+        margin-bottom: 70px;
+    }
+
+    /* Profile Picture */
+    .profile-pic {
+        flex-shrink: 0;
+        /* Prevents the image from shrinking */
+        border-radius: 50%;
+        border: 2px solid #fff;
+    }
+
+    .sidebar-profile-img {
+        width: 50px;
+        /* Adjust size as needed */
+        height: 50px;
+        border-radius: 50%;
+        /* Makes it circular */
+        object-fit: cover;
+        /* Ensures the image fits nicely */
+    }
+
+    .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 20px;
+        top: 0;
+        left: 0;
+        z-index: 2;
+    }
+
+    .sidebar-header p {
+        font-size: 16px;
+        text-align: center;
+        font-weight: bold;
+        padding: 10px 20px;
+        margin: 0;
+    }
+
+    .sidebar-header p:hover {
+        background-color: #fff;
+        color: #07326A;
+        border-radius: 5px;
+        box-shadow: 5px 5px rgba(0, 0, 0, 0.3);
+        cursor: pointer;
+        transition: all 0.5s ease;
+        transition-property: background-color, color, box-shadow, transform;
+    }
+
+    .sidebar-header p:active {
+        transform: scale(0.9);
+        box-shadow: 1px 1px rgba(0, 0, 0, 0.3);
+    }
+
+    .sidebar-header a {
+        text-decoration: none;
+        color: #fff;
+    }
+
+    .sidebar-menu-list {
+        list-style: none;
+        padding: 0 10px;
+        margin: 0 10px;
+        top: 50px;
+        left: 0;
+        width: 250px;
+        height: auto;
+        overflow: visible;
+    }
+
+    .sidebar-menu-list li {
+        margin: 10px 0;
+        border-radius: 5px;
+        font-weight: bold;
+    }
+
+    /* Adjust sidebar menu item padding to accommodate notification-badges */
+    .sidebar-menu-list li a {
+        padding: 10px;
+        text-decoration: none;
+        display: flex;
+        /* Change to flex to align text and notification-badge */
+        align-items: center;
+        justify-content: space-between;
+        /* Space between text and notification-badge */
+    }
+
+    .sidebar-menu-list li a:hover {
+        color: #07326A;
+        transition: color 0.5s ease;
+    }
+
+    /* Grid and Miscellaneous */
+    .wrap-grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* Logout Button */
+    .logout-button {
+        display: none;
+        /* Initially hidden */
+        opacity: 0;
+        /* Start fully transparent */
+        transform: translateY(-10px);
+        /* Start slightly above */
+        background-color: #fff;
+        color: #07326A;
+        text-decoration: none;
+        font-weight: bold;
+        padding: 8px 12px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        position: absolute;
+        top: 65px;
+        /* Position below profile image */
+        right: 20px;
+        /* Align to the right of user-profile-section */
+        transition: opacity 0.3s ease, transform 0.3s ease, color 0.3s ease;
+        /* Smooth transition */
+    }
+
+    .logout-button:hover {
+        color: #ff4444;
+    }
+
+    /* Active state when logout button is shown */
+    .logout-button.show {
+        display: block;
+        /* Make visible */
+        opacity: 1;
+        /* Fully opaque */
+        transform: translateY(0);
+        /* Move to natural position */
+    }
+
+    /* 1) Style the open parent link */
+    .sidebar-menu-list>li.open>a {
+        background-color: #fff !important;
+        color: #0350A1 !important;
+        border-radius: 5px;
+    }
+
+    /* ensure the caret icon inherits the link color */
+    .sidebar-menu-list>li>a .submenu-indicator {
+        color: inherit;
+    }
+
+    /* 2) Position & style the submenu to the right */
+    .sidebar-menu-list>li {
+        position: relative;
+        /* positioning context */
+    }
+
+    .submenu,
+    .submenu li {
+        list-style: none;
+        margin: 0;
+        padding: 5px 10px;
+    }
+
+    /* 2) Ensure the submenu container clips its children to its rounded corners */
+    .submenu {
+        position: absolute;
+        top: 0;
+        left: 100%;
+        min-width: 180px;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        display: none;
+        overflow: hidden;
+        /* ← clips child backgrounds */
+    }
+
+    /* 3) Reveal when open */
+    .sidebar-menu-list>li.open>.submenu {
+        display: block;
+    }
+
+    /* 4) Make each link fill the container fully */
+    .submenu li a {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        color: #0350A1;
+        background-color: #fff;
+        text-decoration: none;
+        transition: background-color 0.2s, color 0.2s;
+        border-radius: 5px;
+    }
+
+    /* 5) Invert colors on hover, but stay inside the .submenu border */
+    .submenu li a:hover {
+        background-color: #0350A1;
+        color: #fff;
+    }
+
+    .sublist-selected {
+        background-color: #0350A1 !important;
+        color: #fff !important;
+    }
+
+    /* cancel the global .not-selected:hover inside submenus */
+    .submenu li.not-selected:hover {
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .sidebar-menu-list>li.not-selected:active {
+        transform: none !important;
+    }
+
+    /* 2) Only submenu links shrink when you press them */
+    .submenu li a:active {
+        transform: scale(0.9);
+        transition: transform 0.1s ease-in-out;
+    }
+</style>

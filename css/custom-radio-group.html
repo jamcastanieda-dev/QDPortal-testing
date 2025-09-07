@@ -1,0 +1,37 @@
+<style>
+    .radio-group {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+
+    .custom-radio-group {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #0350A1;
+        border-radius: 50%;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .custom-radio-group::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: #0350A1;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: width 0.3s ease-in-out, height 0.3s ease-in-out;
+    }
+
+    .custom-radio-group:checked::before {
+        width: 10px;
+        height: 10px;
+    }
+</style>

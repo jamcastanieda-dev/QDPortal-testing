@@ -1,0 +1,273 @@
+/* ==========================================================================
+   General Layout
+   ========================================================================== */
+.rcpa-content-container {
+    margin: 50px 0 30px 275px;
+}
+
+.rcpa-content-container h2 {
+    color: #07326A;
+}
+
+/* ==========================================================================
+   Container Styling
+   ========================================================================== */
+.inner-container {
+    background-color: #ffffff;
+    padding: 20px;
+    margin-top: 20px;
+    width: 100%;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.border-container {
+    margin-top: 20px;
+    padding: 15px;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+}
+
+/* ==========================================================================
+   Layout Structure
+   ========================================================================== */
+.row {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 5px;
+}
+
+.column {
+    flex: 1;
+    text-align: left;
+    margin: 0 10px;
+}
+
+.three-column-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    /* First column twice as wide as the others */
+    gap: 10px;
+}
+
+.row-content {
+    display: contents;
+}
+
+.column-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.items-aligned {
+    display: flex;
+    align-items: center;
+}
+
+/* ==========================================================================
+   Form Elements - Labels
+   ========================================================================== */
+.rcpa-label {
+    font-weight: bold;
+    padding: 10px 0;
+}
+
+.column label,
+.aligned-label {
+    vertical-align: middle;
+    font-size: 12px;
+    display: inline;
+}
+
+.aligned-label {
+    margin-left: 30px;
+}
+
+.category-label {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.category-checkbox-label {
+    margin-left: 5px;
+}
+
+/* ==========================================================================
+   Form Elements - Inputs
+   ========================================================================== */
+input {
+    border: none;
+    border: 1px solid #ccc;
+    outline: none;
+    margin-left: 5px;
+    transition: border-bottom 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+input:focus {
+    border-bottom: 1px solid #0350A1;
+    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.3);
+}
+
+.input-width {
+    width: 40%;
+}
+
+.input-date {
+    margin-left: 5px;
+    width: auto;
+}
+
+.border-container .originator-input {
+    width: 150px;
+    border: 1px solid #ccc;
+}
+
+input[type="date"] {
+    width: 60%;
+}
+
+/* ==========================================================================
+   Form Elements - Textareas
+   ========================================================================== */
+.custom-textarea {
+    width: 100%;
+    height: 100px;
+    padding: 5px;
+    font-family: inherit;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: none;
+}
+
+.custom-textarea-request {
+    width: 80%;
+    height: 60px;
+    padding: 5px;
+    font-family: inherit;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: none;
+}
+
+.custom-textarea-findings {
+    width: 100%;
+    height: 60px;
+    padding: 5px;
+    font-family: inherit;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: none;
+}
+
+/* ==========================================================================
+   Form Elements - Specific Fields
+   ========================================================================== */
+#systemViolations,
+#standardClause,
+#supervisorName,
+#assignee {
+    width: 100%;
+    border: 1px solid #ccc;
+    margin: 5px 0;
+}
+
+#systemViolations:focus,
+#standardClause:focus,
+#supervisorName:focus,
+#assignee:focus {
+    border-color: #0350A1;
+    box-shadow: 0 1px 2px rgba(0, 123, 255, 0.3);
+    outline: none;
+}
+
+/* ==========================================================================
+   Group and Category Containers
+   ========================================================================== */
+.group-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.group-container>div {
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+
+/* ==========================================================================
+   Miscellaneous
+   ========================================================================== */
+.request-valid-indentation {
+    margin-left: 50px;
+}
+
+.auto-year {
+    font-size: 12px;
+    width: 30%;
+    text-align: center;
+    margin: 0 5px;
+    font-weight: bold;
+    border: 0px;
+}
+
+.top-position {
+    top: 5px;
+}
+
+.custom-radio {
+    vertical-align: middle;
+    /* Ensures alignment with text */
+    margin-right: 5px;
+    /* Adds consistent spacing between radio and label */
+}
+
+/* Override top-position if it’s causing issues */
+.custom-radio.top-position {
+    position: static;
+    /* Removes relative positioning */
+    top: 0;
+    /* Resets any top offset */
+}
+
+date {
+    width: 100%;
+    padding: 5px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+input {
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.long-grid {
+    display: grid;
+    grid-template-columns: 180px 1fr 20px 1fr;
+    gap: 20px;
+    align-items: center;
+    margin-top: 10px;
+    margin-left: 50px;
+    font-size: 14px;
+}
+
+.short-grid {
+    display: grid;
+    grid-template-columns: 105px 1fr 20px 1fr;
+    gap: 20px;
+    align-items: center;
+    margin-top: 10px;
+    margin-left: 50px;
+    font-size: 14px;
+}
+
+.hidden {
+    display: none;
+}
