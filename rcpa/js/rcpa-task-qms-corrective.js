@@ -1362,89 +1362,44 @@
         }
     });
 
-    // Accept → move to EVIDENCE CHECKING - ORIGINATOR
-    // ===== Accept flow override: open evidence modal first, then proceed =====
-    // AFTER (no confirm here — just open the modal)
+    
     document.addEventListener('rcpa:action', async (e) => {
         const { action, id } = e.detail || {};
         if (action !== 'accept' || !id) return;
 
-        // open the evidence modal immediately
-        openEvidenceModal(id);
-    });
-
-    evForm?.addEventListener('submit', async (ev) => {
-        ev.preventDefault();
-        if (!evCurrentId) { alert('Missing record id.'); return; }
-
-        // Require a decision (keep your existing logic)
-        const yes = !!evYes?.checked;
-        const no = !!evNo?.checked;
-        if (!yes && !no) {
-            if (window.Swal) Swal.fire({ icon: 'warning', title: 'Please select Action Done (Yes/No).' });
-            else alert('Please select Action Done (Yes/No).');
-            return;
-        }
-        if (no) {
-            if (window.Swal) Swal.fire({ icon: 'info', title: 'Action not done', text: 'You selected "No". Please return the item instead of accepting.' });
-            else alert('You selected "No". Please return the item instead of accepting.');
-            return;
-        }
-
-        // 🔔 SweetAlert confirmation happens *now*, after the form is filled
         const ok = await confirmProceed(
             'Accept corrective reply?',
-            'This will move the request to EVIDENCE CHECKING - ORIGINATOR.',
+            'This will move the request to EVIDENCE APPROVAL.',
             'Yes, accept'
         );
-        if (!ok) return; // keep the modal open so they can adjust/cancel
+        if (!ok) return;
 
         try {
-            evSubmit.disabled = true;
-            evSubmit.textContent = 'Submitting…';
-
-            const fd = new FormData();
-            fd.append('id', String(evCurrentId));
-            fd.append('remarks', evRemarks?.value || '');
-            fd.append('action_done', yes ? 'yes' : (no ? 'no' : ''));
-            if (evInput && evInput.files) {
-                [...evInput.files].forEach(f => fd.append('attachments[]', f, f.name));
-            }
-            fd.append('with_evidence', '1');
-
             const res = await fetch('../php-backend/rcpa-accept-corrective-checking.php', {
                 method: 'POST',
-                body: fd,
-                credentials: 'same-origin'
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' }, // use legacy JSON path
+                body: JSON.stringify({ id })
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data?.ok) throw new Error(data?.error || `HTTP ${res.status}`);
 
+            // update status in the view
             const st = document.getElementById('rcpa-view-status');
-            if (st) st.value = data.status || 'EVIDENCE CHECKING - ORIGINATOR';
+            if (st) st.value = data.status || 'EVIDENCE APPROVAL';
 
-            closeEvidenceModal();
             if (typeof refreshRcpaTable === 'function') { try { await refreshRcpaTable(); } catch { } }
-            if (typeof hideModal === 'function') hideModal();
-            else {
-                const modal = document.getElementById('rcpa-view-modal');
-                modal?.classList.remove('show');
-                modal?.setAttribute('hidden', '');
-                document.body.style.overflow = '';
-            }
             document.dispatchEvent(new CustomEvent('rcpa:refresh'));
 
-
-            if (window.Swal) Swal.fire({ icon: 'success', title: 'Accepted', text: 'Moved to EVIDENCE CHECKING - ORIGINATOR.' });
-            else alert('Accepted. Moved to EVIDENCE CHECKING - ORIGINATOR.');
+            if (window.Swal) Swal.fire({ icon: 'success', title: 'Accepted', text: 'Moved to EVIDENCE APPROVAL.' });
+            else alert('Accepted. Moved to EVIDENCE APPROVAL.');
         } catch (err) {
             if (window.Swal) Swal.fire({ icon: 'error', title: 'Accept failed', text: err?.message || 'Unexpected error.' });
             else alert(err?.message || 'Accept failed.');
-        } finally {
-            evSubmit.disabled = false;
-            evSubmit.textContent = 'Submit';
         }
     });
+
+
 
     // Reject → return to Assignee (status: ASSIGNEE PENDING)
     document.addEventListener('rcpa:action', async (e) => {

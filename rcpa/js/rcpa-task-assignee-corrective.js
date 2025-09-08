@@ -1273,6 +1273,23 @@
       return;
     }
 
+    // 🔒 Require at least one attachment
+    const filesLen = (acInput && acInput.files) ? acInput.files.length : 0;
+    if (filesLen === 0) {
+      if (window.Swal) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Attachment required',
+          text: 'Please attach at least one file before submitting.'
+        });
+      } else {
+        alert('Please attach at least one file before submitting.');
+      }
+      // optional: focus the clip/button or file input
+      (acInput || acClip)?.focus?.();
+      return;
+    }
+
     try {
       acSubmit.disabled = true;
       acSubmit.textContent = 'Submitting…';
@@ -1281,9 +1298,7 @@
       // match requested column names/meaning
       fd.append('rcpa_no', String(currentViewId));
       fd.append('corrective_action_remarks', text);
-      if (acInput && acInput.files) {
-        [...acInput.files].forEach(f => fd.append('attachments[]', f, f.name));
-      }
+      [...acInput.files].forEach(f => fd.append('attachments[]', f, f.name));
 
       const res = await fetch('../php-backend/rcpa-accept-corrective.php', {
         method: 'POST',

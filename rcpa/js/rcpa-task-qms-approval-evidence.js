@@ -380,6 +380,18 @@
     const whyViewDesc = document.getElementById('rcpa-why-view-desc');
     const whyViewList = document.getElementById('rcpa-why-view-list');
 
+    // ===== Evidence modal (opens on Accept) =====
+    const evModal  = document.getElementById('rcpa-evidence-modal');
+    const evClose  = document.getElementById('rcpa-evidence-close');
+    const evForm   = document.getElementById('rcpa-evidence-form');
+    const evRemarks= document.getElementById('rcpa-ev-remarks');
+    const evClip   = document.getElementById('rcpa-ev-clip');
+    const evInput  = document.getElementById('rcpa-ev-files');
+    const evBadge  = document.getElementById('rcpa-ev-attach-count');
+    const evList   = document.getElementById('rcpa-ev-files-list');
+    const evCancel = document.getElementById('rcpa-ev-cancel');
+    const evSubmit = document.getElementById('rcpa-ev-submit');
+
     // Inject minimal styles for Why-Why (once)
     if (!document.getElementById('rcpa-why-style')) {
         const style = document.createElement('style');
@@ -425,11 +437,12 @@
         if (dText) dText.value = text || '';
         if (dList) renderAttachmentsTo('reject-remarks-attach-list', attachments);
 
-        dModal.removeAttribute('hidden');
-        requestAnimationFrame(() => dModal.classList.add('show'));
+        dModal?.removeAttribute('hidden');
+        requestAnimationFrame(() => dModal?.classList.add('show'));
         document.body.style.overflow = 'hidden';
     }
     function closeDisapproveModal() {
+        if (!dModal) return;
         dModal.classList.remove('show');
         const onEnd = (e) => {
             if (e.target !== dModal || e.propertyName !== 'opacity') return;
@@ -534,9 +547,7 @@
     rjClose?.addEventListener('click', closeRejectModal);
     rjCancel?.addEventListener('click', closeRejectModal);
     rjModal?.addEventListener('click', (e) => { if (e.target === rjModal) closeRejectModal(); });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && rjModal && !rjModal.hidden) closeRejectModal();
-    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && rjModal && !rjModal.hidden) closeRejectModal(); });
     rjClip?.addEventListener('click', () => rjInput?.click());
 
     function humanSize(n) {
@@ -569,8 +580,6 @@
         }
     }
     rjInput?.addEventListener('change', () => renderRejectList(rjInput.files || []));
-
-    // Allow removing selected file(s)
     rjList?.addEventListener('click', (e) => {
         const btn = e.target.closest('.file-remove');
         if (!btn || !rjInput) return;
@@ -703,7 +712,6 @@
     installReadonlyGuards();
 
     // --------- Attachments rendering ---------
-    // Generic: render to a specific wrapId
     function renderAttachmentsTo(wrapId, s) {
         const wrap = document.getElementById(wrapId);
         if (!wrap) return;
@@ -776,7 +784,6 @@
         renderAttachmentsTo('rcpa-view-attach-list', s);
     }
 
-    // ---------- Reset modal ----------
     // ---------- Reset modal ----------
     function clearViewForm() {
         ['v-type-external', 'v-type-internal', 'v-type-unattain', 'v-type-online', 'v-type-hs', 'v-type-mgmt']
@@ -1153,16 +1160,8 @@
             const remarks = row.evidence_checking_remarks || '';
             const attach = row.evidence_checking_attachment || '';
 
-            // Set Yes/No exclusively
-            const isYes = ['yes', 'y', '1', 'true'].includes(actionRaw);
-            const isNo = ['no', 'n', '0', 'false'].includes(actionRaw);
-            setCheckedByAny(['#rcpa-view-ev-action-yes'], isYes);
-            setCheckedByAny(['#rcpa-view-ev-action-no'], isNo);
-
-            // Remarks
+            // (Yes/No UI removed; we only display info)
             setVal('rcpa-view-ev-remarks', remarks);
-
-            // Attachments (supports JSON string/array/object via renderAttachmentsTo)
             renderAttachmentsTo('rcpa-view-ev-attach-list', attach);
 
             // Show only if there is any data
@@ -1173,7 +1172,7 @@
             fs.hidden = !hasData;
         })();
 
-        // ===== CORRECTIVE ACTION EVIDENCE (from the same view payload) =====
+        // ===== CORRECTIVE ACTION EVIDENCE =====
         setVal('rcpa-view-corrective-remarks', row.corrective_action_remarks || '');
         renderAttachmentsTo('rcpa-view-corrective-attach-list', row.corrective_action_attachment || '');
 
@@ -1234,7 +1233,79 @@
         return Number(fromEvent || fromState || fromDataset || 0);
     }
 
-    // ACCEPT -> ask server to move to CLOSED (server will verify current stage)
+    // ===== Evidence modal helpers =====
+    let evCurrentId = null;
+
+    function openEvidenceModal(id) {
+        if (!evModal) { console.warn('Evidence modal element not found'); return; }
+        evCurrentId = id || null;
+
+        // reset fields
+        if (evRemarks) evRemarks.value = '';
+        if (evInput) evInput.value = '';
+        if (evList) evList.innerHTML = '';
+        if (evBadge) { evBadge.textContent = '0'; evBadge.hidden = true; }
+
+        evModal.removeAttribute('hidden');
+        requestAnimationFrame(() => evModal.classList.add('show'));
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => evRemarks?.focus(), 60);
+    }
+    function closeEvidenceModal() {
+        if (!evModal) return;
+        evModal.classList.remove('show');
+        const onEnd = (e) => {
+            if (e.target !== evModal || e.propertyName !== 'opacity') return;
+            evModal.removeEventListener('transitionend', onEnd);
+            evModal.setAttribute('hidden', '');
+            document.body.style.overflow = '';
+        };
+        evModal.addEventListener('transitionend', onEnd);
+    }
+    evClose?.addEventListener('click', closeEvidenceModal);
+    evCancel?.addEventListener('click', closeEvidenceModal);
+    evModal?.addEventListener('click', (e) => { if (e.target === evModal) closeEvidenceModal(); });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && evModal && !evModal.hidden) closeEvidenceModal();
+    });
+
+    // Paperclip opens file picker
+    evClip?.addEventListener('click', () => evInput?.click());
+
+    // List selected files
+    function renderEvList(files) {
+        if (!evList) return;
+        evList.innerHTML = '';
+        [...files].forEach((f, idx) => {
+            const row = document.createElement('div');
+            row.className = 'reject-file-chip file-chip';
+            row.innerHTML = `
+      <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+      <div class="file-info">
+        <div class="name" title="${f.name}">${f.name}</div>
+        <div class="sub">${humanSize(f.size)}</div>
+      </div>
+      <button type="button" class="file-remove" data-i="${idx}" title="Remove">✕</button>
+    `;
+            evList.appendChild(row);
+        });
+        if (evBadge) {
+            evBadge.textContent = String(files.length);
+            evBadge.hidden = files.length === 0;
+        }
+    }
+    evInput?.addEventListener('change', () => renderEvList(evInput.files || []));
+    evList?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.file-remove');
+        if (!btn || !evInput) return;
+        const i = Number(btn.getAttribute('data-i'));
+        const dt = new DataTransfer();
+        [...evInput.files].forEach((f, idx) => { if (idx !== i) dt.items.add(f); });
+        evInput.files = dt.files;
+        renderEvList(evInput.files || []);
+    });
+
+    // ===== ACCEPT flow -> open Evidence modal, save it, then close RCPA =====
     document.addEventListener('rcpa:action', async (e) => {
         const { action } = e.detail || {};
         if (action !== 'accept') return;
@@ -1242,40 +1313,83 @@
         const id = getActiveRcpaId(e.detail);
         if (!id) return;
 
-        const ok = await confirmProceed('Close this RCPA?', 'This will set the status to CLOSED (VALID).', 'Yes, close');
-        if (!ok) return;
+        // open Evidence modal first
+        openEvidenceModal(id);
+    });
+
+    // Submit Evidence modal -> save to rcpa_evidence_checking_remarks, then confirm/close
+    evForm?.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const id = evCurrentId || getActiveRcpaId({});
+        if (!id) { alert('Missing record id.'); return; }
 
         try {
-            const res = await fetch('../php-backend/rcpa-accept-evidence-approval.php', {
+            evSubmit.disabled = true;
+            evSubmit.textContent = 'Saving…';
+
+            const fd = new FormData();
+            fd.append('id', String(id));
+            fd.append('remarks', evRemarks?.value || '');
+            fd.append('action_done', 'yes'); // always YES
+            if (evInput && evInput.files) {
+                [...evInput.files].forEach(f => fd.append('attachments[]', f, f.name));
+            }
+
+            // 1) Save Evidence Checking (no status change)
+            const saveRes = await fetch('../php-backend/rcpa-save-evidence-checking.php', {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin'
+            });
+            const saveData = await saveRes.json().catch(() => ({}));
+            if (!saveRes.ok || !saveData?.ok) throw new Error(saveData?.error || `HTTP ${saveRes.status}`);
+
+            // 2) Ask to close now
+            const ok = await confirmProceed('Close this RCPA?', 'This will set the status to CLOSED (VALID).', 'Yes, close');
+            if (!ok) {
+                closeEvidenceModal();
+                if (window.Swal) Swal.fire({ icon: 'success', title: 'Saved', text: 'Evidence saved.' });
+                else alert('Evidence saved.');
+                return;
+            }
+
+            evSubmit.textContent = 'Closing…';
+
+            // 3) Proceed with final close
+            const closeRes = await fetch('../php-backend/rcpa-accept-evidence-approval.php', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id })
             });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+            const closeData = await closeRes.json().catch(() => ({}));
+            if (!closeRes.ok || !closeData.ok) throw new Error(closeData?.error || `HTTP ${closeRes.status}`);
 
             // reflect new status in the modal if it’s open
             const st = document.getElementById('rcpa-view-status');
-            if (st) st.value = data.status || 'CLOSED (VALID)';
+            if (st) st.value = closeData.status || 'CLOSED (VALID)';
 
             if (typeof refreshRcpaTable === 'function') { try { await refreshRcpaTable(); } catch { } }
 
-            // Close the view modal (if open)
+            // Close modals
+            closeEvidenceModal();
             const view = document.getElementById('rcpa-view-modal');
             if (view && !view.hidden) {
                 view.classList.remove('show');
                 view.setAttribute('hidden', '');
                 document.body.style.overflow = '';
             }
-            // also notify any other listeners
-            document.dispatchEvent(new CustomEvent('rcpa:refresh'));
 
+            // notify
+            document.dispatchEvent(new CustomEvent('rcpa:refresh'));
             if (window.Swal) Swal.fire({ icon: 'success', title: 'Closed', text: 'Status updated to CLOSED (VALID).' });
             else alert('Closed. Status updated to CLOSED (VALID).');
         } catch (err) {
-            if (window.Swal) Swal.fire({ icon: 'error', title: 'Close failed', text: err?.message || 'Unexpected error.' });
-            else alert(err?.message || 'Close failed.');
+            if (window.Swal) Swal.fire({ icon: 'error', title: 'Save/Close failed', text: err?.message || 'Unexpected error.' });
+            else alert(err?.message || 'Save/Close failed.');
+        } finally {
+            evSubmit.disabled = false;
+            evSubmit.textContent = 'Submit';
         }
     });
 
@@ -1287,8 +1401,7 @@
         openRejectModal();
     });
 
-    // Submit REJECT from EVIDENCE APPROVAL -> EVIDENCE CHECKING - ORIGINATOR
-    // Submit REJECT -> server moves to EVIDENCE CHECKING - ORIGINATOR if valid
+    // Submit REJECT from EVIDENCE APPROVAL -> EVIDENCE CHECKING
     rjForm?.addEventListener('submit', async (ev) => {
         ev.preventDefault();
 
@@ -1304,7 +1417,7 @@
 
         const ok = await confirmProceed(
             'Return to Originator for more evidence?',
-            'This will set the status to EVIDENCE CHECKING - ORIGINATOR and record your reason.',
+            'This will set the status to EVIDENCE CHECKING and record your reason.',
             'Yes, submit'
         );
         if (!ok) return;
@@ -1330,7 +1443,7 @@
 
             // reflect status if modal is visible
             const st = document.getElementById('rcpa-view-status');
-            if (st) st.value = data.status || 'EVIDENCE CHECKING - ORIGINATOR';
+            if (st) st.value = data.status || 'EVIDENCE CHECKING';
 
             // close modals + refresh
             const rejectModal = document.getElementById('rcpa-reject-modal');
@@ -1344,8 +1457,8 @@
             // also notify any other listeners
             document.dispatchEvent(new CustomEvent('rcpa:refresh'));
 
-            if (window.Swal) Swal.fire({ icon: 'success', title: 'Returned', text: 'Status updated to EVIDENCE CHECKING - ORIGINATOR.' });
-            else alert('Returned. Status updated to EVIDENCE CHECKING - ORIGINATOR.');
+            if (window.Swal) Swal.fire({ icon: 'success', title: 'Returned', text: 'Status updated to EVIDENCE CHECKING.' });
+            else alert('Returned. Status updated to EVIDENCE CHECKING.');
         } catch (err) {
             if (window.Swal) Swal.fire({ icon: 'error', title: 'Submit failed', text: err?.message || 'Unexpected error.' });
             else alert(err?.message || 'Submit failed.');

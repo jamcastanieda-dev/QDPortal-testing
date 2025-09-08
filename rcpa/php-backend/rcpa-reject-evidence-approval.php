@@ -1,4 +1,5 @@
 <?php
+// rcpa-reject-evidence-approval.php
 declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -80,8 +81,8 @@ try {
     if ($insR) { $insR->bind_param('isss', $id, $type, $remarks, $attachmentsJson); $insR->execute(); $insR->close(); }
   }
 
-  // Update status
-  $newStatus = 'EVIDENCE CHECKING - ORIGINATOR';
+  // Update status -> EVIDENCE CHECKING
+  $newStatus = 'EVIDENCE CHECKING';
   $upd = $conn->prepare("UPDATE rcpa_request SET status=? WHERE id=?");
   if (!$upd) throw new Exception('Prepare failed: '.$conn->error);
   $upd->bind_param('si', $newStatus, $id);

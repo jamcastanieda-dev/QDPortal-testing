@@ -531,6 +531,35 @@
         </div>
     </div>
 
+    <!-- Evidence Checking modal (standalone; not wired to Accept by default) -->
+    <!-- Evidence Checking modal (opens on Accept) -->
+    <div class="modal-overlay" id="rcpa-evidence-modal" hidden>
+        <div class="modal-content" id="rcpa-evidence-content">
+            <button type="button" class="close-btn" id="rcpa-evidence-close" aria-label="Close">&times;</button>
+            <h3>Verification of Implementation on Correction, Corrective Action, Preventive Action</h3>
+
+            <form id="rcpa-evidence-form" novalidate enctype="multipart/form-data">
+                <label class="field" style="display:block;margin-top:8px;">
+                    <div class="reject-attach-wrap">
+                        <textarea id="rcpa-ev-remarks" class="u-area" rows="6" placeholder="Remarks"></textarea>
+                        <button type="button" class="attach-icon reject-attach-icon" id="rcpa-ev-clip" title="Attach files">
+                            <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+                        </button>
+                        <span class="attach-badge reject-attach-badge" id="rcpa-ev-attach-count" hidden>0</span>
+                        <input id="rcpa-ev-files" name="attachments[]" type="file" multiple class="visually-hidden">
+                    </div>
+                </label>
+
+                <div class="reject-files-list" id="rcpa-ev-files-list"></div>
+
+                <div class="actions" style="margin-top:12px; display:flex; gap:8px;">
+                    <button type="button" id="rcpa-ev-cancel">Cancel</button>
+                    <button type="submit" id="rcpa-ev-submit">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Why-Why Analysis (VIEW) -->
     <div class="modal-overlay" id="rcpa-why-view-modal" hidden aria-modal="true" role="dialog" aria-labelledby="rcpa-why-view-title">
         <div class="modal-content">
@@ -553,7 +582,7 @@
     <div class="modal-overlay" id="rcpa-reject-modal" hidden>
         <div class="modal-content" id="rcpa-reject-content">
             <button type="button" class="close-btn" id="rcpa-reject-close" aria-label="Close">&times;</button>
-            <h3>Return to Originator — Reason</h3>
+            <h3>Return to QMS Team — Reason</h3>
 
             <form id="rcpa-reject-form" novalidate enctype="multipart/form-data">
                 <label class="field" style="display:block;margin-top:8px;">

@@ -1346,45 +1346,46 @@
   // ------------ Why-Why Modal Logic (UPDATED) ------------
   function levelHTML(chainId, levelIndex) {
     const radioName = `root-cause-${chainId}-${levelIndex}`;
+    const prompt = (levelIndex === 0) ? ' Why did this occur?' : '';
     const categoryHTML = levelIndex === 0 ? `
-      <label for="rcpa-why-category-${chainId}-${levelIndex}" class="field-title">Category</label>
-      <select id="rcpa-why-category-${chainId}-${levelIndex}" class="rcpa-why-category"
-              style="width:100%;padding:10px;font-size:14px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px; margin-bottom: 16px;">
-        <option value="Man">Man</option>
-        <option value="Method">Method</option>
-        <option value="Environment">Environment</option>
-        <option value="Machine">Machine</option>
-        <option value="Material">Material</option>
-      </select>
-    ` : '';
+    <label for="rcpa-why-category-${chainId}-${levelIndex}" class="field-title">Category</label>
+    <select id="rcpa-why-category-${chainId}-${levelIndex}" class="rcpa-why-category"
+            style="width:100%;padding:10px;font-size:14px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px; margin-bottom: 16px;">
+      <option value="Man">Man</option>
+      <option value="Method">Method</option>
+      <option value="Environment">Environment</option>
+      <option value="Machine">Machine</option>
+      <option value="Material">Material</option>
+    </select>
+  ` : '';
 
     return `
-      <div class="why-level" data-level="${levelIndex}" style="
-            padding:16px;background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;
-            margin-top:${levelIndex > 0 ? '16px' : '0'};">
-        ${categoryHTML}
-        <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
-          <div style="flex:3;display:flex;flex-direction:column;gap:8px;min-width:150px;">
-            <label for="rcpa-why-reason-${chainId}-${levelIndex}" class="field-title">
-              Why #${levelIndex + 1}: Why did this occur?
+    <div class="why-level" data-level="${levelIndex}" style="
+          padding:16px;background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;
+          margin-top:${levelIndex > 0 ? '16px' : '0'};">
+      ${categoryHTML}
+      <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+        <div style="flex:3;display:flex;flex-direction:column;gap:8px;min-width:150px;">
+          <label for="rcpa-why-reason-${chainId}-${levelIndex}" class="field-title why-label">
+            Why #${levelIndex + 1}:${prompt}
+          </label>
+          <input type="text" id="rcpa-why-reason-${chainId}-${levelIndex}" class="rcpa-why-reason"
+                 style="width:100%;padding:10px;font-size:14px;border:1px solid #d1d5db;border-radius:6px;min-width:150px;">
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:120px;">
+          <label class="field-title">Is this the root cause?</label>
+          <div style="display:flex;flex-direction:row;align-items:center;gap:12px;padding-top:8px;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;">
+              <input type="radio" name="${radioName}" value="yes" style="width:16px;height:16px;accent-color:#3b82f6;cursor:pointer;"> Yes
             </label>
-            <input type="text" id="rcpa-why-reason-${chainId}-${levelIndex}" class="rcpa-why-reason"
-                   style="width:100%;padding:10px;font-size:14px;border:1px solid #d1d5db;border-radius:6px;min-width:150px;">
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:120px;">
-            <label class="field-title">Is this the root cause?</label>
-            <div style="display:flex;flex-direction:row;align-items:center;gap:12px;padding-top:8px;">
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;">
-                <input type="radio" name="${radioName}" value="yes" style="width:16px;height:16px;accent-color:#3b82f6;cursor:pointer;"> Yes
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;">
-                <input type="radio" name="${radioName}" value="no" style="width:16px;height:16px;accent-color:#3b82f6;cursor:pointer;"> No
-              </label>
-            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;">
+              <input type="radio" name="${radioName}" value="no" style="width:16px;height:16px;accent-color:#3b82f6;cursor:pointer;"> No
+            </label>
           </div>
         </div>
       </div>
-    `;
+    </div>
+  `;
   }
 
   function addNewAnalysisChain() {
@@ -1426,24 +1427,24 @@
     levels.forEach((el, i) => {
       el.dataset.level = String(i);
 
-      // relabel why #
-      const label = el.querySelector('.field-title');
-      if (label && /Why #/.test(label.textContent)) {
-        label.textContent = `Why #${i + 1}: Why did this occur?`;
+      const inp = el.querySelector('.rcpa-why-reason');
+      if (inp) inp.id = `rcpa-why-reason-${chainId}-${i}`;
+
+      const whyLabel = el.querySelector('label.why-label');
+      if (whyLabel) {
+        whyLabel.setAttribute('for', `rcpa-why-reason-${chainId}-${i}`);
+        whyLabel.textContent = `Why #${i + 1}:${i === 0 ? ' Why did this occur?' : ''}`;
       }
 
-      // ids/names
-      const inp = el.querySelector('.rcpa-why-reason');
-      if (inp) { inp.id = `rcpa-why-reason-${chainId}-${i}`; }
       const yes = el.querySelector('input[type="radio"][value="yes"]');
       const no = el.querySelector('input[type="radio"][value="no"]');
       if (yes) yes.name = `root-cause-${chainId}-${i}`;
       if (no) no.name = `root-cause-${chainId}-${i}`;
 
       // show Category only on first level
-      const catSel = el.querySelector('.rcpa-why-category')?.closest('label')?.parentElement
+      const catWrap = el.querySelector('.rcpa-why-category')?.closest('label')?.parentElement
         || el.querySelector('.rcpa-why-category')?.parentElement;
-      if (catSel) catSel.style.display = (i === 0) ? '' : 'none';
+      if (catWrap) catWrap.style.display = (i === 0) ? '' : 'none';
     });
   }
 
@@ -1555,6 +1556,36 @@
   const pncTarget = document.getElementById('valid-pnc-target');
   const pncDone = document.getElementById('valid-pnc-completed');
 
+  // --- Inline "Closing Due date: MMM DD, YYYY" on the Corrective Action label ---
+  const correcLabel = document.querySelector('label[for="valid-corrective"]');
+  if (correcLabel && !correcLabel.dataset.baseLabel) {
+    correcLabel.dataset.baseLabel =
+      correcLabel.textContent.trim() || 'Corrective Action (prevent recurrence)';
+  }
+  function formatYmdPretty(ymd) {
+    if (!ymd) return '';
+    // expect YYYY-MM-DD
+    const y = parseInt(ymd.slice(0, 4), 10);
+    const m = parseInt(ymd.slice(5, 7), 10) - 1;
+    const d = parseInt(ymd.slice(8, 10), 10);
+    if ([y, m, d].some(n => Number.isNaN(n))) return '';
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[m]} ${d}, ${y}`;
+  }
+  function updateCorrectiveLabel(closeDue) {
+    if (!correcLabel) return;
+    const base = correcLabel.dataset.baseLabel || 'Corrective Action (prevent recurrence)';
+    const v = String(closeDue || '').trim();
+    if (!v || v === '0000-00-00') {
+      correcLabel.textContent = base;
+      return;
+    }
+    const pretty = formatYmdPretty(v);
+    correcLabel.textContent = pretty
+      ? `${base} Closing Due date: ${pretty}`
+      : base;
+  }
+
   function normalizeConformance(s) {
     const v = String(s || '').toLowerCase();
     if (v.includes('potential')) return 'PNC';
@@ -1621,11 +1652,12 @@
     [corrTarget, corrDone, correcTarget, correcDone, pncTarget, pncDone].forEach(el => el && (el.value = ''));
     errEl.textContent = '';
     setMode('OTHER');
+    updateCorrectiveLabel(null); // reset label to base on form reset
     // preserve attachments across back/next by default
   }
 
   // Preserve values when returning for the same record
-  async function openValidModal(id, preserve = false, _rootCauseTextIgnored = '') {
+  async function openValidModal(id, preserve = false, rootCauseText = '') {
     const sameRecord = overlay.dataset.id === String(id);
     overlay.dataset.id = id;
     if (!preserve || !sameRecord) resetValidForm();
@@ -1635,6 +1667,20 @@
     document.body.style.overflow = 'hidden';
     if (!preserve) setTimeout(() => rootCause?.focus(), 0);
 
+    // helper to lock/unlock the Root Cause textarea
+    const lockRootCauseField = (on) => {
+      if (!rootCause) return;
+      rootCause.readOnly = on;
+      rootCause.disabled = on;
+      rootCause.style.pointerEvents = on ? 'none' : 'auto';
+      if (on) rootCause.setAttribute('title', 'Locked from Why-Why analysis');
+      else rootCause.removeAttribute('title');
+    };
+    const norm = (s) => String(s || '').replace(/\r\n/g, '\n').trim();
+
+    // ensure label starts clean before fetching
+    updateCorrectiveLabel(null);
+
     try {
       const res = await fetch(`../php-backend/rcpa-view-assignee-pending.php?id=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
       if (res.ok) {
@@ -1642,8 +1688,21 @@
         const m = normalizeConformance(row?.conformance);
         setMode(m);
         overlay.dataset.conformance = row?.conformance || '';
+
+        // show formatted close_due_date inline on the Corrective Action label
+        updateCorrectiveLabel(row?.close_due_date);
       }
     } catch { /* non-blocking */ }
+
+    // If we received identified root cause(s) from Why-Why, set & lock when matching
+    if (rootCause && rootCauseText) {
+      if (!preserve || !sameRecord) {
+        rootCause.value = rootCauseText; // populate when not preserving
+      }
+      lockRootCauseField(norm(rootCause.value) === norm(rootCauseText));
+    } else {
+      lockRootCauseField(false);
+    }
   }
 
   function closeValidModal() {
@@ -1735,6 +1794,7 @@
       });
     });
 
+    // Save to DB
     try {
       const res = await fetch('../php-backend/rcpa-why-analysis-save.php', {
         method: 'POST',
@@ -1757,6 +1817,18 @@
       return;
     }
 
+    // Collect identified root cause(s) from chains (YES rows) to pass to Valid modal
+    const selectedRoots = [];
+    chains.forEach(chain => {
+      const yesLevel = chain.querySelector('input[type="radio"][value="yes"]:checked')?.closest('.why-level');
+      if (!yesLevel) return;
+      const reason = (yesLevel.querySelector('.rcpa-why-reason')?.value || '').trim();
+      if (!reason) return;
+      const cat = chain.querySelector('.why-level[data-level="0"] .rcpa-why-category')?.value || '';
+      selectedRoots.push(cat ? `[${cat}] ${reason}` : reason);
+    });
+    const rootCauseText = selectedRoots.join('\n');
+
     // Transition to Valid modal, PRESERVING any typed values for the same record
     const sameRecord = overlay.dataset.id === String(id);
     whyOverlay.classList.remove('show');
@@ -1764,7 +1836,7 @@
       if (e.target !== whyOverlay || e.propertyName !== 'opacity') return;
       whyOverlay.removeEventListener('transitionend', onEnd);
       whyOverlay.setAttribute('hidden', '');
-      openValidModal(id, /*preserve*/ sameRecord, '');
+      openValidModal(id, /*preserve*/ sameRecord, rootCauseText);
     };
     whyOverlay.addEventListener('transitionend', onEnd);
   });
@@ -1776,7 +1848,7 @@
 
   closeX?.addEventListener('click', () => { if (!saving) closeValidModal(); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay && !saving) closeValidModal(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden && !saving) closeValidModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !saving) closeValidModal(); });
 
   backBtn?.addEventListener('click', () => {
     if (saving) return;
@@ -1812,6 +1884,70 @@
     if (mode === 'PNC' && !pncText.value.trim()) {
       errEl.textContent = 'Please fill the details for Potential Non-conformance.'; pncText.focus(); return;
     }
+
+    // --- Require at least one attachment for NC/PNC submissions ---
+    if ((mode === 'NC' || mode === 'PNC') && fileMap.size === 0) {
+      if (window.Swal) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Attachments required',
+          text: 'Please attach at least one file before submitting.',
+          confirmButtonText: 'OK'
+        });
+      } else {
+        alert('Please attach at least one file before submitting.');
+      }
+      return;
+    }
+
+    // --- NEW: Require target dates ---
+    if (mode === 'NC') {
+      if (!corrTarget.value) {
+        if (window.Swal) {
+          await Swal.fire({
+            icon: 'warning',
+            title: 'Target date required',
+            text: 'Please set a Target Date for Correction (immediate action).',
+            confirmButtonText: 'OK'
+          });
+        } else {
+          alert('Please set a Target Date for Correction (immediate action).');
+        }
+        corrTarget.focus();
+        return;
+      }
+      if (!correcTarget.value) {
+        if (window.Swal) {
+          await Swal.fire({
+            icon: 'warning',
+            title: 'Target date required',
+            text: 'Please set a Target Date for Corrective Action (prevent recurrence).',
+            confirmButtonText: 'OK'
+          });
+        } else {
+          alert('Please set a Target Date for Corrective Action (prevent recurrence).');
+        }
+        correcTarget.focus();
+        return;
+      }
+    }
+    if (mode === 'PNC') {
+      if (!pncTarget.value) {
+        if (window.Swal) {
+          await Swal.fire({
+            icon: 'warning',
+            title: 'Target date required',
+            text: 'Please set a Target Date for the Preventive Action.',
+            confirmButtonText: 'OK'
+          });
+        } else {
+          alert('Please set a Target Date for the Preventive Action.');
+        }
+        pncTarget.focus();
+        return;
+      }
+    }
+    // --- END NEW ---
 
     let endpoint = '';
     const fd = new FormData();

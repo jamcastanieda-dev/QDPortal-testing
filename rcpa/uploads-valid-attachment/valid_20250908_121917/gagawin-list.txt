@@ -1,0 +1,996 @@
+Username: eulette.miranda@motolite.com
+Password: J#236455025349oq
+	R@mcar0959
+
+pid.ojt@motolite.com
+Password:
+H(073454161430om
+
+song:
+ba bye na - ba bye narin ba sa ting ala ala
+Disney land wish kay ginie
+kay tagal kitang hinintay
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+qa acc:
+40001110
+12345
+
+initiator acc:
+6034294
+12345
+
+final process - QA HEAD - manager
+40000197
+12345
+
+supervisor - 
+40000781
+12345
+
+
+JA25-KF034
+
+
+match the table size thru colspan - Inspection Request
+
+accept - pending - pass - For approval[completion(qa head)] - 
+
+there's date completed if (QA approved it)
+
+Filtering for completed - VIEWED & NOT VIEWED
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+7-17-2025
+
+PPIC - approval, 
+	- request result
+
+PPIC and PO - INSPECTION Request
+
+kdskszlnwxkdxggh - password ng office365
+
+NCR - July 21 - August 1 = (10days)
+
+MRB - August 4 - August 15 = (10days)
+ 
+RCPA - August 18 - August 29 = (10days)
+
+REQUEST FOR DISTRIBUTION - Sept 1 - Sept 12 = (10days)
+
+(40days)
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+7-17-2025
+sending emails -
+notifications - (NOTIFICATIONS JUST NEED FILTERING FOR VIEWED AND NOT VIEWED)
+the sidebar not hiding when clicking outside sidebar -
+editing the table - colspan
+--------------------------------------------------------
+7-18-2025
+sending emails - DONE
+notifications (NOTIFICATIONS JUST NEED FILTERING FOR VIEWED AND NOT VIEWED) - done
+the sidebar not hiding when clicking outside sidebar -
+editing the table - colspan -
+
+edited the 
+-------------------------------------------------------------------
+7-21-2025
+edited the file structure for js and css
+
+inspection-qa-completed-table-.php
+
+ins[ection-qa-task-failed.js - nahinto sa pag hanap ng (.php)
+
+../php/ncr/
+../php/inspection/
+../../../../css/inspection-table.html
+a href="php/inspection/inspection-dashboard-department-head.php
+
+
+
+include 'css/inspection-dashboard.html';
+include 'css/inspection-dashboard-modal.html';
+include 'css/inspection-history.html';
+include '../../../../css/inspection-table.html';
+include 'css/custom-elements.html';
+include '../css/remarks-modal.html';
+
+-----------------------------------------------------------------------------------------
+7-22-2025
+view button not working - styles or js 
+sending email not working
+in completed when view the not viewed it will immediately mark as viewed eventhough the modal is not showed
+abstract background not working
+
+ending - view button gumagana and email hindi pa pero ang problem is no record found in view button dashboard
+
+------------------------------------------------------------------------------------------
+7-24-2025
+PROBLEMS
+- view button now showing data (no record found)
+- sending email not working
+- creating request (initiator POV) not working
+
+inspection-initiator-insert.php
+
+inspection-request-insert-initiator.php
+
+inspection-request-insert-final-sub.php
+__________________________________________________________________________________________
+7-25-2025
+
+ncr no., wbs, description, requestor, assignee, date of request, status, action, history
+
+table
+
+problem: outgoing - painting - 
+------------------------------------------------------------------------------------------
+7-26-2025
+problem solved
+- date for outgoing painting
+- sending emails
+- distinction of between rti and ssd
+
+SIR SANDY PROBLEM
+- 7-26-2025 - DISTINCTION of rti and ssd
+- 7-29-2025 - notifications with viewed and unviewed filtering
+- 7-30-2025 - attachment for rejection
+- 7-30-2025 - showing the rejected remarks for dashboard, rejected
+- 7-31-2025 - required attachment in requesting - dimensional
+- 8-1-2025 - attachment for dimensional
+- 8-1-2025 - remarks for completion
+- 8-4-2025 - required attachment in requesting - material analysis
+- 8-4-2025 - no attachment in view for passed with failed complted
+- 8-6-2025 - 
+___________________________________________________________
+7-28-2025
+problem solved
+- date filtering
+
+new problem
+ - PPIC must see all the completed, failed, rejected and cancelled
+
+sql:
+
+
+CREATE TABLE inspection_rejected_notification (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    inspection_no INT(9)
+);
+CREATE TABLE inspection_failed_notification (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    inspection_no INT(9)
+);
+
+CREATE TABLE inspection_cancelled_notification (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    inspection_no INT(9)
+);
+
+update the 
+- inspection-update-reject
+- inspection-notification-rejected.php
+- inspection-data-retrive-history.js
+- inspection-data-retrive-remarks.js
+- inspection-table-qa-reject.php
+- inspection-table-qa-pending.php
+- inspection-rable-qa-rescheduled.php
+- inspection-table-qa-for-rescheduling.php
+- inspection-table-qa-for-reschedule.php
+- inspection-table-qa-cancelled.php
+- inspection-table-qa-for-completion.php
+- inspection-table-qa-for-failure.php
+- inspection-table-qa-failed.php
+- inspection-table-qa-request.php
+- inspection-data-retrieve-reject.php
+- inspection-qa-task-rejected.js
+- inspection-request-delete-rejected-notification.php
+- inspection-filter-table-rejected.js
+
+
+__________________________________
+
+7-29-2025
+fix the notification and the view buttons
+-------------------------------------------------------------------------------------------
+7/30/2025
+
+inspection-modal-reject.php
+inspection-modal-reject.js
+inspection-update-status.js
+inspection-update-reject.php
+
+inspection-qa-task-rejected.js
+inspection-seciton-rejected.php
+
+CREATE TABLE inspection_rejected_attachments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    attachment VARCHAR(255) NOT NULL,
+    inspection_no INT NOT NULL,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+make a inspection-get-rejected-attachments.php
+
+
+make a inspection-get-rejected-remarks.php
+make a inspection-get-rejected-attachment-initiator.php
+edit the inspection-data-retrieve.js
+
+inspection-create-initiator.php
+
+
+edit inspection-dashboard.js
+inspection-dashboard-qa-head.php
+inspection-dashboard-qa.php
+inspection-dashboard-initiator.php
+-----------------------------------------------------------------
+inspection-completed-attachments
+
+PROBLEM:
+no attachm,ent founbd in this inspection number
+inspection-completed-attachments-insert.php
+inspection-request-insert-completed-attachments.php
+------------------------------------------------------------------------
+
+----------------------------------------------------------------------------
+7-31-2025
+- create table inspection_dimensional_attachment
+- 
+- 
+---------------------------------------------------------------
+create - inspection-get-dimensional-attachments.php
+inspection-data-retrieve.js
+-----------------------------------------------------------------------
+8-1-2025
+
+ALTER TABLE `system_users` ADD COLUMN `login_token` VARCHAR(64) NULL AFTER `department`;
+
+edit the - login-retrieve.php, logout-.php
+
+then add this every page
+
+require_once 'connection.php'; // ADD THIS LINE to get DB connection
+
+session_start();
+
+// ---- Persistent login restore logic ----
+if (empty($_SESSION['user']) && !empty($_COOKIE['persistent_login'])) {
+    list($employee_id, $token) = explode(':', $_COOKIE['persistent_login'], 2);
+    $stmt = $conn->prepare("SELECT employee_name, employee_privilege, department FROM system_users WHERE employee_id = ? AND login_token = ?");
+    $stmt->bind_param("is", $employee_id, $token);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result && $result->num_rows === 1) {
+        $user = $result->fetch_assoc();
+        $_SESSION['user'] = [
+            'name'       => $user['employee_name'],
+            'privilege'  => $user['employee_privilege'],
+            'id'         => $employee_id,
+            'department' => $user['department'],
+        ];
+        // Refresh the cookie expiry:
+        setcookie('persistent_login', "$employee_id:$token", time() + 60 * 60 * 24 * 365, "/", "", false, true);
+    } else {
+        // Invalid token, remove the cookie
+        setcookie('persistent_login', '', time() - 3600, '/');
+    }
+    $stmt->close();
+}
+----------------------------------------------
+inspection modal view.php
+
+cancelled notif not adding when cancel
+
+section na okay nayung dimentional attachment:
+request
+received
+pending
+for reschedule
+
+-----------------------
+NOTE: I PAKITA ANG REMARKS FOR COMPLETION
+_________________________________________________________________________________________
+8-4-2025
+
+required file for material analysis
+
+1.)create a db named 
+
+CREATE TABLE `inspection_material_attachments` (
+  `id` int(11) NOT NULL,
+  `attachment` varchar(255) NOT NULL,
+  `inspection_no` int(11) NOT NULL,
+  `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+2.)inspection-create-initiator.php
+inspection-data-insert.js
+inspection-request-insert-material.php
+
+
+3.) view it in the view btn
+
+inspection-completed-attachments-insert.php
+inspection-request-insert-completed.php
+
+-----------------------------------------------------------------------------------------------
+papalitan cookie:
+login.php
+login-retrieve.php
+logout.php
+
+homepage-dashboard
+
+inspection-dashboard
+
+inspection-tasks-qa-head.php
+inspection-tasks-qa.php
+
+inspection-request-insert-completed-attachments.php
+inspection-request-insert-rejected-attachments.php
+
+inspection-create-initiator.php
+
+inspection-section-
+
+inspection-update-for-completion
+
+inspection-table-ssd
+inspection-table-rti
+inspection-table-qa-reject.php
+inspection-table-qa-for-reschedule.php
+inspection-table-qa-failed.php
+inspection-table-qa-cancelled.php
+inspection-table-ppic.php
+inspection-table-dashboard.php
+inspection-section-for-reschedule-qa-head.php
+inspection-section-for-approval.php
+inspection-section-completed-qa-head.php
+inspection-rescheduled.php
+inspection-rescheduled-update.php
+inspection-request-update-initiator.php
+inspection-request-update-history.php
+inspection-request-insert-remarks.php
+inspection-request-insert-reject.php
+inspection-request-insert-initiator.php
+inspection-request-insert-history.php
+inspection-remarks-insert.php
+inspection-remarks-insert_1.php
+inspection-request-insert-initiator.php
+inspection-final-sub-insert.php
+
+inspection-qa-task-completed.php
+
+______________________________________________________________________________________________
+8-6-2025-
+
+adding - material analysis file and dimensional file cannot view in dashboard
+update - inspection-update-cancel.php
+update - inspection-filter-table-dashboard.js
+
+FOR PE CALIBRATION:
+update - inspection-section-received.php
+	- inspection-qa-task-received.js
+	- inspection-filter-table-received.js
+	- inspection-table-qa-request.php
+	- inspection-notification-received.php
+added	- inspection-update-pe-calibration.php
+------------------------------------------------------------------------------
+8-7-2025
+ALTER TABLE `system_users`
+ADD COLUMN `email` varchar(255) NULL AFTER `employee_name`;
+--------------------------------------------------------------------0
+8/8/2025
+now what I want is that it will email also the initiator to email the initiator
+check the $inspectionNo in the table named 'inspection_request'
+
+CREATE TABLE `inspection_request` (
+  `inspection_no` int(9) NOT NULL,
+  `company` varchar(255) NOT NULL,
+  `wbs` varchar(255) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `request` varchar(255) NOT NULL,
+  `status` varchar(255) NOT NULL,
+  `remarks` varchar(255) NOT NULL,
+  `requestor` varchar(255) NOT NULL,
+  `date_time` varchar(255) NOT NULL,
+  `approval` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+after selecting the inspection_no check the column 'requestor' get that then go to table system_users
+
+CREATE TABLE `system_users` (
+  `employee_id` int(8) NOT NULL,
+  `employee_name` varchar(255) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `employee_password` char(255) NOT NULL,
+  `employee_privilege` varchar(255) NOT NULL,
+  `department` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+the request column that comes from inspection_request scan the match "employee_name" if you find that  then email also the what value of email "column"
+
+
+ALTER TABLE inspection_incoming_wbs
+  ADD COLUMN quantity INT UNSIGNED NULL AFTER description;
+
+ALTER TABLE inspection_incoming_wbs
+  MODIFY COLUMN quantity VARCHAR(50) NULL AFTER description;
+
+
+update	-inspection-data-insert.js
+	-inspection-request-insert-incoming-wbs.php
+	-inspection-css.js
+	-inspection-create-initiator.php
+	-inspection-modal-view.php
+	-inspection-populate-elemets.js
+	-inspection-request-retrieve-incoming-wbs.php
+	-inspection-request-insert-incoming-wbs.php
+________________________________________________________________________________
+CREATE TABLE IF NOT EXISTS inspection_outgoing_item (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  inspection_no INT NOT NULL,
+  item VARCHAR(255) NOT NULL,
+  quantity VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX (inspection_no)
+);
+
+ALTER TABLE inspection_outgoing_item
+  MODIFY quantity VARCHAR(255) NOT NULL;
+
+2:36pm - 8-8-2025
+	
+update	-inspection-create-initiator
+	-inspection-css.js
+	-inspetion-data-insert.js
+	-inspection-request-insert-incoming.php
+	-inspection-populate-elements.js
+	-inspection-request-retrieve-incoming.php
+-----------------------------------------------------------------
+8-9-2025
+
+update	-inspection-filter-table-received.php
+
+update 2 - inspection-create-initiator.php
+	- inspection-css.js
+	- inspection-data-insert.js
+	- inspection-request-insert-incoming-wbs.php
+	- inspection-populate-elements.js
+	- inspection-request-retrieve-incoming-wbs.php
+	- inspection-section-received.php
+	- inspection-modal-view.php
+	- inspection-section-completed.php
+	- inspection-section-failed.php
+	- inspection-section-for-approval-completion.php
+	- inspection-section-for-approval-reschedule.php
+	- inspection-section-for-approval-failure.php
+	- inspection-section-rejected.php
+	- inspection-section-cancelled.php
+
+	- then update the js version
+
+
+inspection-qa-task-for-rescheduling.php:
+ function fetchInspectionRequest(inspectionNo) {
+        const formData = new FormData();
+        formData.append('inspection_no', inspectionNo);
+
+        // ⬇️ return the promise so callers can await it
+        return fetch('inspection-request-retrieve-initiator.php', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    populateInspectionRequest(data.data, inspectionNo);
+                    document.getElementById('inspection-completed-attachments').style.display = 'none';
+
+                    // ⬇️ set both globals used by fetchIncomingWBS
+                    privilege = data.privilege ?? privilege;
+                    // adjust the path below to whatever your payload uses
+                    requestStatus = (data.data?.request_status ?? data.request_status ?? data.data?.status ?? requestStatus);
+
+                    // let caller chain/await and know we're done
+                    return { privilege, requestStatus };
+                }
+                throw new Error(data.message || 'Failed to load inspection data');
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load inspection data' });
+                throw error; // rethrow so the caller can handle it
+            });
+    }
+
+
+
+inspection-qa-task-for-failure.php:
+  function fetchInspectionRequest(inspectionNo) {
+        const formData = new FormData();
+        formData.append('inspection_no', inspectionNo);
+
+        return fetch('inspection-request-retrieve-initiator.php', { // <-- return the promise
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    populateInspectionRequest(data.data, inspectionNo);
+                    fetchInspectionRejectedAttachments(inspectionNo);
+                    privilege = data.privilege;
+                    requestStatus = data.request_status; // if you have it; otherwise set it elsewhere
+
+                    // make sure incoming WBS gets populated after privilege/status are known
+                    fetchIncomingWBS(inspectionNo);
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load inspection data' });
+            });
+    }
+
+
+UI NG OUTOGING OKAY NA PERO SA INSERTING HINDI PA 
+
+
+
+
+
+<?php
+session_start();
+include 'connection.php';
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['status' => 'error', 'message' => 'Invalid request method.']);
+    exit;
+}
+
+if (!isset($_POST['inspection-no']) || $_POST['inspection-no'] === '') {
+    echo json_encode(['status' => 'error', 'message' => 'Session error: Inspection number not set.']);
+    exit;
+}
+
+$inspection_no     = (int)$_POST['inspection-no'];
+$quantity          = trim($_POST['detail-quantity'] ?? '');
+$scope             = trim($_POST['detail-scope'] ?? '');
+$inspection_type   = trim($_POST['inspection-type'] ?? '');
+$location_of_item  = trim($_POST['incoming-location-of-item'] ?? '');
+
+// If your UI uses name="outgoing-options" value="painting"
+$painting = (isset($_POST['outgoing-options']) && $_POST['outgoing-options'] === 'painting') ? 'y' : null;
+
+// Incoming-only
+$type_of_incoming_inspection = $_POST['incoming-options'] ?? 'none';
+$vendor  = $_POST['vendor'] ?? 'none';
+$po      = $_POST['po'] ?? 'none';
+$dr      = $_POST['dr'] ?? 'none';
+
+if ($quantity === '' || $scope === '' || $inspection_type === '' || $location_of_item === '') {
+    echo json_encode(['status' => 'error', 'message' => 'All required fields are missing.']);
+    exit;
+}
+
+try {
+    // Start transaction
+    if (method_exists($conn, 'begin_transaction')) {
+        $conn->begin_transaction();
+    } else {
+        $conn->autocommit(FALSE);
+    }
+
+    // Insert main record
+    $stmt = $conn->prepare("INSERT INTO inspection_incoming_outgoing
+        (type_of_inspection, type_of_incoming_inspection, painting, quantity, scope, vendor, po_no, dr_no, location_of_item, inspection_no)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param(
+        'sssssssssi',
+        $inspection_type,
+        $type_of_incoming_inspection,
+        $painting,
+        $quantity,
+        $scope,
+        $vendor,
+        $po,
+        $dr,
+        $location_of_item,
+        $inspection_no
+    );
+    if (!$stmt->execute()) {
+        throw new Exception('Error inserting data: ' . $stmt->error);
+    }
+    $stmt->close();
+
+    // If outgoing, insert rows into inspection_outgoing_item
+    if ($inspection_type === 'outgoing') {
+        $items = $_POST['outgoing-item'] ?? [];        // note: hyphenated keys are fine in $_POST
+        $qtys  = $_POST['outgoing-quantity'] ?? [];
+
+        // Collect valid rows (skip completely empty ones)
+        $rows = [];
+        foreach ($items as $i => $it) {
+            $item = trim((string)$it);
+            $qty  = isset($qtys[$i]) ? trim((string)$qtys[$i]) : '';
+            if ($item === '' && $qty === '') {
+                continue;
+            }
+            $rows[] = [$inspection_no, $item, $qty];
+        }
+
+        if (!empty($rows)) {
+            $stmt2 = $conn->prepare("INSERT INTO inspection_outgoing_item (inspection_no, item, quantity) VALUES (?, ?, ?)");
+            foreach ($rows as [$insNo, $item, $qty]) {
+                $stmt2->bind_param('iss', $insNo, $item, $qty);
+                if (!$stmt2->execute()) {
+                    throw new Exception('Error inserting outgoing item: ' . $stmt2->error);
+                }
+            }
+            $stmt2->close();
+        }
+    }
+
+    // Commit
+    if (method_exists($conn, 'commit')) {
+        $conn->commit();
+    } else {
+        $conn->autocommit(TRUE);
+    }
+
+    echo json_encode(['status' => 'success', 'message' => 'Data inserted successfully']);
+} catch (Throwable $e) {
+    if (method_exists($conn, 'rollback')) {
+        $conn->rollback();
+    } else {
+        $conn->autocommit(TRUE);
+    }
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+} finally {
+    $conn->close();
+}
+
+
+
+
+update inspection-create-initiator.php and inspection-css.js
+
+okay na insertion eto a update
+
+update 	- inspection-create-initiator.php
+	- inspection-css.js
+	- inspection-date-insert.js
+	- inspection-request-insert-incoming.php
+	
+-------------------------------------------------------
+8-11-2025 view nalang need for outgoing
+update 	-inspection-data-retrieve.js
+	-inspection-create-initiator.php
+	-inspection-section-received.php
+	-inspection-qa-task-received.js
+
+completed 2919
+rejected 2918
+testing 7 - cancelled
+
+4:18pm edited the inspection-filter-table-received.js
+---------------------------------------------------------
+Without manual input in Incoming Inspection for passed and failed
+the only manual is the pass w/ fail
+8-12-2025
+updated	- inspection-section-pending.php
+	- inspection-qa-task-pending.js
+	- inspection-request-retrieve-incoming-wbs.php
+	- inspection-create-initiator.php
+	- inspection-css.js
+I make the notif realtime thru insterval
+updated	- inspection-filter-table-received.js
+--------------------------
+8-13-2025
+
+add column in system_users = role
+add table = rcpa_request
+------------------------------------------
+8-18-2025
+also the supervisor and manager of the initiator will receive the email and the 
+failed, rejected, for reschedule, completion will received email
+
+update	- inspection-update-for-completion.php
+	- inspection-update-for-failure.php
+	- inspection-qa-task-for-failure.js - new version
+	- inspection-update-for-rescheduling.php
+	- inspection-qa-task-for-rescheduling.js - new version
+	- inspection-update-status.js [UpdateStatusToRejected()] - new version
+	- inspection-update-reject.php
+
+HINDI KOPA INA UPDATE KASI WALA PANG TICKET
+-----------------------------------------------------
+8-18-2025
+view completion button fixed bug
+update	- inspection-qa-task-completed.js - update version
+
+---------------------------------------------------------------
+8-19-2025
+gagawin list
+- history time with like (5 days ago | 16 hours ago)
+- ASSIGNEE CHECKING TO ASSIGNEE PENDING
+- UPDATE ALSO THE TIME IN TABLES
+- 5 days reply assignee
+
+--------------------------------------------------------
+ADDED: FILTER DEPARTMENT 8-19-2025
+PLAN GAGAWIN BUKAS:
+
+1.) ASSIGNEE PENDING SECTION - dapat si assignee nalang ang makakakita ng table dito
+2.) ASSIGNEE PENDING SECTION - dapat mag update yung status kapag valid and not valid
+				-  valid = 'ASSIGNEE PENDING VALID'
+					= "ASSIGNEE REPLED"
+				-  not valid = 'ASSIGNEE REPLIED APPROVAL'
+					= 'ASSIGNEE REPLIED'
+3.) ASSIGNEE PENDING SECTION - INSERT HISTORY
+
+
+QMS CHECKING 
+status
+- REQUEST
+- FOR CLOSING APPROVAL
+- NOT VALID APPROVAL
+
+---------------------------------------------------------------
+8-20-2025
+
+---------------------------------------------------------------
+8-21-2025
+FIX THE ACTION BUTTON CAN ONLY SEE IN THE ASSIGNEE PENDING
+
+UNDER QMS TASkS - NOTVALID AND CLOSING NOTIF WALA 
+---------------------------------------------------------------
+8-22-2025
+LIST GAGAWIN:
+ - REQUEST IDENTIFICATION FOR RTI OR SSD
+ - INDICATION OF ROWS BETWEEN RTI AND SSD (BLUE RTI | GRAY SSD)
+ - ADDING COLUMN IN TABLE 'rcpa_request' = adding column - {HIT REPLY, HIT CLOSING, DEPARTMENT, COMPANY(RTI SSD)}
+
+TANONG: - KAPAG NIREJECT NI SUPERVISOR YUNG APPROVAL - SAN MAPUPUNTA? BABALIK BA SA ASSIGNEE PENDING?
+	- SINO NAG CCLOSE? for not valid and for valid
+	- BAKIT MAY FORM NA BOTH MAY FINDINGS VALID AND FINDINGS NOT VALID
+	- ASK ABOUT FISHBONE KUNG PANO GINAGAWA
+	- PINAG KAIBA NG (ON GOING CLOSE and CLOSE
+	- STATUS CLARIFICATION KAY SIR JOJO NAKAKALITO
+	- KELAN NAPIPIRMAHAN YUNG MGA PIRMA
+	- ORIGINATOR APPROVAL ba muna bago mag corrective checking
+---------------------------------------------------------------------
+8-23-2025
+NAISIP NA PLAN:
+	- adding column 
+
+CHANGE FILE NAME:
+rcpa-task-assignee-approval-closing
+
+
+VALID STATUS:
+FOR APPROVAL MANAGER/SUPERVISOR
+QMS CHECKING
+ASSIGNEE PENDING
+VALID APPROVAL
+VALIDATION REPLY
+VALIDATION REPLY APPROVAL (removed) (replaced with approval of originator) status (REPLY CHECKING - ORIGINATOR)
+ASSIGNEE CORRECTIVE (FOR CLOSING)
+ASSIGNEE CORRECTIVE APPROVAL (FOR CLOSING APPROVAL)
+CORRECTIVE CHECKING (EVIDENCE CHECKING) - (with remarks and attachfile)
+ORIGINATOR (EVIDENCE CHECKING - ORIGINATOR) - (with remarks accept [without file] and reject)
+CORRECTIVE APPROVAL (EVIDENCE APPROVAL)
+CLOSED 
+
+IN-VALID STATUS:
+FOR APPROVAL MANAGER/SUPERVISOR
+QMS CHECKING
+ASSIGNEE PENDING
+INVALID APPROVAL
+IN-VALIDATIION REPLY
+IN-VALIDATION REPLY APPROVAL
+ORIGINATOR (IF ACCEPT = INVALID CLOSED (WITH ATTACH FILE) - REJECTED = PEDE MAG ATTACH FILE THEN BALIK KAY QMS (REPLIED INVALID))
+	-  (IN-VALID APPROVAL - ORIGINATOR)
+
+IF ACCEPT NI ORIGINATOR = CLOSED INVALID NA SYA
+IF HINDI ACCEPT NI ORIGINATOR = BALIK QA/QMS (QMS CHECKING) tas mapupunta kay assignee uli
+CLOSED INVALID
+
+closed 2 types invalid and valid
+
+
+(calendar Monday to Saturday(default) - set nlng ng not working)
+-
+RESUBMIT
+rcpa-valid-approval - reject - babalik assignee pending
+
+
+
+babalik uli kay assignee - supervisor - tas papakita yung evidence for corrective actions
+
+-
+--------------------------------------------------------
+
+may option na hindi na dadaan kay manager
+
+-----------------------------------------------
+FOR ASSIGNEE APPROVAL
+	- REPLY APPROVAL
+	- CORRECTIVE APPROVAL
+
+FOR
+
+----------------------------------------------
+8-25-2025
+	- rejected remarks to all status implemented
+		- ALTER TABLE `rcpa_reject_remarks` ADD COLUMN `reject_type` VARCHAR(50) NULL AFTER `rcpa_no`;
+		- RENAME TABLE rcpa_reject_remarks TO rcpa_disapprove_remarks;
+		ALTER TABLE rcpa_disapprove_remarks
+  		CHANGE COLUMN reject_type disapprove_type VARCHAR(50) DEFAULT NULL;
+		- ALTER TABLE rcpa_disapprove_remarks
+		  ADD COLUMN attachments TEXT NULL AFTER remarks;
+
+
+	- the process all must complete
+		- the column disapprove_type changed from varchar 55 into varchar 255
+	- fix the notifications
+	- in request hindi nakikita yung valid or invalid
+	- pending assignee hindi kita ung findings valid or findings invalid
+
+
+task:
+the viewing of disapprove remarks
+adding reject remarks when..
+
+-------------------------------------------------------------
+why- why analysis in - assignee pending (description of findings ng originator)
+
+rcpa_why_analysis
+id, rcpa_no, analysis_type, why_occur, answer
+
+analysis_type:
+man
+method
+material
+machine
+environment
+
+root cause attach move to corrective textarea
+
+qms/qa reply approval - removed
+
+gagawin list:
+removed the validation reply approval in the process - done
+
+finilized the process - checked (for valid only) and (not valid) - done
+
+SHOWING THE NOT VALID VALIDATION IN REQUEST section - done
+
+evidence checking accept must have a remarks - (pending pa ito [NEED CONFIRMATION NI MAM RAZZEL])
+
+remove the pirma pirma 
+
+dapat update nalang yung sa valid katulad nung sa not valid update kapag existed na(assignee pending) - DONE
+
+why why analysis - done
+
+file naming fix
+notification fix
+calendar - done 
+dashboard
+
+question: filtering sa dashboard, remarks for closing
+
+----------------------------------------------------------------------------
+1-09-2025:
+send the rcpa-accept-qms-checking.php
+
+I want you to update also the rcpa_request.close_due_date here in send the rcpa-not-working-calendar.php.
+
+the rcpa-not-working i will update tomorrow regardless the status 
+
+-------------------------------------------------------------------------------
+02-09-2025:
+gagawin list:
+
+rcpa dashboard - close due date showing
+
+SECTION:
+DESIGN
+PPIC
+QA
+WAREHOUSE
+PRODUCTION
+
+tatanggalin ung mga pirma
+
+gawain list:
+- tatanggaln yung mga pirma -  done
+- showing the disapproval remarks if only have (ALL SECTION) - done
+- showing of the 'rcpa_evidence_checking_remarks' - done
+- adding a follow up sa closed - done
+- setting no. of days (closing), actual date of closing and due date of 30 days closing -done
+- notification - now
+	-tasks - done
+	-tabs - done
+		- qms tasks - done
+		- assignee pending - done
+		- assignee approval - done
+	-sidebar tasks - done
+	-sidebar reques - done
+
+showing rows - done all
+
+- fix the row showing of row when assignee - done
+- fix he hindi makikita ang row kapag hindi assignee - done
+
+- fix the action button 'for closing' & 'evidence checking' - done
+- fix yung after action yung notif mag change - 
+	- QMS TASKS - DONE
+	- Assignee asks - DONE
+	- assignee approval - done
+- in closed tab, the user can add a add follow up for effectiveness if the department is qa or qms - done
+- dashboard and the login add a section in the ssd - 
+- dashboard - 
+- grade modal - 
+- showing the disapproval remarks if only have - done
+- adding a view button for dashboard - done
+- login add a ssd dept and role - done
+- 
+
+logic of notif (makikita notif and data kapag assignee ka pero kapg qa ka lahat kita mo) - done
+
+
+-----------------------------------------------
+REPLY- 3,4,5 EMAIL
+closing - every week email
+
+assignee approval - dapat hindi na ma approve ng lahat ng manager only in the assignee-done
+
+send and receive -qms and assignee email
+
+blinking after request
+
+notif sidebar
+
+rootcause automatic - data
+
+target date - required - date completed - not required
+
+30 days closing in corrective action
+
+approve remarks - assignee super/manag
+
+QMS TASKS AND QMS APPROVAL HIDE FOR ASSIGNEE - done
+
+required attachment corrective evidence
+
+adding history if the qms changed the std - done
+
+action done checkbox remove
+
+evidence checking - originator - removed
+
+follow up - only qms can see
+
+grade downloadable - pdf or excel
+
+assignee - originator - required attachment
+
+ERROR ENCOUNTER:
+must have a attachment 'FOR CLOSING' fix the message it looked error
+valid - having error not identified
+
+nakikita ung valid field Kahit walang data in dashboard

@@ -3,9 +3,10 @@
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 date_default_timezone_set('Asia/Manila');
+ini_set('display_errors', '0'); // prevent HTML notices from corrupting JSON
 
 /* ---------------------------
-   Auth: get $current_user
+   Auth
 --------------------------- */
 if (!isset($_COOKIE['user'])) {
     http_response_code(401);
@@ -34,8 +35,7 @@ if ($id <= 0) {
     exit;
 }
 
-/* Match schema: remarks is VARCHAR(255).
-   If you need more, change column type to TEXT. */
+/* remarks is VARCHAR(255) per schema */
 if (mb_strlen($remarks) > 255) {
     $remarks = mb_substr($remarks, 0, 255);
 }
@@ -58,19 +58,30 @@ if (!$mysqli || $mysqli->connect_errno) {
 $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
-   Update
+   Snapshot (for diff)
+--------------------------- */
+$old = ['remarks' => null, 'system_applicable_std_violated' => null, 'standard_clause_number' => null];
+if ($stmt0 = $mysqli->prepare("SELECT remarks, system_applicable_std_violated, standard_clause_number FROM rcpa_request WHERE id = ? LIMIT 1")) {
+    $stmt0->bind_param('i', $id);
+    if ($stmt0->execute()) {
+        $stmt0->bind_result($old['remarks'], $old['system_applicable_std_violated'], $old['standard_clause_number']);
+        $stmt0->fetch();
+    }
+    $stmt0->close();
+}
+
+/* ---------------------------
+   Update record
 --------------------------- */
 $sql = "UPDATE rcpa_request
         SET remarks = ?, system_applicable_std_violated = ?, standard_clause_number = ?
         WHERE id = ?
         LIMIT 1";
-
 if (!($stmt = $mysqli->prepare($sql))) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Failed to prepare update']);
     exit;
 }
-
 $stmt->bind_param('sssi', $remarks, $system_applicable_std_violated, $standard_clause_number, $id);
 $ok = $stmt->execute();
 if (!$ok) {
@@ -82,7 +93,50 @@ if (!$ok) {
 $affected = $stmt->affected_rows;
 $stmt->close();
 
-/* Even if nothing changed (affected_rows===0), consider it success */
+/* ---------------------------
+   Compose activity with labels
+--------------------------- */
+$short = function(string $s, int $limit = 120): string {
+    $s = trim($s);
+    return mb_strlen($s) > $limit ? (mb_substr($s, 0, $limit - 1) . '…') : $s;
+};
+
+$segments = [];
+if ($old['system_applicable_std_violated'] !== $system_applicable_std_violated) {
+    $segments[] = "System / Applicable Std. Violated: " . $short($system_applicable_std_violated);
+}
+if ($old['standard_clause_number'] !== $standard_clause_number) {
+    $segments[] = "Standard Clause Number(s): " . $short($standard_clause_number);
+}
+if ($old['remarks'] !== $remarks) {
+    // optional: include a minimal note; comment this in if you want full text
+    $segments[] = "Remarks updated";
+}
+
+$who = trim(
+    ($current_user['name'] ?? '') ? $current_user['name']
+    : (($current_user['username'] ?? '') ?: ($current_user['email'] ?? 'Unknown'))
+);
+
+$activity = $segments
+    ? implode(' | ', $segments)
+    : 'Edited RCPA (no changes)';
+
+/* ---------------------------
+   Insert history
+--------------------------- */
+$history_saved = false;
+$hsql = "INSERT INTO rcpa_request_history (rcpa_no, name, date_time, activity)
+         VALUES (?, ?, CURRENT_TIMESTAMP, ?)";
+if ($hstmt = $mysqli->prepare($hsql)) {
+    $hstmt->bind_param('iss', $id, $who, $activity);
+    $history_saved = $hstmt->execute();
+    $hstmt->close();
+}
+
+/* ---------------------------
+   Response
+--------------------------- */
 echo json_encode([
     'success' => true,
     'id' => $id,
@@ -90,4 +144,6 @@ echo json_encode([
     'remarks' => $remarks,
     'system_applicable_std_violated' => $system_applicable_std_violated,
     'standard_clause_number' => $standard_clause_number,
+    'history_saved' => (bool)$history_saved,
+    'history_activity' => $activity,
 ]);

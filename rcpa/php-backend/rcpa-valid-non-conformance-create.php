@@ -61,7 +61,7 @@ if (!empty($_FILES['attachments']) && is_array($_FILES['attachments']['name'])) 
 
     $nameOnly = basename($origName);
     $ext = strtolower(pathinfo($nameOnly, PATHINFO_EXTENSION));
-    $allowed = ['pdf','png','jpg','jpeg','webp','heic','doc','docx','xls','xlsx','txt'];
+    $allowed = ['pdf','png','jpg','jpeg','webp','heic','doc','docx','xls','xlsx','txt', 'sql'];
     if (!in_array($ext, $allowed, true)) continue;
 
     $finalName = $nameOnly;

@@ -50,11 +50,11 @@
                 <ul class="submenu">
                     <li class="not-selected"><a href="rcpa-dashboard.php">Dashboard</a></li>
                     <li class="not-selected">
-  <a href="rcpa-request.php" class="has-badge">
-    Request
-    <span id="rcpa-request-badge" class="notif-badge" hidden>0</span>
-  </a>
-</li>
+                        <a href="rcpa-request.php" class="has-badge">
+                            Request
+                            <span id="rcpa-request-badge" class="notif-badge" hidden>0</span>
+                        </a>
+                    </li>
 
                     <?php if (!empty($can_see_rcpa_approval) && $can_see_rcpa_approval): ?>
                         <li class="not-selected">
@@ -384,7 +384,7 @@
                     <!-- Not-valid attachments appear here -->
                     <div class="attach-list" id="rcpa-view-not-valid-attach-list" aria-live="polite"></div>
 
-                    <div class="signatures-row signatures-row-4">
+                    <!-- <div class="signatures-row signatures-row-4">
                         <div class="signature-block">
                             <input class="u-line u-sign" type="text" id="rcpa-view-invalid-assignee-sign" readonly>
                             <div class="signature-caption">Assignee/Date</div>
@@ -404,7 +404,8 @@
                             <input class="u-line u-sign" type="text" id="rcpa-view-invalid-originator-sign" readonly>
                             <div class="signature-caption">Originator / Date</div>
                         </div>
-                    </div>
+                    </div> -->
+
                 </fieldset>
 
                 <!-- Disapproval Remarks (list) -->
@@ -504,7 +505,7 @@
 
     <script src="../js/rcpa-task-qms-approval-reply-invalid.js"></script>
     <script src="../js/rcpa-notif-sub-menu-count.js"></script>
-    
+
 
     <!-- CDN JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

@@ -50,11 +50,11 @@
                 <ul class="submenu">
                     <li class="not-selected"><a href="rcpa-dashboard.php">Dashboard</a></li>
                     <li class="not-selected">
-  <a href="rcpa-request.php" class="has-badge">
-    Request
-    <span id="rcpa-request-badge" class="notif-badge" hidden>0</span>
-  </a>
-</li>
+                        <a href="rcpa-request.php" class="has-badge">
+                            Request
+                            <span id="rcpa-request-badge" class="notif-badge" hidden>0</span>
+                        </a>
+                    </li>
 
                     <?php if (!empty($can_see_rcpa_approval) && $can_see_rcpa_approval): ?>
                         <li class="not-selected">
@@ -546,15 +546,13 @@
         </div>
     </div>
 
-    <!-- Evidence Checking modal (before Accept) -->
+    <!-- Evidence Checking modal (before Accept)
     <div class="modal-overlay" id="rcpa-evidence-modal" hidden>
         <div class="modal-content" id="rcpa-evidence-content">
             <button type="button" class="close-btn" id="rcpa-evidence-close" aria-label="Close">&times;</button>
             <h3>Verification of Implementation on Correction, Corrective Action, Preventive Action</h3>
 
             <form id="rcpa-evidence-form" novalidate enctype="multipart/form-data">
-                <!-- Action Done (two checkboxes, mutually exclusive in JS) -->
-                <!-- Inline “Action Done” row (clean & compact) -->
                 <div class="ev-action-row" role="group" aria-labelledby="ev-action-title">
                     <span id="ev-action-title" class="ev-action-title">Action Done:</span>
                     <label class="ev-action-opt">
@@ -565,25 +563,25 @@
                     </label>
                 </div>
 
-                <!-- Remarks + attachments (paperclip inside the textarea, same pattern as reject modal) -->
+               
                 <label class="field" style="display:block;margin-top:8px;">
                     <div class="reject-attach-wrap">
                         <textarea id="rcpa-ev-remarks" class="u-area" rows="6" placeholder="Remarks"></textarea>
 
-                        <!-- paperclip button -->
+                       
                         <button type="button" class="attach-icon reject-attach-icon" id="rcpa-ev-clip" title="Attach files">
                             <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
                         </button>
 
-                        <!-- count badge -->
+                        
                         <span class="attach-badge reject-attach-badge" id="rcpa-ev-attach-count" hidden>0</span>
 
-                        <!-- hidden file input (allow ALL file types) -->
+                       
                         <input id="rcpa-ev-files" name="attachments[]" type="file" multiple class="visually-hidden">
                     </div>
                 </label>
 
-                <!-- list of selected files -->
+             
                 <div class="reject-files-list" id="rcpa-ev-files-list"></div>
 
                 <div class="actions" style="margin-top:12px; display:flex; gap:8px;">
@@ -592,7 +590,7 @@
                 </div>
             </form>
         </div>
-    </div>
+    </div> -->
 
     <!-- Why-Why Analysis (VIEW) -->
     <div class="modal-overlay" id="rcpa-why-view-modal" hidden aria-modal="true" role="dialog" aria-labelledby="rcpa-why-view-title">
@@ -687,7 +685,7 @@
 
     <script src="../js/rcpa-task-qms-corrective.js"></script>
     <script src="../js/rcpa-notif-sub-menu-count.js"></script>
-    
+
 
     <!-- CDN JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

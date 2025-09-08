@@ -49,7 +49,8 @@ try {
   $stmt->close();
   if (!$row) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Record not found']); exit; }
 
-  $targetStatus = 'EVIDENCE CHECKING - ORIGINATOR';
+  // ▼▼ Updated target status ▼▼
+  $targetStatus = 'EVIDENCE APPROVAL';
   $already = (trim((string)$row['status']) === $targetStatus);
 
   $conn->begin_transaction();
@@ -212,7 +213,7 @@ try {
   }
 
   // Insert request history
-  $activity = 'The QMS/QA accepted the corrective reply for evidence checking';
+  $activity = 'The QMS/QA accepted the corrective reply for evidence approval';
   $insH = $conn->prepare("INSERT INTO rcpa_request_history (rcpa_no, name, activity) VALUES (?, ?, ?)");
   if (!$insH) throw new Exception('Prepare failed: '.$conn->error);
   $rcpa_no = (string)$id;

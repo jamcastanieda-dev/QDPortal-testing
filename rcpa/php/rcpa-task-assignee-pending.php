@@ -602,7 +602,7 @@
             <div id="rcpa-why-chains-container" style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 16px; align-items: flex-start;">
             </div>
 
-            <button type="button" id="rcpa-why-add-chain" class="rcpa-btn rcpa-btn-secondary" hidden style="margin-top: 16px;">
+            <button type="button" id="rcpa-why-add-chain" class="rcpa-btn rcpa-btn-secondary" hidden style="margin-bottom: 16px;">
                 <i class="fa-solid fa-plus" style="margin-right: 6px;"></i> Add New Analysis
             </button>
 
