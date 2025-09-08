@@ -1942,16 +1942,15 @@
       const td = (txt, cls = '') => `<td class="${cls}">${txt}</td>`;
       const tdAtt = (txt, cls = '', attrs = '') => `<td class="${cls}" ${attrs}>${txt}</td>`;
 
-      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
       const deptHeaders = gradeDepartments.map(d => th(d, 'hdr-dept sticky-top'));
 
-      // ONE sticky header row only (no sticky TOTAL RCPA row)
       const theadHTML = `
         <thead>
           <tr>
             ${th('MONTH', 'left sticky-top')}
-            ${th('&nbsp;', 'sticky-top band-head')}  <!-- REPLY/CLOSING band column -->
+            ${th('&nbsp;', 'sticky-top band-head')}
             ${th('DEPARTMENT', 'left sticky-top')}
             ${deptHeaders.join('')}
             ${th('Total', 'total sticky-top')}
@@ -1973,69 +1972,18 @@
         ['Fill Rate', '<span class="no-rcpa">NO RCPA</span>'],
         ['Service Level', '<span class="no-rcpa">NO RCPA</span>']
       ];
-
       const ROWS_PER_GROUP = replyRows.length + closingRows.length;
 
-      // Month block now includes a non-sticky "TOTAL RCPA" row at the top
       const makeMonthBlock = (monthLabel) => {
         let html = '';
 
-        // ---- TOTAL RCPA row for this month
-        html += '<tr>';
-        // month cell spans TOTAL row + all REPLY + all CLOSING rows
+        /* ---- TOTAL RCPA row for this month (mark row + last cell) ---- */
+        html += '<tr class="total-row">';
         html += tdAtt(monthLabel, 'month-col', `rowspan="${ROWS_PER_GROUP + 1}"`);
-        // band column spacer to align with REPLY/CLOSING column
-        html += td('', 'band-title');
-        // label + per-dept totals (yellow style via hdr-dept)
-        html += td('TOTAL RCPA', 'hdr-dept left');
-        html += gradeDepartments.map(() => td('0', 'hdr-dept')).join('');
-        html += td('0', 'hdr-dept'); // group grand total (kept yellow, not sticky)
-        html += '</tr>';
-
-        // ---- REPLY
-        replyRows.forEach(([label, defVal], i) => {
-          html += '<tr>';
-
-          if (i === 0) {
-            html += tdAtt('REPLY', 'band-title left', `rowspan="${replyRows.length}"`);
-          }
-
-          html += td(label, 'left row-subhead');
-          html += gradeDepartments.map(() => td(defVal)).join('');
-          html += td(defVal);
-
-          html += '</tr>';
-        });
-
-        // ---- CLOSING
-        closingRows.forEach(([label, defVal], i) => {
-          html += '<tr>';
-
-          if (i === 0) {
-            html += tdAtt('CLOSING', 'band-title left', `rowspan="${closingRows.length}"`);
-          }
-
-          html += td(label, 'left row-subhead');
-          html += gradeDepartments.map(() => td(defVal)).join('');
-          html += td(defVal);
-
-          html += '</tr>';
-        });
-
-        return html;
-      };
-
-      // YTD block including its own non-sticky TOTAL RCPA row
-      const makeYtdBlock = () => {
-        let html = '';
-
-        // YTD TOTAL row
-        html += '<tr>';
-        html += tdAtt('YTD', 'month-col ytd-col', `rowspan="${ROWS_PER_GROUP + 1}"`);
         html += td('', 'band-title');
         html += td('TOTAL RCPA', 'hdr-dept left');
         html += gradeDepartments.map(() => td('0', 'hdr-dept')).join('');
-        html += td('0', 'hdr-dept');
+        html += td('0', 'hdr-dept col-total');   /* ⭐ total column cell */
         html += '</tr>';
 
         // REPLY
@@ -2046,7 +1994,7 @@
           }
           html += td(label, 'left row-subhead');
           html += gradeDepartments.map(() => td(defVal)).join('');
-          html += td(defVal);
+          html += td(defVal, 'col-total');        /* ⭐ total column cell */
           html += '</tr>';
         });
 
@@ -2058,15 +2006,50 @@
           }
           html += td(label, 'left row-subhead');
           html += gradeDepartments.map(() => td(defVal)).join('');
-          html += td(defVal);
+          html += td(defVal, 'col-total');        /* ⭐ total column cell */
           html += '</tr>';
         });
 
         return html;
       };
 
-      // Spacer row to separate December block from YTD block
-      // Spacer row to separate December block from YTD block (bigger gap)
+      const makeYtdBlock = () => {
+        let html = '';
+        html += '<tr class="total-row">';
+        html += tdAtt('YTD', 'month-col ytd-col', `rowspan="${ROWS_PER_GROUP + 1}"`);
+        html += td('', 'band-title');
+        html += td('TOTAL RCPA', 'hdr-dept left');
+        html += gradeDepartments.map(() => td('0', 'hdr-dept')).join('');
+        html += td('0', 'hdr-dept col-total');   /* ⭐ total column cell */
+        html += '</tr>';
+
+        // REPLY
+        replyRows.forEach(([label, defVal], i) => {
+          html += '<tr>';
+          if (i === 0) {
+            html += tdAtt('REPLY', 'band-title left', `rowspan="${replyRows.length}"`);
+          }
+          html += td(label, 'left row-subhead');
+          html += gradeDepartments.map(() => td(defVal)).join('');
+          html += td(defVal, 'col-total');        /* ⭐ total column cell */
+          html += '</tr>';
+        });
+
+        // CLOSING
+        closingRows.forEach(([label, defVal], i) => {
+          html += '<tr>';
+          if (i === 0) {
+            html += tdAtt('CLOSING', 'band-title left', `rowspan="${closingRows.length}"`);
+          }
+          html += td(label, 'left row-subhead');
+          html += gradeDepartments.map(() => td(defVal)).join('');
+          html += td(defVal, 'col-total');        /* ⭐ total column cell */
+          html += '</tr>';
+        });
+
+        return html;
+      };
+
       const makeSpacerRow = () =>
         `<tr class="ytd-sep"><td colspan="${gradeDepartments.length + 4}" style="padding:0;border:0;height:32px;"></td></tr>`;
 
@@ -2080,7 +2063,6 @@
 
       tableEl.innerHTML = theadHTML + tbodyHTML;
 
-      // sticky top offset still computed for the single header row (harmless if unused)
       const hdr1 = tableEl.querySelector('thead tr:first-child');
       const h1 = hdr1 ? hdr1.getBoundingClientRect().height : 0;
       tableEl.style.setProperty('--hdr1-h', `${h1}px`);
@@ -2089,8 +2071,6 @@
         const n = gradeDepartments.length;
         metaEl.textContent = n ? `${n} department${n > 1 ? 's' : ''} loaded` : 'No departments found';
       }
-
-      // ensure no artificial cap on tableWrap height
       if (tableWrap) tableWrap.style.maxHeight = '';
     }
 
@@ -2140,6 +2120,7 @@
     });
   }
 })();
+
 
 /* ====== HISTORY MODAL ====== */
 (function () {

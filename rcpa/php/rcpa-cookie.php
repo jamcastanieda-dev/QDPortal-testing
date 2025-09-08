@@ -69,12 +69,18 @@ $can_see_rcpa_approval = in_array(strtolower($role), ['manager', 'supervisor'], 
 $dept_norm = strtolower(trim($department));
 $rcpa_can_actions = in_array($dept_norm, ['qms', 'qa'], true);
 
+// Decide if the user may see QMS-related buttons
+$dept_norm = strtolower(trim($department));
+$rcpa_show_qms = ($dept_norm === 'qms') || ($dept_norm === 'qa' && $can_see_rcpa_approval);
+
+
 // Expose to JS before any page scripts run
 // Expose to JS before any page scripts run
 echo '<script>
   window.RCPA_CAN_ACTIONS = ' . ($rcpa_can_actions ? 'true' : 'false') . ';
   window.RCPA_IS_APPROVER = ' . ($can_see_rcpa_approval ? 'true' : 'false') . ';
   window.RCPA_DEPARTMENT = ' . json_encode($department, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) . ';
+   window.RCPA_SHOW_QMS = ' . ($rcpa_show_qms ? 'true' : 'false') . ';
 </script>';
 
 

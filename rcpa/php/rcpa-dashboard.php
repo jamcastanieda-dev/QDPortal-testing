@@ -204,10 +204,15 @@
 .grade-table .no-rcpa    { color: #777; font-style: italic; }
 
 .grade-table th.total {
-  background: #e8f0fe; font-weight: 700;
+  background: #567fb6; font-weight: 700;
   border-left: 2px solid #6b7280; /* stronger divider before Total column */
 }
-.grade-table td.total { background: transparent; font-weight: 400; }
+.grade-table td.total { background: #e1e8f6; font-weight: 400; }
+
+/* Optional: a bit darker on the month/YTD “TOTAL RCPA” rows */
+.grade-table tr.total-row td.col-total{
+  background:#b9cae6;     /* mid blue-gray */
+}
 
 /* MONTH column style */
 .grade-table .month-col { background: #cfe2ff; font-weight: 600; }
