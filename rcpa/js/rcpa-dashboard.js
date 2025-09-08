@@ -1905,6 +1905,242 @@
   // #reject-remarks-modal { z-index: 1200; }
 })();
 
+/* ===== GRADE modal IIFE (builds table + loads departments) ===== */
+(() => {
+  'use strict';
+
+  if (document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
+
+  function init() {
+    const openBtn = document.getElementById('openGradeBtn');
+    const modal = document.getElementById('gradeModal');
+    const closeBtn = document.getElementById('closeGradeBtn');
+
+    if (!openBtn || !modal) return;
+
+    const tableWrap = document.getElementById('gradeTableWrap');
+    const tableEl = document.getElementById('gradeTable');
+    const metaEl = document.getElementById('gradeMeta');
+
+    const DEPT_API_URL = '../php-backend/rcpa-grade-departments.php';
+
+    let gradeLoaded = false;
+    let gradeDepartments = [];
+
+    async function loadDepartments() {
+      const res = await fetch(DEPT_API_URL, { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Failed to load departments');
+      gradeDepartments = Array.isArray(data.departments) ? data.departments : [];
+    }
+
+    function buildGradeTable() {
+      if (!tableEl) return;
+
+      const th = (txt, cls = '') => `<th class="${cls}">${txt}</th>`;
+      const td = (txt, cls = '') => `<td class="${cls}">${txt}</td>`;
+      const tdAtt = (txt, cls = '', attrs = '') => `<td class="${cls}" ${attrs}>${txt}</td>`;
+
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      const deptHeaders = gradeDepartments.map(d => th(d, 'hdr-dept sticky-top'));
+
+      // ONE sticky header row only (no sticky TOTAL RCPA row)
+      const theadHTML = `
+        <thead>
+          <tr>
+            ${th('MONTH', 'left sticky-top')}
+            ${th('&nbsp;', 'sticky-top band-head')}  <!-- REPLY/CLOSING band column -->
+            ${th('DEPARTMENT', 'left sticky-top')}
+            ${deptHeaders.join('')}
+            ${th('Total', 'total sticky-top')}
+          </tr>
+        </thead>
+      `;
+
+      const replyRows = [
+        ['HIT REPLY', '0'],
+        ['MISSED', '0'],
+        ['W/ REPLY', '0'],
+        ['FILL RATE', '<span class="no-rcpa">NO RCPA</span>'],
+        ['SERVICE LEVEL', '<span class="no-rcpa">NO RCPA</span>']
+      ];
+      const closingRows = [
+        ['Hit Closing', '0'],
+        ['Missed', '0'],
+        ['Closed', '0'],
+        ['Fill Rate', '<span class="no-rcpa">NO RCPA</span>'],
+        ['Service Level', '<span class="no-rcpa">NO RCPA</span>']
+      ];
+
+      const ROWS_PER_GROUP = replyRows.length + closingRows.length;
+
+      // Month block now includes a non-sticky "TOTAL RCPA" row at the top
+      const makeMonthBlock = (monthLabel) => {
+        let html = '';
+
+        // ---- TOTAL RCPA row for this month
+        html += '<tr>';
+        // month cell spans TOTAL row + all REPLY + all CLOSING rows
+        html += tdAtt(monthLabel, 'month-col', `rowspan="${ROWS_PER_GROUP + 1}"`);
+        // band column spacer to align with REPLY/CLOSING column
+        html += td('', 'band-title');
+        // label + per-dept totals (yellow style via hdr-dept)
+        html += td('TOTAL RCPA', 'hdr-dept left');
+        html += gradeDepartments.map(() => td('0', 'hdr-dept')).join('');
+        html += td('0', 'hdr-dept'); // group grand total (kept yellow, not sticky)
+        html += '</tr>';
+
+        // ---- REPLY
+        replyRows.forEach(([label, defVal], i) => {
+          html += '<tr>';
+
+          if (i === 0) {
+            html += tdAtt('REPLY', 'band-title left', `rowspan="${replyRows.length}"`);
+          }
+
+          html += td(label, 'left row-subhead');
+          html += gradeDepartments.map(() => td(defVal)).join('');
+          html += td(defVal);
+
+          html += '</tr>';
+        });
+
+        // ---- CLOSING
+        closingRows.forEach(([label, defVal], i) => {
+          html += '<tr>';
+
+          if (i === 0) {
+            html += tdAtt('CLOSING', 'band-title left', `rowspan="${closingRows.length}"`);
+          }
+
+          html += td(label, 'left row-subhead');
+          html += gradeDepartments.map(() => td(defVal)).join('');
+          html += td(defVal);
+
+          html += '</tr>';
+        });
+
+        return html;
+      };
+
+      // YTD block including its own non-sticky TOTAL RCPA row
+      const makeYtdBlock = () => {
+        let html = '';
+
+        // YTD TOTAL row
+        html += '<tr>';
+        html += tdAtt('YTD', 'month-col ytd-col', `rowspan="${ROWS_PER_GROUP + 1}"`);
+        html += td('', 'band-title');
+        html += td('TOTAL RCPA', 'hdr-dept left');
+        html += gradeDepartments.map(() => td('0', 'hdr-dept')).join('');
+        html += td('0', 'hdr-dept');
+        html += '</tr>';
+
+        // REPLY
+        replyRows.forEach(([label, defVal], i) => {
+          html += '<tr>';
+          if (i === 0) {
+            html += tdAtt('REPLY', 'band-title left', `rowspan="${replyRows.length}"`);
+          }
+          html += td(label, 'left row-subhead');
+          html += gradeDepartments.map(() => td(defVal)).join('');
+          html += td(defVal);
+          html += '</tr>';
+        });
+
+        // CLOSING
+        closingRows.forEach(([label, defVal], i) => {
+          html += '<tr>';
+          if (i === 0) {
+            html += tdAtt('CLOSING', 'band-title left', `rowspan="${closingRows.length}"`);
+          }
+          html += td(label, 'left row-subhead');
+          html += gradeDepartments.map(() => td(defVal)).join('');
+          html += td(defVal);
+          html += '</tr>';
+        });
+
+        return html;
+      };
+
+      // Spacer row to separate December block from YTD block
+      // Spacer row to separate December block from YTD block (bigger gap)
+      const makeSpacerRow = () =>
+        `<tr class="ytd-sep"><td colspan="${gradeDepartments.length + 4}" style="padding:0;border:0;height:32px;"></td></tr>`;
+
+      const tbodyHTML = `
+        <tbody>
+          ${MONTHS.map(makeMonthBlock).join('')}
+          ${makeSpacerRow()}
+          ${makeYtdBlock()}
+        </tbody>
+      `;
+
+      tableEl.innerHTML = theadHTML + tbodyHTML;
+
+      // sticky top offset still computed for the single header row (harmless if unused)
+      const hdr1 = tableEl.querySelector('thead tr:first-child');
+      const h1 = hdr1 ? hdr1.getBoundingClientRect().height : 0;
+      tableEl.style.setProperty('--hdr1-h', `${h1}px`);
+
+      if (metaEl) {
+        const n = gradeDepartments.length;
+        metaEl.textContent = n ? `${n} department${n > 1 ? 's' : ''} loaded` : 'No departments found';
+      }
+
+      // ensure no artificial cap on tableWrap height
+      if (tableWrap) tableWrap.style.maxHeight = '';
+    }
+
+    const open = async () => {
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('no-scroll');
+
+      if (!gradeLoaded) {
+        try {
+          if (tableEl) {
+            tableEl.innerHTML = `
+              <tbody>
+                <tr><td class="left" style="padding:12px;">Loading departments…</td></tr>
+              </tbody>`;
+          }
+          await loadDepartments();
+          buildGradeTable();
+          gradeLoaded = true;
+        } catch (err) {
+          console.error(err);
+          if (tableEl) {
+            tableEl.innerHTML = `
+              <tbody>
+                <tr><td class="left" style="padding:12px;color:#b00020;">Failed to load departments.</td></tr>
+              </tbody>`;
+          }
+          if (metaEl) metaEl.textContent = '';
+        }
+      }
+
+      closeBtn?.focus();
+    };
+
+    const close = () => {
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('no-scroll');
+      openBtn?.focus();
+    };
+
+    openBtn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('show')) close();
+    });
+  }
+})();
+
 /* ====== HISTORY MODAL ====== */
 (function () {
   const historyModal = document.getElementById('rcpa-history-modal');

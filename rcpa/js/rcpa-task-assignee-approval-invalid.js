@@ -1,26 +1,30 @@
 
 (function () {
-  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
-  const tbody = document.querySelector('#rcpa-table tbody');
-  const totalEl = document.getElementById('rcpa-total');
+  const IS_APPROVER  = !!window.RCPA_IS_APPROVER;
+  const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
+
+  const tbody    = document.querySelector('#rcpa-table tbody');
+  const totalEl  = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn = document.getElementById('rcpa-prev');
-  const nextBtn = document.getElementById('rcpa-next');
-  const fType = document.getElementById('rcpa-filter-type');
+  const prevBtn  = document.getElementById('rcpa-prev');
+  const nextBtn  = document.getElementById('rcpa-next');
+  const fType    = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn = document.getElementById('view-button');
+  const viewBtn   = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
-  if (!IS_APPROVER) {
-    actionContainer.classList.add('hidden');
-  }
+  // Non-approvers never need the action container globally
+  if (!IS_APPROVER) actionContainer.classList.add('hidden');
 
   let page = 1;
   const pageSize = 10;
-  let currentTarget = null; // the currently-open hamburger button
+  let currentTarget = null;
+
+  const norm = (s) => (s ?? '').toString().trim().toLowerCase();
+  const canActOnRowAssignee = (rowAssignee) => norm(rowAssignee) === CURRENT_DEPT;
 
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
@@ -34,13 +38,11 @@
     };
     return map[key] ?? (t || '');
   }
-
   function escapeHtml(s) {
     return ('' + (s ?? '')).replace(/[&<>"']/g, c => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[c]));
   }
-
   function badgeForStatus(s) {
     const t = (s || '').toUpperCase();
     if (t === 'QMS CHECKING') return `<span class="rcpa-badge badge-qms-checking">QMS CHECKING</span>`;
@@ -61,15 +63,11 @@
     if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
-
-
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
     if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
-
-
   function badgeForCategory(c) {
     const v = (c || '').toLowerCase();
     if (v === 'major') return `<span class="rcpa-badge badge-cat-major">Major</span>`;
@@ -78,34 +76,33 @@
     return '';
   }
 
-  function actionButtonHtml(id) {
+  // ✅ Only show hamburger if approver AND this row belongs to their department
+  function actionButtonHtml(id, assignee) {
     const safeId = escapeHtml(id ?? '');
-    if (IS_APPROVER) {
+    if (IS_APPROVER && canActOnRowAssignee(assignee)) {
       return `
+        <div class="rcpa-actions">
+          <button class="rcpa-more" data-id="${safeId}" title="Actions">
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
+            <span class="sr-only">Actions</span>
+          </button>
+        </div>
+      `;
+    }
+    return `
       <div class="rcpa-actions">
-        <button class="rcpa-more" data-id="${safeId}" title="Actions">
-          <i class="fa-solid fa-bars" aria-hidden="true"></i>
-          <span class="sr-only">Actions</span>
-        </button>
+        <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
       </div>
     `;
-    }
-    // View-only for non-approvers
-    return `
-    <div class="rcpa-actions">
-      <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
-    </div>
-  `;
   }
 
   function fmtDate(s) {
     if (!s) return '';
     const str = String(s);
-    if (/^0{4}-0{2}-0{2}/.test(str)) return ''; // handle "0000-00-00 ..."
+    if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
     const year = d.getFullYear();
@@ -113,26 +110,23 @@
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
-
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
-
   function formatYmdPretty(ymd) {
-    // 'YYYY-MM-DD' -> 'Sep 03, 2025'
-    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '';
-    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
-    if ([y, m, d].some(Number.isNaN)) return ymd;
-    return `${mnames[m]} ${String(d).padStart(2, '0')}, ${y}`;
+    const y = +ymd.slice(0,4), m = +ymd.slice(5,7) - 1, d = +ymd.slice(8,10);
+    if ([y,m,d].some(Number.isNaN)) return ymd;
+    return `${mnames[m]} ${String(d).padStart(2,'0')}, ${y}`;
   }
   function daysDiffFromToday(ymd) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
-    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
-    if ([y, m, d].some(Number.isNaN)) return null;
+    const y = +ymd.slice(0,4), m = +ymd.slice(5,7) - 1, d = +ymd.slice(8,10);
+    if ([y,m,d].some(Number.isNaN)) return null;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const due = new Date(y, m, d);
-    const msPerDay = 24 * 60 * 60 * 1000;
+    const due = new Date(y,m,d);
+    const msPerDay = 24*60*60*1000;
     return Math.round((due - today) / msPerDay);
   }
   function formatReplyDueCell(ymd) {
@@ -146,13 +140,11 @@
     return `${pretty} (${text})`;
   }
 
-
   async function load() {
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (fType.value) params.set('type', fType.value);
 
     hideActions();
-
     tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Loading…</td></tr>`;
 
     let res;
@@ -174,23 +166,23 @@
       tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">No records.</td></tr>`;
     } else {
       tbody.innerHTML = rows.map(r => `
-      <tr>
-        <td>${r.id ?? ''}</td>
-        <td>${labelForType(r.rcpa_type)}</td>
-        <td>${badgeForCategory(r.category || r.cetegory)}</td>
-        <td>${fmtDate(r.date_request)}</td>
-        <td>${formatReplyDueCell(r.reply_due_date)}</td> <!-- ⬅️ new -->
-        <td>${badgeForStatus(r.status)}</td>
-        <td>${escapeHtml(r.originator_name)}</td>
-        <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
-        <td>${actionButtonHtml(r.id ?? '')}</td>
-        <td>
-          <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
-            data-id="${r.id ?? ''}" role="button" tabindex="0"
-            title="View history"></i>
-        </td>
-      </tr>
-    `).join('');
+        <tr>
+          <td>${r.id ?? ''}</td>
+          <td>${labelForType(r.rcpa_type)}</td>
+          <td>${badgeForCategory(r.category || r.cetegory)}</td>
+          <td>${fmtDate(r.date_request)}</td>
+          <td>${formatReplyDueCell(r.reply_due_date)}</td>
+          <td>${badgeForStatus(r.status)}</td>
+          <td>${escapeHtml(r.originator_name)}</td>
+          <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
+          <td>${actionButtonHtml(r.id ?? '', r.assignee)}</td>
+          <td>
+            <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
+               data-id="${r.id ?? ''}" role="button" tabindex="0"
+               title="View history"></i>
+          </td>
+        </tr>
+      `).join('');
     }
 
     const total = Number(data.total || 0);
@@ -231,7 +223,7 @@
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
 
-    top = Math.max(8, Math.min(top, vh - popH - 8));
+    top  = Math.max(8, Math.min(top,  vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
 
     actionContainer.style.top = `${top}px`;
@@ -249,7 +241,6 @@
     const icon = target.querySelector('i.fa-solid');
     switchIcon(icon, 'fa-xmark');
   }
-
   function hideActions() {
     if (!currentTarget) return;
     const icon = currentTarget.querySelector('i.fa-solid');
@@ -260,7 +251,6 @@
 
   // Open/close hamburger actions + history
   tbody.addEventListener('click', (e) => {
-    // View-only path for non-approvers
     const viewOnly = e.target.closest('.rcpa-view-only');
     if (viewOnly) {
       const id = viewOnly.getAttribute('data-id');
@@ -268,7 +258,6 @@
       return;
     }
 
-    // (keep your existing history + hamburger logic below)
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist) {
       const id = hist.getAttribute('data-id');
@@ -287,7 +276,6 @@
     }
   });
 
-
   // Keyboard support for history icon
   tbody.addEventListener('keydown', (e) => {
     const hist = e.target.closest('.icon-rcpa-history');
@@ -305,12 +293,11 @@
   });
 
   // Top tabs navigation
-  document.querySelector('.rcpa-table-toolbar').addEventListener('click', (e) => {
+  document.querySelector('.rcpa-table-toolbar')?.addEventListener('click', (e) => {
     const tab = e.target.closest('.rcpa-tab[data-href]');
     if (!tab) return;
     window.location.href = tab.dataset.href;
   });
-
 
   ['scroll', 'resize'].forEach(evt => window.addEventListener(evt, () => {
     if (currentTarget) positionActionContainer(currentTarget);
@@ -323,11 +310,11 @@
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
+  viewBtn.addEventListener('click',   () => { dispatchAction('view',   actionContainer.dataset.id); hideActions(); });
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
-  // Pagination + single remaining filter
+  // Pagination + filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
   fType.addEventListener('change', () => { page = 1; load(); });

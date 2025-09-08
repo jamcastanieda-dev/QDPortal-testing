@@ -180,6 +180,92 @@
         body.no-scroll {overflow: hidden !important;height: 100% !important;}
         /* optional: prevent content jump when hiding scrollbar */
         body.no-scroll { position: fixed;width: 100%;top: var(--lock-top, 0);}
+
+        /* #gradeModal .modal-content{
+           max-width: 99vw;height: 100%;max-height: 97vh; width: 100%;
+        } */
+
+.grade-table th, .grade-table td {
+  border: 1px solid #9aa1a9; /* was #dcdcdc – darker for visibility */
+  padding: 6px 10px;
+  font-size: 13px;
+  text-align: center;
+  white-space: nowrap;
+}
+.grade-table th { background: #f7f7f7; font-weight: 700; }
+.grade-table th.left, .grade-table td.left { text-align: left; white-space: normal; }
+
+.grade-table .band-title {
+  background: #eaf4e6; font-weight: 700; text-transform: uppercase;
+  border-top: 2px solid #6b7280; /* stronger band separator */
+}
+.grade-table .hdr-dept   { background: #ffe8a6; font-weight: 700; }
+.grade-table .row-subhead{ background: #f1f8ee; }
+.grade-table .no-rcpa    { color: #777; font-style: italic; }
+
+.grade-table th.total {
+  background: #e8f0fe; font-weight: 700;
+  border-left: 2px solid #6b7280; /* stronger divider before Total column */
+}
+.grade-table td.total { background: transparent; font-weight: 400; }
+
+/* MONTH column style */
+.grade-table .month-col { background: #cfe2ff; font-weight: 600; }
+
+/* Yellow "TOTAL RCPA" label cell */
+.grade-table th.hdr-rcpa-label {
+  background: #ffe8a6;
+  font-style: italic;
+  font-weight: 700;
+  text-align: center;
+  padding: 3px 8px;
+  line-height: 1.1;
+}
+
+/* Sticky headers (two rows). --hdr1-h is set by JS after build */
+.grade-table { --hdr1-h: 32px; }
+.grade-table thead tr:first-child th.sticky-top { position: sticky; top: 0; z-index: 6; border-bottom: 2px solid #6b7280; } /* clearer edge */
+.grade-table thead tr:nth-child(2) th.sticky-top { position: sticky; top: var(--hdr1-h, 32px); z-index: 5; border-bottom: 2px solid #9aa1a9; }
+
+/* Sticky DEPARTMENT column (header + body) on horizontal scroll */
+/* Sticky DEPARTMENT header cell */
+.grade-table th.sticky-left {
+  position: sticky;
+  left: 0;
+  z-index: 7;          /* above other headers */
+  background: #f7f7f7; /* restore header background */
+}
+
+/* (If you ever make body cells sticky-left) keep their original bg */
+.grade-table td.sticky-left {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: inherit;
+}
+
+/* header cell over the REPLY/CLOSING band */
+.grade-table th.band-head { background: #eaf4e6; }
+
+.grade-table .ytd-col { background: #f8d27a; font-weight: 700; } /* soft amber */
+
+/* YTD month column style (matches the amber look in your mock) */
+.grade-table .ytd-col {
+  background: #f6c667;   /* soft amber */
+  color: #000;
+  font-weight: 700;
+  border-right: 2px solid #b0892b; /* stronger edge, optional */
+}
+
+/* subtle gap before YTD block */
+.grade-table .ytd-sep td {
+  height: 32px;           /* bump this value to make the gap larger/smaller */
+  padding: 0;
+  border: 0 !important;
+  background: transparent;
+}
+
+
     </style>
 
 </head>
@@ -300,7 +386,9 @@
 
                 <!-- RIGHT: your three action buttons -->
                 <button class="dash-btn" id="openRcpaListBtn"><i class="fa-solid fa-clipboard-check"></i> RCPA</button>
-                <button class="dash-btn"><i class="fa-solid fa-ranking-star"></i> GRADE</button>
+                <button class="dash-btn" id="openGradeBtn">
+                    <i class="fa-solid fa-ranking-star"></i> GRADE
+                </button>
                 <!-- Change your existing CALENDAR button -->
                 <button class="dash-btn" id="openCalendarBtn">
                     <i class="fa-solid fa-calendar-days"></i> CALENDAR
@@ -390,6 +478,34 @@
             </div>
         </div>
     </div>
+
+<!-- GRADE modal -->
+<div class="modal-overlay" id="gradeModal" aria-hidden="true" role="dialog" aria-modal="true" style="padding: 0px;">
+  <div class="modal-content" role="document"
+       style="max-width:99vw; width:100%; height:96vh; max-height:96vh; padding:0; display:flex; flex-direction:column; box-sizing:border-box;">
+    <button class="close-btn" id="closeGradeBtn" aria-label="Close grade modal" title="Close">×</button>
+
+    <!-- your grade content -->
+    <div class="rcpa-grade-wrap" style="padding:0; flex:1 1 auto; display:flex; flex-direction:column; min-height:0;">
+
+      <!-- header strip -->
+      <div class="rcpa-modal-head" style="padding:12px 16px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px;">
+        <div style="font-weight:600;">GRADE <span style="font-weight:600;">2025</span></div>
+        <!-- <div id="gradeMeta" style="margin-left:auto; color:#666; font-size:12px;"></div> -->
+      </div>
+
+      <!-- scrollable grid area -->
+      <div id="gradeTableWrap" style="overflow:auto; flex:1 1 auto; min-height:0;">
+        <table id="gradeTable" class="grade-table" style="border-collapse:separate; border-spacing:0; width:100%; min-width:900px;">
+          <!-- built by JS -->
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
 
     <!-- RCPA LIST MODAL -->
     <div class="modal-overlay" id="rcpaListModal" aria-hidden="true" role="dialog" aria-modal="true">
