@@ -853,6 +853,21 @@
 
       refreshRcpaTable();
 
+      // Highlight the new row after reload
+      if (data?.id) {
+        setTimeout(() => {
+          const row = document.querySelector(`#rcpa-table tbody tr td:first-child`);
+          if (row && row.textContent.trim() === String(data.id)) {
+            row.parentElement.classList.add('rcpa-row-new');
+
+            // Optionally stop blinking after 10 seconds
+            setTimeout(() => {
+              row.parentElement.classList.remove('rcpa-row-new');
+            }, 20000);
+          }
+        }, 500); // wait a bit until table reloads
+      }
+
       // Optionally broadcast so other clients update, too
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ action: 'rcpa-request' }));

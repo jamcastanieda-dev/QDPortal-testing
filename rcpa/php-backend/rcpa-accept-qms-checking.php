@@ -85,7 +85,7 @@ try {
 
     $tz = new DateTimeZone('Asia/Manila');
 
-    // 3) Compute & persist reply_due_date if still NULL (keep your original behavior)
+    // 3) Compute & persist reply_due_date if still NULL
     if ($reply_due_date === null && $reply_received) {
         $reply_received_ymd = date('Y-m-d', strtotime($reply_received));
         $computed_reply_due = $addWorkingDays($reply_received_ymd, 5, $tz, $non_working);
@@ -100,15 +100,13 @@ try {
         if (!$upd->execute()) throw new Exception('Due-date update execute failed: ' . $upd->error);
         $upd->close();
 
-        // Use the effective value for the next step
         $reply_due_date = $computed_reply_due;
     }
 
-    // 4) NEW: Compute & persist close_due_date (30 working days after reply_due_date), only if reply_due_date exists and close_due_date is NULL
+    // 4) Compute & persist close_due_date (30 working days after reply_due_date)
     if ($reply_due_date !== null && $close_due_date === null) {
         $reply_due_ymd = date('Y-m-d', strtotime($reply_due_date));
 
-        // 30 working days after reply_due_date, skipping Sundays and non-working dates
         $computed_close_due = $addWorkingDays($reply_due_ymd, 30, $tz, $non_working);
 
         $updClose = $conn->prepare('
@@ -120,6 +118,8 @@ try {
         $updClose->bind_param('si', $computed_close_due, $id);
         if (!$updClose->execute()) throw new Exception('Close due-date update execute failed: ' . $updClose->error);
         $updClose->close();
+
+        $close_due_date = $computed_close_due;
     }
 
     // 5) History
@@ -133,6 +133,194 @@ try {
     $historyStmt->bind_param('iss', $id, $user_name, $activityText);
     if (!$historyStmt->execute()) throw new Exception('History insert execute failed: ' . $historyStmt->error);
     $historyStmt->close();
+
+    // === Email notification to assignees (do not modify send-email.php; catch errors; non-blocking) ===
+    try {
+        require_once __DIR__ . '/../../send-email.php';
+
+        // Fetch assignee department and (optional) section from this RCPA record
+        $asSel = $conn->prepare('SELECT assignee, section FROM rcpa_request WHERE id = ? LIMIT 1');
+        $assigneeDept = '';
+        $assigneeSection = '';
+        if ($asSel) {
+            $asSel->bind_param('i', $id);
+            if ($asSel->execute()) {
+                $asSel->bind_result($assigneeDept, $assigneeSection);
+                $asSel->fetch();
+            }
+            $asSel->close();
+        }
+        $assigneeDept = trim((string)$assigneeDept);
+        $assigneeSection = trim((string)$assigneeSection);
+
+        if ($assigneeDept !== '') {
+            // Build recipient query based on presence of section
+            if ($assigneeSection !== '') {
+                $usrSql = 'SELECT email FROM system_users WHERE department = ? AND section = ? AND email IS NOT NULL AND email <> ""';
+                $usrStmt = $conn->prepare($usrSql);
+                if ($usrStmt) $usrStmt->bind_param('ss', $assigneeDept, $assigneeSection);
+            } else {
+                $usrSql = 'SELECT email FROM system_users WHERE department = ? AND email IS NOT NULL AND email <> ""';
+                $usrStmt = $conn->prepare($usrSql);
+                if ($usrStmt) $usrStmt->bind_param('s', $assigneeDept);
+            }
+
+            $toRecipients = [];
+            if (isset($usrStmt) && $usrStmt && $usrStmt->execute()) {
+                $usrStmt->bind_result($email);
+                while ($usrStmt->fetch()) {
+                    $email = trim((string)$email);
+                    if ($email !== '') $toRecipients[] = $email;
+                }
+                $usrStmt->close();
+            }
+
+            // === CC all QMS department emails ===
+            $ccRecipients = [];
+            $ccSql = "SELECT email FROM system_users WHERE department = 'QMS' AND email IS NOT NULL AND email <> ''";
+            if ($ccStmt = $conn->prepare($ccSql)) {
+                if ($ccStmt->execute()) {
+                    $ccStmt->bind_result($ccEmail);
+                    while ($ccStmt->fetch()) {
+                        $ccEmail = trim((string)$ccEmail);
+                        if ($ccEmail !== '') $ccRecipients[] = $ccEmail;
+                    }
+                }
+                $ccStmt->close();
+            }
+
+            // De-dup & clean
+            $toRecipients = array_values(array_unique(array_filter($toRecipients)));
+            $ccRecipients = array_values(array_unique(array_filter($ccRecipients)));
+            // Avoid the same address appearing in both To and CC
+            $ccRecipients = array_values(array_diff($ccRecipients, $toRecipients));
+
+            if (!empty($toRecipients)) {
+                // Subject & dates
+                $deptDisplay      = $assigneeDept . ($assigneeSection !== '' ? ' - ' . $assigneeSection : '');
+                $subject          = sprintf('RCPA #%d assigned to %s - status: ASSIGNEE PENDING', (int)$id, $deptDisplay);
+                $replyDueFmt      = $reply_due_date ? date('F j, Y', strtotime($reply_due_date)) : '—';
+                $closeDueFmt      = $close_due_date ? date('F j, Y', strtotime($close_due_date)) : '—';
+
+                // Fixed portal link (per request)
+                $portalUrl = 'http://rti10517/qdportal/login.php';
+
+                // Safe strings for HTML
+                $rcpaNo        = (int)$id;
+                $deptDispSafe  = htmlspecialchars($deptDisplay, ENT_QUOTES, 'UTF-8');
+                $replyDueSafe  = htmlspecialchars($replyDueFmt, ENT_QUOTES, 'UTF-8');
+                $closeDueSafe  = htmlspecialchars($closeDueFmt, ENT_QUOTES, 'UTF-8');
+                $statusTxtSafe = htmlspecialchars($status, ENT_QUOTES, 'UTF-8');
+                $portalUrlSafe = htmlspecialchars($portalUrl, ENT_QUOTES, 'UTF-8');
+
+                // HTML body
+                $htmlBody = '
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>RCPA Notification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0; padding:0; background:#f3f4f6; font-family: Arial, Helvetica, sans-serif; color:#111827;">
+  <div style="display:none; overflow:hidden; line-height:1px; opacity:0; max-height:0; max-width:0;">
+    RCPA #'.$rcpaNo.' is now '.$statusTxtSafe.'. Reply due '.$replyDueSafe.'.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f4f6; padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08);">
+          <tr>
+            <td style="padding:20px 24px; background:#111827; color:#ffffff;">
+              <div style="font-size:16px; letter-spacing:.4px;">QD Portal</div>
+              <div style="font-size:22px; font-weight:bold; margin-top:4px;">RCPA Notification</div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 24px 8px 24px;">
+              <div style="font-size:18px; font-weight:bold; color:#111827; margin-bottom:8px;">
+                RCPA #'.$rcpaNo.'
+              </div>
+              <span style="display:inline-block; font-size:12px; font-weight:600; padding:6px 10px; border-radius:999px; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;">
+                '.$statusTxtSafe.'
+              </span>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 24px 0 24px; color:#374151; font-size:14px; line-height:1.6;">
+              Good day,<br>
+              The RCPA request <strong>#'.$rcpaNo.'</strong> has been approved by <strong>QMS</strong> and is now in status <strong>'.$statusTxtSafe.'</strong>.
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px 24px 8px 24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">
+                <tr>
+                  <td style="width:42%; padding:10px 12px; background:#f9fafb; border:1px solid #e5e7eb; font-size:13px; color:#6b7280;">Assignee</td>
+                  <td style="padding:10px 12px; border:1px solid #e5e7eb; font-size:13px; color:#111827;"><strong>'.$deptDispSafe.'</strong></td>
+                </tr>
+                <tr>
+                  <td style="width:42%; padding:10px 12px; background:#f9fafb; border:1px solid #e5e7eb; font-size:13px; color:#6b7280;">Reply Due Date</td>
+                  <td style="padding:10px 12px; border:1px solid #e5e7eb; font-size:13px; color:#111827;">'.$replyDueSafe.'</td>
+                </tr>
+                <tr>
+                  <td style="width:42%; padding:10px 12px; background:#f9fafb; border:1px solid #e5e7eb; font-size:13px; color:#6b7280;">Close Due Date</td>
+                  <td style="padding:10px 12px; border:1px solid #e5e7eb; font-size:13px; color:#111827;">'.$closeDueSafe.'</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 24px 8px 24px;" align="left">
+              <a href="'.$portalUrlSafe.'" target="_blank"
+                 style="background:#2563eb; color:#ffffff; text-decoration:none; padding:12px 18px; border-radius:6px; display:inline-block; font-size:14px; font-weight:600;">
+                Open QD Portal
+              </a>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:6px 24px 0 24px; color:#6b7280; font-size:12px;">
+              If the button doesn\'t work, copy and paste this link into your browser:<br>
+              <a href="'.$portalUrlSafe.'" target="_blank" style="color:#2563eb; text-decoration:underline;">'.$portalUrlSafe.'</a>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px; color:#9ca3af; font-size:12px;">
+              This is an automated message from the QD Portal. Please do not reply to this email.
+              <br>If you believe you received this in error, contact QMS or the system administrator.
+            </td>
+          </tr>
+        </table>
+
+        <div style="height:12px; line-height:12px;">&nbsp;</div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>';
+
+                // Plain-text alternative
+                $altBody  = "RCPA #$rcpaNo is now $status\n";
+                $altBody .= "Assignee: " . html_entity_decode($deptDispSafe, ENT_QUOTES, 'UTF-8') . "\n";
+                $altBody .= "Reply Due Date: " . html_entity_decode($replyDueSafe, ENT_QUOTES, 'UTF-8') . "\n";
+                $altBody .= "Close Due Date: " . html_entity_decode($closeDueSafe, ENT_QUOTES, 'UTF-8') . "\n";
+                $altBody .= "Open QD Portal: $portalUrl\n";
+
+                // Use existing helper (send-email.php) with CC to QMS
+                sendEmailNotification($toRecipients, $subject, $htmlBody, $altBody, $ccRecipients);
+            }
+        }
+    } catch (Throwable $mailErr) {
+        // Never block the main flow because of email issues; log only.
+        error_log('RCPA email notify error (id ' . (int)$id . '): ' . $mailErr->getMessage());
+    }
 
     echo json_encode(['success' => true, 'id' => (int)$id, 'status' => $status]);
 } catch (Throwable $e) {

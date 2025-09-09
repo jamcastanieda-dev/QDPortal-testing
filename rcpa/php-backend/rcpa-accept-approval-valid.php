@@ -179,7 +179,181 @@ try {
         }
     }
 
+    // Commit DB work first
     $db->commit();
+
+    // ====================== EMAIL: To QMS, CC Assignee =======================
+    try {
+        require_once __DIR__ . '/../../send-email.php';
+
+        // 1) Fetch assignee department/section for CC and display
+        $assigneeDept = ''; $assigneeSection = '';
+        if ($aSel = $db->prepare("SELECT assignee, section FROM rcpa_request WHERE id = ? LIMIT 1")) {
+            $aSel->bind_param('i', $id);
+            if ($aSel->execute()) {
+                $aSel->bind_result($assigneeDept, $assigneeSection);
+                $aSel->fetch();
+            }
+            $aSel->close();
+        }
+        $assigneeDept = trim((string)$assigneeDept);
+        $assigneeSection = trim((string)$assigneeSection);
+
+        // 2) Build To: all QMS department users
+        $toRecipients = [];
+        if ($qmsStmt = $db->prepare("SELECT email FROM system_users WHERE department = 'QMS' AND email IS NOT NULL AND email <> ''")) {
+            if ($qmsStmt->execute()) {
+                $qmsStmt->bind_result($qmsEmail);
+                while ($qmsStmt->fetch()) {
+                    $qmsEmail = trim((string)$qmsEmail);
+                    if ($qmsEmail !== '') $toRecipients[] = $qmsEmail;
+                }
+            }
+            $qmsStmt->close();
+        }
+
+        // 3) Build CC: assignee users (respect section when present)
+        $ccRecipients = [];
+        if ($assigneeDept !== '') {
+            if ($assigneeSection !== '') {
+                $ccSql = "SELECT email FROM system_users WHERE department = ? AND section = ? AND email IS NOT NULL AND email <> ''";
+                $ccStmt = $db->prepare($ccSql);
+                if ($ccStmt) $ccStmt->bind_param('ss', $assigneeDept, $assigneeSection);
+            } else {
+                $ccSql = "SELECT email FROM system_users WHERE department = ? AND email IS NOT NULL AND email <> ''";
+                $ccStmt = $db->prepare($ccSql);
+                if ($ccStmt) $ccStmt->bind_param('s', $assigneeDept);
+            }
+            if (isset($ccStmt) && $ccStmt && $ccStmt->execute()) {
+                $ccStmt->bind_result($ccEmail);
+                while ($ccStmt->fetch()) {
+                    $ccEmail = trim((string)$ccEmail);
+                    if ($ccEmail !== '') $ccRecipients[] = $ccEmail;
+                }
+                $ccStmt->close();
+            }
+        }
+
+        // 4) Clean up and ensure no overlap between To and CC
+        $toRecipients = array_values(array_unique(array_filter($toRecipients)));
+        $ccRecipients = array_values(array_unique(array_filter($ccRecipients)));
+        $ccRecipients = array_values(array_diff($ccRecipients, $toRecipients));
+
+        if (!empty($toRecipients)) {
+            // Display name: "Department - Section" (if section exists)
+            $deptDisplay = $assigneeDept . ($assigneeSection !== '' ? ' - ' . $assigneeSection : '');
+
+            // Subject (ASCII hyphen to avoid encoding issues)
+            $subject = sprintf('RCPA #%d assigned to %s - status: %s', (int)$id, $deptDisplay, $newStatus);
+
+            // Fixed portal link
+            $portalUrl = 'http://rti10517/qdportal/login.php';
+
+            // Safe strings
+            $rcpaNo        = (int)$id;
+            $deptDispSafe  = htmlspecialchars($deptDisplay, ENT_QUOTES, 'UTF-8');
+            $statusSafe    = htmlspecialchars($newStatus, ENT_QUOTES, 'UTF-8');
+            $portalUrlSafe = htmlspecialchars($portalUrl, ENT_QUOTES, 'UTF-8');
+
+            // HTML body (simple + Outlook-friendly)
+            $htmlBody = '
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>RCPA Notification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0; padding:0; background:#f3f4f6; font-family: Arial, Helvetica, sans-serif; color:#111827;">
+  <div style="display:none; overflow:hidden; line-height:1px; opacity:0; max-height:0; max-width:0;">
+    RCPA #'.$rcpaNo.' '.$statusSafe.' for '.$deptDispSafe.'
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f4f6; padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08);">
+          <tr>
+            <td style="padding:20px 24px; background:#111827; color:#ffffff;">
+              <div style="font-size:16px; letter-spacing:.4px;">QD Portal</div>
+              <div style="font-size:22px; font-weight:bold; margin-top:4px;">RCPA Notification</div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 24px 8px 24px;">
+              <div style="font-size:18px; font-weight:bold; color:#111827; margin-bottom:8px;">
+                RCPA #'.$rcpaNo.'
+              </div>
+              <span style="display:inline-block; font-size:12px; font-weight:600; padding:6px 10px; border-radius:999px; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe;">
+                '.$statusSafe.'
+              </span>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 24px 0 24px; color:#374151; font-size:14px; line-height:1.6;">
+              Good day,<br>
+              The Assignee Supervisor/Manager has <strong>approved the Assignee reply as VALID</strong> for RCPA <strong>#'.$rcpaNo.'</strong>.<br>
+              The request is now in status <strong>'.$statusSafe.'</strong>.
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px 24px 8px 24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">
+                <tr>
+                  <td style="width:42%; padding:10px 12px; background:#f9fafb; border:1px solid #e5e7eb; font-size:13px; color:#6b7280;">Assignee</td>
+                  <td style="padding:10px 12px; border:1px solid #e5e7eb; font-size:13px; color:#111827;"><strong>'.$deptDispSafe.'</strong></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 24px 8px 24px;" align="left">
+              <a href="'.$portalUrlSafe.'" target="_blank"
+                 style="background:#2563eb; color:#ffffff; text-decoration:none; padding:12px 18px; border-radius:6px; display:inline-block; font-size:14px; font-weight:600;">
+                Open QD Portal
+              </a>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:6px 24px 0 24px; color:#6b7280; font-size:12px;">
+              If the button doesn\'t work, copy and paste this link into your browser:<br>
+              <a href="'.$portalUrlSafe.'" target="_blank" style="color:#2563eb; text-decoration:underline;">'.$portalUrlSafe.'</a>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px; color:#9ca3af; font-size:12px;">
+              This is an automated message from the QD Portal. Please do not reply to this email.
+            </td>
+          </tr>
+        </table>
+
+        <div style="height:12px; line-height:12px;">&nbsp;</div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>';
+
+            // Plain text alternative
+            $altBody  = "RCPA #$rcpaNo - $newStatus\n";
+            $altBody .= "Assignee: " . html_entity_decode($deptDispSafe, ENT_QUOTES, 'UTF-8') . "\n";
+            $altBody .= "Open QD Portal: $portalUrl\n";
+
+            // Fire email: To = QMS, CC = Assignee
+            sendEmailNotification($toRecipients, $subject, $htmlBody, $altBody, $ccRecipients);
+        }
+    } catch (Throwable $mailErr) {
+        error_log('VALID email notify error (id ' . (int)$id . '): ' . $mailErr->getMessage());
+        // Do not block success response
+    }
+    // ==================== END EMAIL ====================
+
     echo json_encode([
         'success' => true,
         'updated_nc' => $updated_nc,

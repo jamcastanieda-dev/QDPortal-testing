@@ -384,7 +384,6 @@
   }
 })();
 
-
 /* =========================================================
  * CALENDAR MODAL (modal + calendar) — IIFE #2
  * =======================================================*/
@@ -1320,15 +1319,10 @@
   function validationHasContent() {
     if (!validFs) return false;
 
-    // any checkboxes ticked?
-    const hasChecked = [
-      '#rcpa-view-findings-valid',
-      '#rcpa-view-for-nc-valid',
-      '#rcpa-view-for-nc',
-      '#rcpa-view-for-pnc'
-    ].some(sel => !!viewModal.querySelector(sel)?.checked);
+    // Optional: let the main "Findings Valid" checkbox force the section visible
+    const findingsValid = !!viewModal.querySelector('#rcpa-view-findings-valid')?.checked;
 
-    // any text filled?
+    // Any text filled?
     const hasText = [
       'rcpa-view-root-cause',
       'rcpa-view-correction',
@@ -1336,17 +1330,17 @@
       'rcpa-view-preventive'
     ].some(id => (document.getElementById(id)?.value || '').trim() !== '');
 
-    // any dates set?
+    // Any dates set?
     const hasDates = [
       'rcpa-view-correction-target', 'rcpa-view-correction-done',
       'rcpa-view-corrective-target', 'rcpa-view-corrective-done',
       'rcpa-view-preventive-target', 'rcpa-view-preventive-done'
     ].some(id => !!document.getElementById(id)?.value);
 
-    // any attachments?
+    // Any validation attachments?
     const hasAttach = !!document.getElementById('rcpa-view-valid-attach-list')?.children.length;
 
-    // any NC/PNC grids visible with content?
+    // Any visible NC/PNC panel with content? (visibility alone doesn't count)
     const panelHasContent = Array.from(validFs.querySelectorAll('.correction-grid, .preventive-grid'))
       .filter(el => getComputedStyle(el).display !== 'none')
       .some(el =>
@@ -1354,8 +1348,12 @@
         Array.from(el.querySelectorAll('input[type="date"]')).some(inp => !!inp.value)
       );
 
-    return hasChecked || hasText || hasDates || hasAttach || panelHasContent;
+    // IMPORTANT: We no longer count '#rcpa-view-for-nc-valid', '#rcpa-view-for-nc', '#rcpa-view-for-pnc'
+    // as content—those toggles are ignored.
+
+    return findingsValid || hasText || hasDates || hasAttach || panelHasContent;
   }
+
 
   function autoHideValidation() {
     if (!validFs) return;
@@ -1942,7 +1940,7 @@
       const td = (txt, cls = '') => `<td class="${cls}">${txt}</td>`;
       const tdAtt = (txt, cls = '', attrs = '') => `<td class="${cls}" ${attrs}>${txt}</td>`;
 
-      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
       const deptHeaders = gradeDepartments.map(d => th(d, 'hdr-dept sticky-top'));
 
@@ -2120,7 +2118,6 @@
     });
   }
 })();
-
 
 /* ====== HISTORY MODAL ====== */
 (function () {

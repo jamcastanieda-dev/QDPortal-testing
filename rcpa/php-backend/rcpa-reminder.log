@@ -1,0 +1,11 @@
+PHP Fatal error:  Uncaught mysqli_sql_exception: Commands out of sync; you can't run this command now in C:\xampp\htdocs\QDPortal-testing\rcpa\php-backend\rcpa-remind-reply-due-daily.php:37
+Stack trace:
+#0 C:\xampp\htdocs\QDPortal-testing\rcpa\php-backend\rcpa-remind-reply-due-daily.php(37): mysqli->prepare('SELECT 1 FROM r...')
+#1 {main}
+  thrown in C:\xampp\htdocs\QDPortal-testing\rcpa\php-backend\rcpa-remind-reply-due-daily.php on line 37
+
+Fatal error: Uncaught mysqli_sql_exception: Commands out of sync; you can't run this command now in C:\xampp\htdocs\QDPortal-testing\rcpa\php-backend\rcpa-remind-reply-due-daily.php:37
+Stack trace:
+#0 C:\xampp\htdocs\QDPortal-testing\rcpa\php-backend\rcpa-remind-reply-due-daily.php(37): mysqli->prepare('SELECT 1 FROM r...')
+#1 {main}
+  thrown in C:\xampp\htdocs\QDPortal-testing\rcpa\php-backend\rcpa-remind-reply-due-daily.php on line 37
