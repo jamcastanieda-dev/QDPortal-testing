@@ -1,18 +1,9 @@
 <?php
-// php-backend/rcpa-remind-reply-due-daily.php
-// Runs daily and emails assignee groups when reply_due_date is exactly 5, 3, or 1 day(s) away.
-// Now CC's all users where system_users.department = 'QMS'.
+// php-backend/rcpa-remind-close-due-daily.php
+// Runs daily and emails assignee groups when close_due_date is exactly 7 days, 1 day, 14 days, 21 days, or 28 days away.
 
 declare(strict_types=1);
 date_default_timezone_set('Asia/Manila');
-
-// --- optional: simple logging (uncomment if you want a log file)
-// error_reporting(E_ALL);
-// ini_set('display_errors', '0');
-// ini_set('log_errors', '1');
-// ini_set('error_log', __DIR__ . '/rcpa-reminder.log');
-// function logmsg(string $m): void { error_log('['.date('Y-m-d H:i:s').'] '.$m); }
-// logmsg('--- RCPA reminder job started ---');
 
 require_once __DIR__ . '/../../connection.php';
 $db = (isset($mysqli) && $mysqli instanceof mysqli) ? $mysqli
@@ -42,20 +33,20 @@ if ($qs = $db->prepare("SELECT email FROM system_users WHERE department = ? AND 
 $qmsEmails = array_values(array_unique(array_filter($qmsEmails)));
 
 /* ---------------------------------------------------
-   Pull all rows due in 5, 3, or 1 day(s)
+   Pull all rows due in 7, 1, 14, 21, or 28 days based on `close_due_date`
 --------------------------------------------------- */
 $sql = "
   SELECT
       id,
       assignee,
       section,
-      reply_due_date,
-      DATEDIFF(reply_due_date, CURDATE()) AS days_left
+      close_due_date,
+      DATEDIFF(close_due_date, CURDATE()) AS days_left
   FROM rcpa_request
-  WHERE reply_due_date IS NOT NULL
-    AND reply_date IS NULL
-    AND DATEDIFF(reply_due_date, CURDATE()) IN (5,3,1)
-    AND status IN ('ASSIGNEE PENDING','VALIDATION REPLY','IN-VALIDATION REPLY')
+  WHERE close_due_date IS NOT NULL
+    AND close_date IS NULL
+    AND DATEDIFF(close_due_date, CURDATE()) IN (7, 1, 14, 21, 28)
+    AND status IN ('ASSIGNEE PENDING', 'VALIDATION REPLY', 'IN-VALIDATION REPLY')
   ORDER BY id
 ";
 
@@ -91,7 +82,7 @@ foreach ($rows as $r) {
 
   // Build the activity/labels per offset (for idempotency & email copy)
   $label = ($daysLeft === 1) ? '1 day' : ($daysLeft . ' days');
-  $activityStr = 'Reminder: Reply due in ' . $label; // e.g., "Reminder: Reply due in 3 days"
+  $activityStr = 'Reminder: Close due in ' . $label; // e.g., "Reminder: Close due in 7 days"
 
   // Avoid resending the SAME reminder today
   $already = false;
@@ -144,22 +135,22 @@ foreach ($rows as $r) {
 
   // Compose email
   $deptDisplay  = $dept . ($section !== '' ? ' - ' . $section : '');
-  $subject      = sprintf('RCPA #%d - %s left to reply (%s)', (int)$id, $label, $deptDisplay);
+  $subject      = sprintf('RCPA #%d - %s left to close (%s)', (int)$id, $label, $deptDisplay);
   $portalUrl    = 'http://rti10517/qdportal/login.php';
-  $replyDueTxt  = date('F j, Y', strtotime($due));
+  $closeDueTxt  = date('F j, Y', strtotime($due));
 
   $deptDispSafe = htmlspecialchars($deptDisplay, ENT_QUOTES, 'UTF-8');
   $portalUrlSafe= htmlspecialchars($portalUrl, ENT_QUOTES, 'UTF-8');
-  $replyDueSafe = htmlspecialchars($replyDueTxt, ENT_QUOTES, 'UTF-8');
+  $closeDueSafe = htmlspecialchars($closeDueTxt, ENT_QUOTES, 'UTF-8');
 
   $htmlBody = '
 <!doctype html><html lang="en"><head><meta charset="utf-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif; color:#111827;">
   <p>Good day,</p>
-  <p>This is a friendly reminder that the reply for <strong>RCPA #'.(int)$id.'</strong> is due in <strong>'.$label.'</strong>.</p>
+  <p>This is a friendly reminder that the closing for <strong>RCPA #'.(int)$id.'</strong> is due in <strong>'.$label.'</strong>.</p>
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse; font-size:14px;">
     <tr><td style="padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb;">Assignee</td><td style="padding:6px 10px; border:1px solid #e5e7eb;"><strong>'.$deptDispSafe.'</strong></td></tr>
-    <tr><td style="padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb;">Reply Due Date</td><td style="padding:6px 10px; border:1px solid #e5e7eb;">'.$replyDueSafe.'</td></tr>
+    <tr><td style="padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb;">Close Due Date</td><td style="padding:6px 10px; border:1px solid #e5e7eb;">'.$closeDueSafe.'</td></tr>
   </table>
   <p style="margin-top:14px;">
     <a href="'.$portalUrlSafe.'" target="_blank" style="background:#2563eb; color:#fff; text-decoration:none; padding:10px 16px; border-radius:6px; display:inline-block;">
@@ -169,9 +160,9 @@ foreach ($rows as $r) {
   <p style="color:#6b7280; font-size:12px;">This is an automated reminder from the QD Portal.</p>
 </body></html>';
 
-  $altBody = "Reminder: RCPA #$id reply due in $label\n"
+  $altBody = "Reminder: RCPA #$id close due in $label\n"
             ."Assignee: $deptDisplay\n"
-            ."Reply Due Date: $replyDueTxt\n"
+            ."Close Due Date: $closeDueTxt\n"
             ."Open QD Portal: $portalUrl\n";
 
   // Send with CC to QMS

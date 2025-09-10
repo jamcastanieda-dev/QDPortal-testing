@@ -155,11 +155,24 @@
 
     const abs = Math.abs(diff);
     const plural = abs === 1 ? 'day' : 'days';
-    // future: "2 days", today: "0 days", past: "-2 days"
     const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
-    return `${pretty} (${valueText})`;
-  }
 
+    let className = '';
+    if (abs > 5) {
+      className = 'badge-cat-obs'; // > 5 days: Observation category
+    } else if (abs > 2) {
+      className = 'badge-cat-minor'; // < 5 days, > 2 days: Minor category
+    } else if (abs <= 2) {
+      className = 'badge-cat-major'; // < 2 days: Major category
+    }
+
+    // Wrap the date and the days left in a <span> with the conditional class.
+    return `
+    <span class="rcpa-badge ${className}">
+      ${pretty} (${valueText})
+    </span>
+  `;
+  }
 
 
   async function load() {
@@ -1569,7 +1582,7 @@
     const m = parseInt(ymd.slice(5, 7), 10) - 1;
     const d = parseInt(ymd.slice(8, 10), 10);
     if ([y, m, d].some(n => Number.isNaN(n))) return '';
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${months[m]} ${d}, ${y}`;
   }
   function updateCorrectiveLabel(closeDue) {

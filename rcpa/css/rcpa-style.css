@@ -2196,3 +2196,19 @@ fieldset.reject-remarks {
   border: 3px solid blue;
   animation: blink-blue 1s infinite;
 }
+
+/* ASSIGNEE PENDING REPLY DUE DATE COLOR */
+.rcpa-due-green {
+  color: yellow;
+  font-weight: bold;
+}
+
+.rcpa-due-orange {
+  color: orange;
+  font-weight: bold;
+}
+
+.rcpa-due-red {
+  color: red;
+  font-weight: bold;
+}

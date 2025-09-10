@@ -138,15 +138,33 @@
     const msPerDay = 24*60*60*1000;
     return Math.round((due - today) / msPerDay);
   }
+
+
   function formatReplyDueCell(ymd) {
     if (!ymd) return '';
     const pretty = formatYmdPretty(ymd);
     const diff = daysDiffFromToday(ymd);
     if (diff === null) return pretty;
+
     const abs = Math.abs(diff);
     const plural = abs === 1 ? 'day' : 'days';
     const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
-    return `${pretty} (${valueText})`;
+
+    let className = '';
+    if (abs > 5) {
+      className = 'badge-cat-obs'; // > 5 days: Observation category
+    } else if (abs > 2) {
+      className = 'badge-cat-minor'; // < 5 days, > 2 days: Minor category
+    } else if (abs <= 2) {
+      className = 'badge-cat-major'; // < 2 days: Major category
+    }
+
+    // Wrap the date and the days left in a <span> with the conditional class.
+    return `
+    <span class="rcpa-badge ${className}">
+      ${pretty} (${valueText})
+    </span>
+  `;
   }
 
   async function load() {

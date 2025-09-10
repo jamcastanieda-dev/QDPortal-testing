@@ -1,18 +1,18 @@
 
 (function () {
-  const IS_APPROVER  = !!window.RCPA_IS_APPROVER;
+  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
 
-  const tbody    = document.querySelector('#rcpa-table tbody');
-  const totalEl  = document.getElementById('rcpa-total');
+  const tbody = document.querySelector('#rcpa-table tbody');
+  const totalEl = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn  = document.getElementById('rcpa-prev');
-  const nextBtn  = document.getElementById('rcpa-next');
-  const fType    = document.getElementById('rcpa-filter-type');
+  const prevBtn = document.getElementById('rcpa-prev');
+  const nextBtn = document.getElementById('rcpa-next');
+  const fType = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn   = document.getElementById('view-button');
+  const viewBtn = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
@@ -102,7 +102,7 @@
     if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
     const year = d.getFullYear();
@@ -113,20 +113,20 @@
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '';
-    const y = +ymd.slice(0,4), m = +ymd.slice(5,7) - 1, d = +ymd.slice(8,10);
-    if ([y,m,d].some(Number.isNaN)) return ymd;
-    return `${mnames[m]} ${String(d).padStart(2,'0')}, ${y}`;
+    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
+    if ([y, m, d].some(Number.isNaN)) return ymd;
+    return `${mnames[m]} ${String(d).padStart(2, '0')}, ${y}`;
   }
   function daysDiffFromToday(ymd) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
-    const y = +ymd.slice(0,4), m = +ymd.slice(5,7) - 1, d = +ymd.slice(8,10);
-    if ([y,m,d].some(Number.isNaN)) return null;
+    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
+    if ([y, m, d].some(Number.isNaN)) return null;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const due = new Date(y,m,d);
-    const msPerDay = 24*60*60*1000;
+    const due = new Date(y, m, d);
+    const msPerDay = 24 * 60 * 60 * 1000;
     return Math.round((due - today) / msPerDay);
   }
   function formatReplyDueCell(ymd) {
@@ -134,10 +134,26 @@
     const pretty = formatYmdPretty(ymd);
     const diff = daysDiffFromToday(ymd);
     if (diff === null) return pretty;
+
     const abs = Math.abs(diff);
     const plural = abs === 1 ? 'day' : 'days';
-    const text = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
-    return `${pretty} (${text})`;
+    const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
+
+    let className = '';
+    if (abs > 5) {
+      className = 'badge-cat-obs'; // > 5 days: Observation category
+    } else if (abs > 2) {
+      className = 'badge-cat-minor'; // < 5 days, > 2 days: Minor category
+    } else if (abs <= 2) {
+      className = 'badge-cat-major'; // < 2 days: Major category
+    }
+
+    // Wrap the date and the days left in a <span> with the conditional class.
+    return `
+    <span class="rcpa-badge ${className}">
+      ${pretty} (${valueText})
+    </span>
+  `;
   }
 
   async function load() {
@@ -223,7 +239,7 @@
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
 
-    top  = Math.max(8, Math.min(top,  vh - popH - 8));
+    top = Math.max(8, Math.min(top, vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
 
     actionContainer.style.top = `${top}px`;
@@ -310,7 +326,7 @@
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn.addEventListener('click',   () => { dispatchAction('view',   actionContainer.dataset.id); hideActions(); });
+  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
