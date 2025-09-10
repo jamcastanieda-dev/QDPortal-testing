@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-
+// rcpa-view-invalidation-reply.php
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -16,14 +16,13 @@ function json_out($row): void {
   echo json_encode($row ?: new stdClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
   exit;
 }
-
 function json_err(string $msg, int $code = 500): void {
   http_response_code($code);
   echo json_encode(['error' => $msg], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
   exit;
 }
 
-// Get rcpa_no (preferred) or id (fallback)
+// rcpa_no (preferred) or id (fallback)
 $rcpa_no = filter_input(INPUT_GET, 'rcpa_no', FILTER_VALIDATE_INT);
 if (!$rcpa_no) {
   $rcpa_no = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -64,7 +63,36 @@ $res = $stmt->get_result();
 $nv  = $res ? $res->fetch_assoc() : null;
 $stmt->close();
 
-// 2) Disapproval remarks list for this RCPA
+// 2) Approvals list (NEW) — from rcpa_approve_remarks
+$approvals = [];
+$sqlAp = "
+  SELECT id, rcpa_no, type, remarks, attachment, created_at
+  FROM rcpa_approve_remarks
+  WHERE rcpa_no = ?
+  ORDER BY created_at DESC, id DESC
+  LIMIT 50
+";
+if ($stA = $conn->prepare($sqlAp)) {
+  // rcpa_no is varchar in the approvals table — cast to string
+  $rcpa_str = (string)$rcpa_no;
+  $stA->bind_param('s', $rcpa_str);
+  if ($stA->execute()) {
+    $r = $stA->get_result();
+    while ($row = $r->fetch_assoc()) {
+      $approvals[] = [
+        'id'          => (int)$row['id'],
+        'type'        => $row['type'],
+        'remarks'     => $row['remarks'],
+        // normalize to "attachments" so the quick-view modal reuses the same renderer
+        'attachments' => $row['attachment'],
+        'created_at'  => $row['created_at'],
+      ];
+    }
+  }
+  $stA->close();
+}
+
+// 3) Disapproval remarks list
 $rejects = [];
 $sqlRj = "
   SELECT id, disapprove_type, remarks, attachments, created_at
@@ -82,7 +110,7 @@ if ($st2 = $conn->prepare($sqlRj)) {
         'id'              => (int)$row['id'],
         'disapprove_type' => $row['disapprove_type'],
         'remarks'         => $row['remarks'],
-        'attachments'     => $row['attachments'], // JSON string or null
+        'attachments'     => $row['attachments'],
         'created_at'      => $row['created_at'],
       ];
     }
@@ -90,9 +118,10 @@ if ($st2 = $conn->prepare($sqlRj)) {
   $st2->close();
 }
 
-// 3) Build a JSON-serializable payload (force object)
+// 4) Build payload
 $payload = $nv ? (object)$nv : new stdClass();
-$payload->rcpa_no = $rcpa_no;
-$payload->rejects = $rejects;
+$payload->rcpa_no   = $rcpa_no;
+$payload->approvals = $approvals;
+$payload->rejects   = $rejects;
 
 json_out($payload);

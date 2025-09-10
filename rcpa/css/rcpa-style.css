@@ -1717,7 +1717,8 @@ input[type="checkbox"] {
   padding: 6px 8px
 }
 
-#rcpa-rejects-table {
+#rcpa-rejects-table,
+#rcpa-approvals-table {
   width: 100%;
   table-layout: fixed;
   border-collapse: separate;
@@ -1728,7 +1729,8 @@ input[type="checkbox"] {
   overflow: hidden
 }
 
-#rcpa-rejects-table thead th {
+#rcpa-rejects-table thead th,
+#rcpa-approvals-table thead th {
   position: sticky;
   top: 0;
   background: #fff;
@@ -1740,7 +1742,8 @@ input[type="checkbox"] {
   text-align: left
 }
 
-#rcpa-rejects-table tbody td {
+#rcpa-rejects-table tbody td,
+#rcpa-approvals-table tbody td {
   padding: .6rem .75rem;
   border-bottom: 1px solid var(--rcpa-border);
   color: var(--rcpa-text);
@@ -1750,37 +1753,45 @@ input[type="checkbox"] {
   text-overflow: ellipsis
 }
 
-#rcpa-rejects-table tbody tr:nth-child(odd) {
+#rcpa-rejects-table tbody tr:nth-child(odd),
+#rcpa-approvals-table tbody tr:nth-child(odd) {
   background: var(--rcpa-card)
 }
 
-#rcpa-rejects-table tbody tr:hover {
+#rcpa-rejects-table tbody tr:hover,
+#rcpa-approvals-table tbody tr:hover {
   background: #fff
 }
 
-#rcpa-rejects-table tbody td:first-child {
+#rcpa-rejects-table tbody td:first-child,
+#rcpa-approvals-table tbody td:first-child {
   font-weight: 700
 }
 
 #rcpa-rejects-table thead th:nth-child(3),
-#rcpa-rejects-table tbody td:nth-child(3) {
+#rcpa-rejects-table tbody td:nth-child(3),
+#rcpa-approvals-table thead th:nth-child(3),
+#rcpa-approvals-table tbody td:nth-child(3) {
   width: 110px;
   text-align: left
 }
 
-#rcpa-rejects-table .rcpa-btn {
+#rcpa-rejects-table .rcpa-btn,
+#rcpa-approvals-table .rcpa-btn {
   padding: 6px 12px;
   font-size: 13px
 }
 
-#rcpa-rejects-table .rcpa-empty {
+#rcpa-rejects-table .rcpa-empty,
+#rcpa-approvals-table .rcpa-empty {
   color: var(--rcpa-muted);
   text-align: center;
   padding: 1rem .75rem;
   white-space: normal
 }
 
-#reject-remarks-modal .modal-content {
+#reject-remarks-modal .modal-content,
+#approve-remarks-modal .modal-content {
   max-width: 700px
 }
 

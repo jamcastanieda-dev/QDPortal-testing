@@ -361,6 +361,44 @@
   const rjClose = document.getElementById('reject-remarks-close');
   const rjList = document.getElementById('reject-remarks-attach-list');
 
+  // ---------- Approval quick-view modal (NEW) ----------
+  const apModal = document.getElementById('approve-remarks-modal');
+  const apClose = document.getElementById('approve-remarks-close');
+  const apText = document.getElementById('approve-remarks-text');
+
+  function openApproveRemarks(item) {
+    if (!apModal) return;
+    if (apText) {
+      apText.value = item?.remarks || '';
+      // auto-size a bit
+      apText.style.height = 'auto';
+      apText.style.height = Math.min(apText.scrollHeight, 600) + 'px';
+    }
+    // handle both "attachments" (array/string) or legacy "attachment"
+    renderAttachmentsInto('approve-remarks-files', item?.attachments ?? item?.attachment ?? '');
+    apModal.removeAttribute('hidden');
+    requestAnimationFrame(() => apModal.classList.add('show'));
+    document.body.style.overflow = 'hidden';
+  }
+  function closeApproveRemarks() {
+    if (!apModal) return;
+    apModal.classList.remove('show');
+    const onEnd = (e) => {
+      if (e.target !== apModal || e.propertyName !== 'opacity') return;
+      apModal.removeEventListener('transitionend', onEnd);
+      apModal.setAttribute('hidden', '');
+      document.body.style.overflow = '';
+      const list = document.getElementById('approve-remarks-files');
+      if (list) list.innerHTML = '';
+      if (apText) apText.value = '';
+    };
+    apModal.addEventListener('transitionend', onEnd);
+  }
+  apClose?.addEventListener('click', closeApproveRemarks);
+  apModal?.addEventListener('click', (e) => { if (e.target === apModal) closeApproveRemarks(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && apModal && !apModal.hidden) closeApproveRemarks(); });
+
+
   function openRejectRemarks(item) {
     if (!rjModal) return;
     if (rjText) rjText.value = item?.remarks || '';
@@ -630,6 +668,16 @@
     if (fs) { fs.hidden = true; fs.setAttribute('aria-hidden', 'true'); }
 
     if (modal) modal.__rejects = [];
+
+    // Reset approvals table & hide fieldset (NEW)
+    {
+      const tbAp = document.querySelector('#rcpa-approvals-table tbody');
+      if (tbAp) tbAp.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
+      const fsAp = document.getElementById('rcpa-approvals-fieldset');
+      if (fsAp) fsAp.hidden = true;
+      if (modal) modal.__approvals = [];
+    }
+
   }
 
 
@@ -786,6 +834,54 @@
   }
 
 
+  // ---- APPROVALS TABLE (show/hide fieldset based on data) ----
+  function renderApprovalsTable(items) {
+    const tb = document.querySelector('#rcpa-approvals-table tbody');
+    const fs = document.getElementById('rcpa-approvals-fieldset');
+    if (!tb || !fs) return;
+
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length) {
+      tb.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
+      if (modal) modal.__approvals = [];
+      fs.hidden = true;
+      return;
+    }
+
+    if (modal) modal.__approvals = list;
+
+    tb.innerHTML = list.map((row, i) => {
+      const type = String(row.type || '');
+      const when = (() => {
+        const d = new Date(String(row.created_at || '').replace(' ', 'T'));
+        return isNaN(d) ? (row.created_at || '') : d.toLocaleString();
+      })();
+      return `
+      <tr>
+        <td>${escapeHTML(type) || '-'}</td>
+        <td>${escapeHTML(when) || '-'}</td>
+        <td><button type="button" class="rcpa-btn rcpa-approval-view" data-idx="${i}">View</button></td>
+      </tr>`;
+    }).join('');
+
+    fs.hidden = false;
+  }
+
+  // Click: open one approval item
+  (function hookApprovalsActions() {
+    const table = document.getElementById('rcpa-approvals-table');
+    if (!table) return;
+    table.addEventListener('click', (e) => {
+      const btn = e.target.closest('.rcpa-approval-view');
+      if (!btn) return;
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const cache = (modal && modal.__approvals) || [];
+      const item = cache[idx];
+      if (!item) return;
+      openApproveRemarks(item);
+    });
+  })();
+
   // Click: open one disapproval item
   (function hookRejectsActions() {
     const table = document.getElementById('rcpa-rejects-table');
@@ -848,6 +944,25 @@
             fillNotValid(null);
             renderRejectsTable([]);
           }
+          // --- Approval remarks (source priority: row.approvals -> nv.approvals -> fallback endpoint) ---
+          let approvals = Array.isArray(row?.approvals) ? row.approvals
+            : Array.isArray(nv?.approvals) ? nv.approvals
+              : [];
+
+          // Fallback: dedicated list endpoint (optional, only if previous lines don't return anything)
+          if (!approvals.length) {
+            try {
+              const apRes = await fetch(`../php-backend/rcpa-view-approvals-list.php?rcpa_no=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
+              if (apRes.ok) {
+                const apJson = await apRes.json();
+                // accept array, or {rows:[...]}
+                approvals = Array.isArray(apJson) ? apJson : (Array.isArray(apJson?.rows) ? apJson.rows : []);
+              }
+            } catch { /* ignore */ }
+          }
+
+          renderApprovalsTable(approvals || []);
+
         } else {
           fillNotValid(null);
           renderRejectsTable([]);

@@ -82,6 +82,25 @@ try {
                FROM rcpa_disapprove_remarks
                WHERE rcpa_no = ?
                ORDER BY created_at DESC, id DESC";
+
+    // approvals for this rcpa (Supervisor/Manager approvals)
+    $approvals = [];
+    $apSql = "SELECT id, rcpa_no, type, remarks, attachment, created_at
+            FROM rcpa_approve_remarks
+            WHERE rcpa_no = ?
+            ORDER BY created_at DESC, id DESC";
+    if ($apStmt = $conn->prepare($apSql)) {
+        $rcpaStr = (string)$id; // rcpa_no is varchar in this table
+        $apStmt->bind_param('s', $rcpaStr);
+        $apStmt->execute();
+        $apRes = $apStmt->get_result();
+        while ($r = $apRes->fetch_assoc()) {
+            $approvals[] = $r; // keep original column names; front-end handles both attachment/attachments
+        }
+        $apStmt->close();
+    }
+    $row['approvals'] = $approvals;
+
     if ($rej = $conn->prepare($rejSql)) {
         $rej->bind_param('i', $id);
         $rej->execute();

@@ -551,6 +551,27 @@
                     </div>
                 </fieldset>
 
+                <!-- APPROVAL REMARKS -->
+                <fieldset class="approve-remarks" id="rcpa-approvals-fieldset" hidden>
+                    <legend>Approval Remarks</legend>
+                    <div class="rcpa-card">
+                        <table id="rcpa-approvals-table" class="rcpa-table--compact">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Date/Time</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="rcpa-empty" colspan="3">No records found</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </fieldset>
+
                 <!-- DISAPPROVAL REMARKS -->
                 <fieldset class="reject-remarks">
                     <legend>Disapproval Remarks</legend>
@@ -695,6 +716,24 @@
                     <button type="submit" id="rcpa-reject-submit">Submit</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Approval remark quick viewer (read-only) -->
+    <div class="modal-overlay" id="approve-remarks-modal" hidden>
+        <div class="modal-content">
+            <button type="button" class="close-btn" id="approve-remarks-close" aria-label="Close">×</button>
+            <h3 class="rcpa-title" style="text-transform:none;margin:0 0 12px;">Approval Remarks</h3>
+
+            <div class="stack">
+                <span>Remarks</span>
+                <textarea id="approve-remarks-text" class="u-area" readonly></textarea>
+            </div>
+
+            <div class="stack" style="margin-top:10px;">
+                <span>Attachments</span>
+                <div class="attach-list" id="approve-remarks-files"></div>
+            </div>
         </div>
     </div>
 

@@ -408,6 +408,26 @@
 
                 </fieldset>
 
+                <!-- Approval Remarks (list) -->
+                <fieldset class="approve-remarks" id="rcpa-approvals-fieldset" hidden>
+                    <legend>Approval Remarks</legend>
+                    <table id="rcpa-approvals-table" class="rcpa-table rcpa-table--compact">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="rcpa-empty" colspan="3">No records found</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </fieldset>
+
+
                 <!-- Disapproval Remarks (list) -->
                 <fieldset class="reject-remarks">
                     <legend>Disapproval Remarks</legend>
@@ -448,7 +468,25 @@
         </div>
     </div>
 
-    <!-- Reject back to Assignee (ASSIGNEE PENDING) -->
+    <!-- Viewer for a single approval remark -->
+    <div class="modal-overlay" id="approve-remarks-modal" hidden>
+        <div class="modal-content">
+            <button type="button" class="close-btn" id="approve-remarks-close" aria-label="Close">&times;</button>
+            <h3 class="rcpa-title" style="text-transform:none;margin:0 0 12px;">Approval Remarks</h3>
+
+            <div class="stack">
+                <span>Remarks</span>
+                <textarea id="approve-remarks-text" class="u-area" readonly></textarea>
+            </div>
+
+            <div class="stack" style="margin-top:10px;">
+                <span>Attachments</span>
+                <div class="attach-list" id="approve-remarks-attach-list"></div>
+            </div>
+        </div>
+    </div>
+
+
     <div class="modal-overlay" id="rcpa-reject-modal" hidden>
         <div class="modal-content" id="rcpa-reject-content">
             <button type="button" class="close-btn" id="rcpa-reject-close" aria-label="Close">&times;</button>
@@ -480,6 +518,39 @@
                 <div class="actions" style="margin-top:12px; display:flex; gap:8px;">
                     <button type="button" id="rcpa-reject-cancel">Cancel</button>
                     <button type="submit" id="rcpa-reject-submit">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Approve In-Validation Reply modal -->
+    <div class="modal-overlay" id="rcpa-approve-modal" hidden>
+        <div class="modal-content" id="rcpa-approve-content">
+            <button type="button" class="close-btn" id="rcpa-approve-close" aria-label="Close">&times;</button>
+            <h3>Remarks for approving the in-validation reply</h3>
+
+            <form id="rcpa-approve-form" novalidate enctype="multipart/form-data">
+                <label class="field" style="display:block;margin-top:8px;">
+                    <div class="reject-attach-wrap">
+                        <textarea id="rcpa-approve-remarks" class="u-area" rows="6"
+                            placeholder="Optionally add remarks for approval..."></textarea>
+
+                        <button type="button" class="attach-icon reject-attach-icon"
+                            id="rcpa-approve-clip" title="Attach files">
+                            <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+                        </button>
+
+                        <span class="attach-badge reject-attach-badge" id="rcpa-approve-attach-count" hidden>0</span>
+
+                        <input id="rcpa-approve-files" name="attachments[]" type="file" multiple class="visually-hidden">
+                    </div>
+                </label>
+
+                <div class="reject-files-list" id="rcpa-approve-files-list"></div>
+
+                <div class="actions" style="margin-top:12px; display:flex; gap:8px;">
+                    <button type="button" id="rcpa-approve-cancel">Cancel</button>
+                    <button type="submit" id="rcpa-approve-submit">Approve</button>
                 </div>
             </form>
         </div>

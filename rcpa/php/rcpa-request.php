@@ -768,6 +768,25 @@
                     </div>
                 </fieldset>
 
+                <!-- APPROVALS -->
+                <fieldset class="approvals">
+                    <legend>APPROVAL REMARKS</legend>
+                    <table id="rcpa-approvals-table" class="rcpa-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Date &amp; Time</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="rcpa-empty" colspan="3">No records found</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </fieldset>
+
                 <!-- REJECTIONS -->
                 <fieldset class="rejects">
                     <legend>DISAPPROVAL REMARKS</legend>
@@ -810,6 +829,25 @@
 
             <div class="attach-list" id="reject-remarks-files" aria-live="polite"></div>
 
+        </div>
+    </div>
+
+    <!-- Viewer for a single approval remark -->
+    <div class="modal-overlay" id="approve-remarks-modal" aria-hidden="true">
+        <div class="modal-content">
+            <button type="button" class="close-btn" id="approve-remarks-close" aria-label="Close">&times;</button>
+            <h3 class="rcpa-title" style="text-transform:none;margin:0 0 12px;">Approval Remarks</h3>
+
+            <div class="stack">
+                <span>Remarks</span>
+                <textarea id="approve-remarks-text" class="u-area" readonly></textarea>
+            </div>
+
+            <div class="stack" style="margin-top:10px;">
+                <span>Attachments</span>
+                <!-- will be injected if missing -->
+                <div class="attach-list" id="approve-remarks-files"></div>
+            </div>
         </div>
     </div>
 

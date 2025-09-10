@@ -57,11 +57,11 @@
                 <ul class="submenu">
                     <li class="not-selected"><a href="rcpa-dashboard.php">Dashboard</a></li>
                     <li class="not-selected">
-  <a href="rcpa-request.php" class="has-badge">
-    Request
-    <span id="rcpa-request-badge" class="notif-badge" hidden>0</span>
-  </a>
-</li>
+                        <a href="rcpa-request.php" class="has-badge">
+                            Request
+                            <span id="rcpa-request-badge" class="notif-badge" hidden>0</span>
+                        </a>
+                    </li>
 
                     <?php if (!empty($can_see_rcpa_approval) && $can_see_rcpa_approval): ?>
                         <li class="not-selected">
@@ -415,6 +415,25 @@
                     </div> -->
                 </fieldset>
 
+                <!-- Approval Remarks (list) -->
+                <fieldset class="approve-remarks" id="rcpa-approvals-fieldset" hidden>
+                    <legend>Approval Remarks</legend>
+                    <table id="rcpa-approvals-table" class="rcpa-table rcpa-table--compact">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="rcpa-empty" colspan="3">No records found</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </fieldset>
+
                 <!-- Disapproval Remarks (list) -->
                 <fieldset class="reject-remarks">
                     <legend>Disapproval Remarks</legend>
@@ -489,6 +508,23 @@
         </div>
     </div>
 
+    <!-- Approval Remarks quick viewer (read-only) -->
+    <div class="modal-overlay" id="approve-remarks-modal" hidden>
+        <div class="modal-content">
+            <button type="button" class="close-btn" id="approve-remarks-close" aria-label="Close">×</button>
+            <h3 class="rcpa-title" style="text-transform:none;margin:0 0 12px;">Approval Remarks</h3>
+
+            <div class="stack">
+                <span>Remarks</span>
+                <textarea id="approve-remarks-text" class="u-area" readonly></textarea>
+            </div>
+
+            <div class="stack" style="margin-top:10px;">
+                <span>Attachments</span>
+                <div class="attach-list" id="approve-remarks-files"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- History Modal -->
     <div id="rcpa-history-modal" class="modal-overlay" aria-hidden="true">
@@ -510,7 +546,7 @@
 
     <script src="../js/rcpa-task-invalidation-reply.js"></script>
     <script src="../js/rcpa-notif-sub-menu-count.js"></script>
-    
+
 
     <!-- CDN JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

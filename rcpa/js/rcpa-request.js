@@ -1391,6 +1391,81 @@
     rjModal?.addEventListener('click', (e) => { if (e.target === rjModal) closeRejectRemarks(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeRejectRemarks(); });
 
+    // === Approval (Approve) Remarks quick-view modal (read-only) ===
+    const apModal = byId('approve-remarks-modal');
+    const apText = byId('approve-remarks-text');
+    const apClose = byId('approve-remarks-close');
+
+    function ensureApproveFilesList() {
+      let el = byId('approve-remarks-files');
+      if (el) return el;
+      el = document.createElement('div');
+      el.id = 'approve-remarks-files';
+      el.className = 'attach-list';
+      const remarksStack = apText?.closest('.stack');
+      if (remarksStack && remarksStack.parentNode) {
+        remarksStack.parentNode.insertBefore(el, remarksStack.nextSibling);
+      } else {
+        apModal?.querySelector('.modal-content')?.appendChild(el);
+      }
+      return el;
+    }
+    function renderApproveFiles(listEl, attachments) {
+      if (!listEl) return;
+      listEl.innerHTML = '';
+      let arr = [];
+      try {
+        arr = typeof attachments === 'string' ? JSON.parse(attachments || '[]')
+          : (Array.isArray(attachments) ? attachments
+            : (attachments && Array.isArray(attachments.files) ? attachments.files : []));
+      } catch { arr = []; }
+
+      arr.forEach(a => {
+        const name = a?.name || a?.url?.split('/').pop() || 'Attachment';
+        const url = a?.url || '#';
+        const row = document.createElement('div');
+        row.className = 'file-chip';
+        row.innerHTML = `
+      <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+      <div class="file-info">
+        <div class="name"><a href="${url}" target="_blank" rel="noopener">${name}</a></div>
+        <div class="sub">${a?.mime || ''} ${a?.size ? `• ${a.size} bytes` : ''}</div>
+      </div>`;
+        listEl.appendChild(row);
+      });
+    }
+    
+    function openApproveRemarks(text, attachments) {
+      if (!apModal) { alert(text || ''); return; }
+      if (apText) {
+        apText.value = text || '';
+        (function autoGrowTextarea(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 600) + 'px'; })(apText);
+      }
+      renderApproveFiles(ensureApproveFilesList(), attachments);
+
+      apModal.removeAttribute('hidden');            // ✅ make it displayable
+      requestAnimationFrame(() => apModal.classList.add('show')); // smoother
+
+      apModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+      setTimeout(() => apClose?.focus(), 0);
+    }
+
+    function closeApproveRemarks() {
+      if (!apModal) return;
+      apModal.classList.remove('show');
+      apModal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+      if (apText) apText.value = '';
+      const listEl = byId('approve-remarks-files');
+      if (listEl) listEl.innerHTML = '';
+    }
+
+    apClose?.addEventListener('click', closeApproveRemarks);
+    apModal?.addEventListener('click', (e) => { if (e.target === apModal) closeApproveRemarks(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeApproveRemarks(); });
+
+
     // === ORIGINATOR ACTIONS (Approve / Disapprove back) ===
     const actionsBar = byId('rcpa-originator-actions');
     const approveBtn = byId('rcpa-approve-btn');
@@ -1806,6 +1881,14 @@
       if (window.__clearViewTypeFields) window.__clearViewTypeFields();
       if (actionsBar) actionsBar.hidden = true;
 
+      // approvals reset
+      clearApprovalsTable();
+      const fsApprovals = document.querySelector('fieldset.approvals');
+      if (fsApprovals) fsApprovals.hidden = true;
+      const hostForAp = byId('rcpa-view-modal');
+      if (hostForAp) hostForAp.__approvals = [];
+
+
       clearRejectsTable();
     }
 
@@ -1841,6 +1924,13 @@
       if (!tb) return;
       tb.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
     }
+
+    function clearApprovalsTable() {
+      const tb = document.querySelector('#rcpa-approvals-table tbody');
+      if (!tb) return;
+      tb.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
+    }
+
     function renderRejectsTable(items) {
       const tb = document.querySelector('#rcpa-rejects-table tbody');
       const fsRejects = document.querySelector('fieldset.rejects');
@@ -1871,6 +1961,38 @@
         </tr>`;
       }).join('');
     }
+
+    function renderApprovalsTable(items) {
+      const tb = document.querySelector('#rcpa-approvals-table tbody');
+      const fs = document.querySelector('fieldset.approvals');
+      if (!tb) return;
+
+      const list = Array.isArray(items) ? items : [];
+      if (!list.length) {
+        tb.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
+        if (fs) fs.hidden = true;
+        return;
+      }
+      if (fs) fs.hidden = false;
+
+      const host = byId('rcpa-view-modal');
+      if (host) host.__approvals = list;
+
+      tb.innerHTML = list.map((row, i) => {
+        const type = escapeHTML(row.type || '');
+        const when = (() => {
+          const d = new Date(String(row.created_at).replace(' ', 'T'));
+          return isNaN(d) ? escapeHTML(row.created_at || '') : escapeHTML(d.toLocaleString());
+        })();
+        return `
+      <tr>
+        <td>${type || '-'}</td>
+        <td>${when || '-'}</td>
+        <td><button type="button" class="rcpa-btn rcpa-approval-view" data-idx="${i}">View</button></td>
+      </tr>`;
+      }).join('');
+    }
+
     (function hookRejectsActions() {
       const table = byId('rcpa-rejects-table');
       if (!table) return;
@@ -1885,6 +2007,23 @@
         openRejectRemarks(item.remarks || '', item.attachments);
       });
     })();
+
+    (function hookApprovalsActions() {
+      const table = byId('rcpa-approvals-table');
+      if (!table) return;
+      table.addEventListener('click', (e) => {
+        const btn = e.target.closest('.rcpa-approval-view');
+        if (!btn) return;
+        const host = byId('rcpa-view-modal');
+        const cache = (host && host.__approvals) || [];
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        const item = cache[idx];
+        if (!item) return;
+        // server may send "attachments" (normalized) or legacy "attachment"
+        openApproveRemarks(item.remarks || '', item.attachments ?? item.attachment);
+      });
+    })();
+
 
     // Lock checkboxes (view-only)
     (function lockViewCheckboxes() {
@@ -2027,6 +2166,8 @@
         // Main attachments & rejects
         renderAttachments(r.attachments);
         renderRejectsTable(data.rejects || []);
+        renderApprovalsTable(data.approvals || []);
+
 
         // Corrective Evidence
         (function fillCorrectiveEvidence() {

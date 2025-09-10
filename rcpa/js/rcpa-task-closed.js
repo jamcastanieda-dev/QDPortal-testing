@@ -254,6 +254,42 @@
     const dText = document.getElementById('reject-remarks-text');
     const dList = document.getElementById('reject-remarks-attach-list');
 
+    // Approval remarks viewer (NEW)
+    const apModal = document.getElementById('approve-remarks-modal');
+    const apClose = document.getElementById('approve-remarks-close');
+    const apText = document.getElementById('approve-remarks-text');
+
+    function openApproveRemarks(text, attachments) {
+        if (!apModal) { alert(text || ''); return; }
+        if (apText) {
+            apText.value = text || '';
+            apText.style.height = 'auto';
+            apText.style.height = Math.min(apText.scrollHeight, 600) + 'px';
+        }
+        renderAttachmentsTo('approve-remarks-files', attachments);
+        apModal.removeAttribute('hidden');
+        requestAnimationFrame(() => apModal.classList.add('show'));
+        document.body.style.overflow = 'hidden';
+    }
+    function closeApproveRemarks() {
+        if (!apModal) return;
+        apModal.classList.remove('show');
+        const onEnd = (e) => {
+            if (e.target !== apModal || e.propertyName !== 'opacity') return;
+            apModal.removeEventListener('transitionend', onEnd);
+            apModal.setAttribute('hidden', '');
+            document.body.style.overflow = '';
+            const list = document.getElementById('approve-remarks-files');
+            if (list) list.innerHTML = '';
+            if (apText) apText.value = '';
+        };
+        apModal.addEventListener('transitionend', onEnd);
+    }
+    apClose?.addEventListener('click', closeApproveRemarks);
+    apModal?.addEventListener('click', (e) => { if (e.target === apModal) closeApproveRemarks(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && apModal && !apModal.hidden) closeApproveRemarks(); });
+
+
     // Why-Why modal
     const whyViewModal = document.getElementById('rcpa-why-view-modal');
     const whyViewClose = document.getElementById('rcpa-why-view-close');
@@ -348,6 +384,57 @@
       `;
         }).join('');
     }
+
+    function renderApprovalsTable(items) {
+        const tb = document.querySelector('#rcpa-approvals-table tbody');
+        const fs = document.getElementById('rcpa-approvals-fieldset');
+        if (!tb || !fs) return;
+
+        const list = Array.isArray(items) ? items : [];
+        if (!list.length) {
+            tb.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
+            fs.hidden = true;
+            return;
+        }
+
+        fs.hidden = false;
+
+        // cache rows on the modal host for the click handler
+        const host = document.getElementById('rcpa-view-modal');
+        if (host) host.__approvals = list;
+
+        tb.innerHTML = list.map((row, i) => {
+            const type = escapeHTML(row.type || '');
+            const when = (() => {
+                const d = new Date(String(row.created_at).replace(' ', 'T'));
+                return isNaN(d) ? escapeHTML(row.created_at || '') : escapeHTML(d.toLocaleString());
+            })();
+            return `
+          <tr>
+            <td>${type || '-'}</td>
+            <td>${when || '-'}</td>
+            <td><button type="button" class="rcpa-btn rcpa-approval-view" data-idx="${i}">View</button></td>
+          </tr>`;
+        }).join('');
+    }
+
+    // Clicking "View" beside an approval row opens the read-only viewer
+    (function hookApprovalsActions() {
+        const table = document.getElementById('rcpa-approvals-table');
+        if (!table) return;
+        table.addEventListener('click', (e) => {
+            const btn = e.target.closest('.rcpa-approval-view');
+            if (!btn) return;
+            const host = document.getElementById('rcpa-view-modal');
+            const cache = (host && host.__approvals) || [];
+            const idx = parseInt(btn.getAttribute('data-idx'), 10);
+            const item = cache[idx];
+            if (!item) return;
+            // server may send "attachments" array or legacy "attachment" string
+            openApproveRemarks(item.remarks || '', item.attachments ?? item.attachment);
+        });
+    })();
+
 
     // Clicking "View" beside a disapproval row opens the read-only viewer
     (function hookDisapproveActions() {
@@ -761,6 +848,16 @@
         if (rjFs) { rjFs.hidden = true; rjFs.setAttribute('aria-hidden', 'true'); }
         if (modal) modal.__rejects = [];
 
+        // Approval remarks table: reset + hide; clear cache (NEW)
+        {
+            const tbAp = document.querySelector('#rcpa-approvals-table tbody');
+            if (tbAp) tbAp.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
+            const apFs = document.getElementById('rcpa-approvals-fieldset');
+            if (apFs) apFs.hidden = true;
+            if (modal) modal.__approvals = [];
+        }
+
+
         // Why-Why UI: clear description/list and forget id
         if (whyViewDesc) whyViewDesc.value = '';
         if (whyViewList) whyViewList.innerHTML = '';
@@ -1060,7 +1157,7 @@
             if (caAtt) caAtt.innerHTML = '';
         }
         setSectionVisible(corrFs, hasCorrRemarks || hasCorrAttach);
-        
+
         if (actionsWrap) actionsWrap.hidden = !row.can_followup;
 
 
@@ -1103,6 +1200,10 @@
 
             const rejects = Array.isArray(row.rejects) ? row.rejects : [];
             renderRejectsTable(rejects);
+
+            const approvals = Array.isArray(row.approvals) ? row.approvals : [];
+            renderApprovalsTable(approvals);
+
 
             showModal();
         } catch (err) {

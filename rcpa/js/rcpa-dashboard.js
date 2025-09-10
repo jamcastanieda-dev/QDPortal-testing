@@ -718,6 +718,40 @@
   const dList = document.getElementById('reject-remarks-attach-list');
 
   /* =======================
+   DOM REFS (approval viewer)
+  ======================= */
+  const apModal = document.getElementById('approve-remarks-modal');
+  const apClose = document.getElementById('approve-remarks-close');
+  const apText = document.getElementById('approve-remarks-text');
+
+  function openApproveModal(item) {
+    if (!apModal) return;
+    if (apText) {
+      apText.value = item?.remarks || '';
+      // auto-size a bit (optional)
+      apText.style.height = 'auto';
+      apText.style.height = Math.min(apText.scrollHeight, 600) + 'px';
+    }
+    // supports both "attachments" (array/string) or legacy "attachment"
+    renderAttachmentsTo('approve-remarks-files', item?.attachments ?? item?.attachment ?? '');
+    apModal.removeAttribute('hidden');
+    requestAnimationFrame(() => apModal.classList.add('show'));
+    document.body.classList.add('no-scroll');
+  }
+  function closeApproveModal() {
+    if (!apModal) return;
+    apModal.classList.remove('show');
+    apModal.setAttribute('hidden', '');
+    document.body.classList.remove('no-scroll');
+    const list = document.getElementById('approve-remarks-files');
+    if (list) list.innerHTML = '';
+    if (apText) apText.value = '';
+  }
+  apClose?.addEventListener('click', closeApproveModal);
+  apModal?.addEventListener('click', (e) => { if (e.target === apModal) closeApproveModal(); });
+
+
+  /* =======================
      DOM REFS (WHY-WHY modal)
   ======================= */
   const whyModal = document.getElementById('rcpa-why-view-modal');
@@ -1233,6 +1267,55 @@
     }).join('');
   }
 
+  // ---- APPROVALS TABLE (show/hide fieldset based on data) ----
+  function renderApprovalsTable(items) {
+    const tb = document.querySelector('#rcpa-approvals-table tbody');
+    const fs = document.getElementById('rcpa-approvals-fieldset');
+    if (!tb || !fs) return;
+
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length) {
+      tb.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
+      if (viewModal) viewModal.__approvals = [];
+      fs.hidden = true;
+      return;
+    }
+
+    if (viewModal) viewModal.__approvals = list;
+
+    tb.innerHTML = list.map((row, i) => {
+      const type = String(row.type || row.approve_type || '');
+      const when = (() => {
+        const d = new Date(String(row.created_at || '').replace(' ', 'T'));
+        return isNaN(d) ? (row.created_at || '') : d.toLocaleString();
+      })();
+      return `
+      <tr>
+        <td>${(type || '-').replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]))}</td>
+        <td>${(when || '-').replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]))}</td>
+        <td><button type="button" class="rcpa-btn rcpa-approval-view" data-idx="${i}">View</button></td>
+      </tr>`;
+    }).join('');
+
+    fs.hidden = false;
+  }
+
+  // Click: open one approval item
+  (function bindApprovalViewClicks() {
+    const table = document.getElementById('rcpa-approvals-table');
+    if (!table) return;
+    table.addEventListener('click', (e) => {
+      const btn = e.target.closest('.rcpa-approval-view');
+      if (!btn) return;
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const cache = (viewModal && viewModal.__approvals) || [];
+      const item = cache[idx];
+      if (!item) return;
+      openApproveModal(item);
+    });
+  })();
+
+
 
   function fieldsetHasContent(root) {
     if (!root) return false;
@@ -1266,6 +1349,7 @@
     if (!viewModal) return;
 
     const rejectFs = viewModal.querySelector('fieldset.reject-remarks');
+    const approveFs = viewModal.querySelector('#rcpa-approvals-fieldset');
 
     const sections = [
       viewModal.querySelector('.rcpa-type'),
@@ -1302,6 +1386,15 @@
         setSectionVisible(fs, hasRows);
         return;
       }
+
+      // special handling for Approval Remarks table
+      if (fs === approveFs) {
+        const tb = fs.querySelector('#rcpa-approvals-table tbody');
+        const hasRows = !!(tb && Array.from(tb.querySelectorAll('tr')).some(tr => !tr.querySelector('.rcpa-empty')));
+        setSectionVisible(fs, hasRows);
+        return;
+      }
+
 
       const has = fieldsetHasContent(fs);
       setSectionVisible(fs, has);
@@ -1591,6 +1684,23 @@
     // ===== Disapproval remarks table =====
     renderRejectsTable(Array.isArray(row.rejects) ? row.rejects : []);
 
+    // ===== Approval remarks table (row.approvals -> fallback endpoint) =====
+    (async () => {
+      let approvals = Array.isArray(row?.approvals) ? row.approvals : [];
+      if (!approvals.length) {
+        try {
+          const apRes = await fetchJSON(`../php-backend/rcpa-view-approvals-list.php?rcpa_no=${encodeURIComponent(row.id)}`);
+          // accept array or {rows:[...]}
+          approvals = Array.isArray(apRes) ? apRes : (Array.isArray(apRes?.rows) ? apRes.rows : []);
+        } catch (e) {
+          approvals = [];
+          console.warn('approvals fetch failed:', e);
+        }
+      }
+      renderApprovalsTable(approvals);
+    })();
+
+
     // ===== Why-Why button visibility (show only if data exists) =====
     if (row.id) refreshWhyButton(row.id);
 
@@ -1728,6 +1838,16 @@
     const tb = document.querySelector('#rcpa-rejects-table tbody');
     if (tb) tb.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
     if (viewModal) viewModal.__rejects = [];
+
+    // Reset Approvals table + cache (NEW)
+    {
+      const tbAp = document.querySelector('#rcpa-approvals-table tbody');
+      if (tbAp) tbAp.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
+      const fsAp = document.getElementById('rcpa-approvals-fieldset');
+      if (fsAp) fsAp.hidden = true;
+      if (viewModal) viewModal.__approvals = [];
+    }
+
 
     // WHY-WHY: clear current rcpa id and hide button
     if (viewModal && viewModal.dataset) viewModal.dataset.rcpaId = '';

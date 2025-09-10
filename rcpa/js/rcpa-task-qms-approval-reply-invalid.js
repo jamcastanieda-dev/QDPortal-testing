@@ -352,6 +352,7 @@
     load();
 })();
 
+// view
 (function () {
     // Main view modal
     const modal = document.getElementById('rcpa-view-modal');
@@ -401,6 +402,58 @@
     const rejCancel = document.getElementById('rcpa-reject-cancel');
     const rejSubmit = document.getElementById('rcpa-reject-submit');
 
+    // -------- Approve modal (SUP/MGR APPROVAL) --------
+    const appModal = document.getElementById('rcpa-approve-modal');
+    const appClose = document.getElementById('rcpa-approve-close');
+    const appForm = document.getElementById('rcpa-approve-form');
+    const appText = document.getElementById('rcpa-approve-remarks');
+    const appClip = document.getElementById('rcpa-approve-clip');
+    const appInput = document.getElementById('rcpa-approve-files');
+    const appBadge = document.getElementById('rcpa-approve-attach-count');
+    const appList = document.getElementById('rcpa-approve-files-list');
+    const appCancel = document.getElementById('rcpa-approve-cancel');
+    const appSubmit = document.getElementById('rcpa-approve-submit');
+
+    // -------- Approval quick-view modal (NEW) --------
+    const apQuick = document.getElementById('approve-remarks-modal');
+    const apQuickText = document.getElementById('approve-remarks-text');
+    const apQuickList = document.getElementById('approve-remarks-attach-list');
+    const apQuickClose = document.getElementById('approve-remarks-close');
+
+    function openApproveRemarks(item) {
+        if (!apQuick) return;
+        if (apQuickText) apQuickText.value = item?.remarks || '';
+        if (apQuickList) {
+            apQuickList.innerHTML = '';
+            // backend may send "attachments" (normalized) or original "attachment"
+            const attach = item?.attachments ?? item?.attachment ?? '';
+            renderAttachmentsInto('approve-remarks-attach-list', attach);
+        }
+        apQuick.removeAttribute('hidden');
+        requestAnimationFrame(() => apQuick.classList.add('show'));
+    }
+
+    function closeApproveRemarks() {
+        if (!apQuick) return;
+        apQuick.classList.remove('show');
+        const onEnd = (e) => {
+            if (e.target !== apQuick || e.propertyName !== 'opacity') return;
+            apQuick.removeEventListener('transitionend', onEnd);
+            apQuick.setAttribute('hidden', '');
+            if (apQuickText) apQuickText.value = '';
+            if (apQuickList) apQuickList.innerHTML = '';
+        };
+        apQuick.addEventListener('transitionend', onEnd);
+    }
+
+    apQuickClose && apQuickClose.addEventListener('click', closeApproveRemarks);
+    apQuick && apQuick.addEventListener('click', (e) => { if (e.target === apQuick) closeApproveRemarks(); });
+    // close on ESC too
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && apQuick && !apQuick.hidden) closeApproveRemarks();
+    });
+
+
     let currentViewId = null;
 
     function openRejectModal() {
@@ -431,7 +484,7 @@
     rejModal?.addEventListener('click', (e) => { if (e.target === rejModal) closeRejectModal(); });
     rejClip?.addEventListener('click', () => rejInput?.click());
 
-    // Selected files UI
+    // Selected files UI (shared helper)
     function humanSize(n) {
         if (!n && n !== 0) return '';
         let b = Number(n);
@@ -633,6 +686,38 @@
         if (rjFs) { rjFs.hidden = false; rjFs.removeAttribute('aria-hidden'); }
     }
 
+    function renderApprovalsTable(items) {
+        const tb = document.querySelector('#rcpa-approvals-table tbody');
+        const apFs = document.querySelector('fieldset.approve-remarks, #rcpa-approvals-fieldset');
+        if (!tb) return;
+
+        const list = Array.isArray(items) ? items : [];
+        if (!list.length) {
+            tb.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
+            if (modal) modal.__approvals = [];
+            if (apFs) { apFs.hidden = true; apFs.setAttribute('aria-hidden', 'true'); }
+            return;
+        }
+
+        if (modal) modal.__approvals = list;
+        tb.innerHTML = list.map((row, i) => {
+            const apType = String(row.type || '');
+            const when = (() => {
+                const d = new Date(String(row.created_at || '').replace(' ', 'T'));
+                return isNaN(d) ? (row.created_at || '') : d.toLocaleString();
+            })();
+            return `
+      <tr>
+        <td>${escapeHTML(apType) || '-'}</td>
+        <td>${escapeHTML(when) || '-'}</td>
+        <td><button type="button" class="rcpa-btn rcpa-approval-view" data-idx="${i}">View</button></td>
+      </tr>`;
+        }).join('');
+
+        if (apFs) { apFs.hidden = false; apFs.removeAttribute('aria-hidden'); }
+    }
+
+
     (function hookRejectsActions() {
         const table = document.getElementById('rcpa-rejects-table');
         if (!table) return;
@@ -646,6 +731,22 @@
             openRejectRemarks(item);
         });
     })();
+
+    (function hookApprovalsActions() {
+        const table = document.getElementById('rcpa-approvals-table');
+        if (!table) return;
+        table.addEventListener('click', (e) => {
+            const btn = e.target.closest('.rcpa-approval-view');
+            if (!btn) return;
+            const idx = parseInt(btn.getAttribute('data-idx'), 10);
+            const cache = (modal && modal.__approvals) || [];
+            const item = cache[idx];
+            if (!item) return;
+            openApproveRemarks(item); // <-- use dedicated modal
+        });
+    })();
+
+
 
     // -------- Reset & parsing --------
     function clearViewForm() {
@@ -673,6 +774,12 @@
 
         const rjFs = document.querySelector('fieldset.reject-remarks, #rcpa-rejects-fieldset');
         if (rjFs) { rjFs.hidden = true; rjFs.setAttribute('aria-hidden', 'true'); }
+
+        // NEW: approvals reset
+        const apFs = document.querySelector('fieldset.approve-remarks, #rcpa-approvals-fieldset');
+        if (apFs) { apFs.hidden = true; apFs.setAttribute('aria-hidden', 'true'); }
+        const apTbody = document.querySelector('#rcpa-approvals-table tbody');
+        if (apTbody) apTbody.innerHTML = `<tr><td class="rcpa-empty" colspan="3">No records found</td></tr>`;
     }
 
     function parseSemYear(s) {
@@ -810,7 +917,6 @@
         clearViewForm();
 
         try {
-            // Main record (should now include `rejects`)
             const res = await fetch(`../php-backend/rcpa-view-approval-invalid.php?id=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const row = await res.json();
@@ -819,14 +925,30 @@
             fillViewModal(row);
 
             // IN-VALID info
+            // IN-VALID info
             try {
                 const nvRes = await fetch(`../php-backend/rcpa-view-invalidation-reply.php?rcpa_no=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
                 if (nvRes.ok) {
                     const nv = await nvRes.json();
-                    if (nv && (nv.rcpa_no || nv.reason_non_valid || nv.assignee_name || nv.attachment)) fillNotValid(nv);
-                    else fillNotValid(null);
-                } else fillNotValid(null);
-            } catch { fillNotValid(null); }
+                    if (nv && (nv.rcpa_no || nv.reason_non_valid || nv.assignee_name || nv.attachment)) {
+                        fillNotValid(nv);
+                    } else {
+                        fillNotValid(null);
+                    }
+                    // NEW: render lists from this endpoint
+                    renderApprovalsTable(nv.approvals || []);
+                    renderRejectsTable(nv.rejects || []);
+                } else {
+                    fillNotValid(null);
+                    renderApprovalsTable([]);
+                    renderRejectsTable([]);
+                }
+            } catch {
+                fillNotValid(null);
+                renderApprovalsTable([]);
+                renderRejectsTable([]);
+            }
+
 
             lockViewCheckboxes();
             showModal();
@@ -836,40 +958,91 @@
         }
     });
 
-    // ACCEPT action → set status = "IN-VALIDATION REPLY" (existing)
-    // ACCEPT action → set status = "IN-VALID REPLY APPROVAL - ORIGINATOR"
-    document.addEventListener('rcpa:action', async (e) => {
+    // ==================== APPROVE (with remarks + attachments) ====================
+    function openApproveModal() {
+        if (!appModal) return;
+        appText && (appText.value = '');
+        appInput && (appInput.value = '');
+        appList && (appList.innerHTML = '');
+        if (appBadge) { appBadge.textContent = '0'; appBadge.hidden = true; }
+
+        appModal.removeAttribute('hidden');
+        requestAnimationFrame(() => appModal.classList.add('show'));
+        setTimeout(() => appText?.focus(), 80);
+        document.body.style.overflow = 'hidden';
+    }
+    function closeApproveModal() {
+        if (!appModal) return;
+        appModal.classList.remove('show');
+        const onEnd = (e) => {
+            if (e.target !== appModal || e.propertyName !== 'opacity') return;
+            appModal.removeEventListener('transitionend', onEnd);
+            appModal.setAttribute('hidden', '');
+            document.body.style.overflow = '';
+        };
+        appModal.addEventListener('transitionend', onEnd);
+    }
+    appClose?.addEventListener('click', closeApproveModal);
+    appCancel?.addEventListener('click', closeApproveModal);
+    appModal?.addEventListener('click', (e) => { if (e.target === appModal) closeApproveModal(); });
+    appClip?.addEventListener('click', () => appInput?.click());
+    function renderApproveList(files) {
+        if (!appList) return;
+        appList.innerHTML = '';
+        [...files].forEach((f, idx) => {
+            const row = document.createElement('div');
+            row.className = 'reject-file-chip file-chip';
+            row.innerHTML = `
+      <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+      <div class="file-info">
+        <div class="name" title="${f.name}">${f.name}</div>
+        <div class="sub">${humanSize(f.size)}</div>
+      </div>
+      <button type="button" class="file-remove" data-i="${idx}" title="Remove">✕</button>`;
+            appList.appendChild(row);
+        });
+        if (appBadge) {
+            appBadge.textContent = String(files.length);
+            appBadge.hidden = files.length === 0;
+        }
+    }
+    appInput?.addEventListener('change', () => renderApproveList(appInput.files || []));
+    appList?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.file-remove');
+        if (!btn || !appInput) return;
+        const i = Number(btn.getAttribute('data-i'));
+        const dt = new DataTransfer();
+        [...appInput.files].forEach((f, idx) => { if (idx !== i) dt.items.add(f); });
+        appInput.files = dt.files;
+        renderApproveList(appInput.files || []);
+    });
+
+    // OPEN Approve modal on accept action
+    document.addEventListener('rcpa:action', (e) => {
         const { action, id } = e.detail || {};
         if (action !== 'accept' || !id) return;
+        currentViewId = id;
+        openApproveModal();
+    });
+
+    // Submit approve (POST remarks + attachments)
+    appForm?.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (!currentViewId) { alert('Missing record id.'); return; }
 
         try {
-            // Confirmation (SweetAlert if present, else native confirm)
-            if (window.Swal) {
-                const { isConfirmed } = await Swal.fire({
-                    icon: 'question',
-                    title: 'Approve In-Validation Reply?',
-                    text: 'This will set the status to "IN-VALID APPROVAL - ORIGINATOR".',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, approve',
-                    cancelButtonText: 'Cancel',
-                    reverseButtons: true,
-                    focusCancel: true
-                });
-                if (!isConfirmed) return;
-            } else {
-                const ok = confirm(
-                    'Approve this In-Validation Reply?\n\nThis will set the status to "IN-VALID APPROVAL - ORIGINATOR".'
-                );
-                if (!ok) return;
-            }
+            appSubmit.disabled = true;
+            appSubmit.textContent = 'Approving…';
 
             const fd = new FormData();
-            fd.append('id', String(id));
+            fd.append('id', String(currentViewId));                 // rcpa_no / id
+            fd.append('remarks', (appText?.value || '').trim());
+            if (appInput && appInput.files) {
+                [...appInput.files].forEach(f => fd.append('attachments[]', f, f.name));
+            }
 
             const res = await fetch('../php-backend/rcpa-accept-approval-invalidation-reply.php', {
-                method: 'POST',
-                body: fd,
-                credentials: 'same-origin'
+                method: 'POST', body: fd, credentials: 'same-origin'
             });
             const data = await res.json();
             if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
@@ -889,6 +1062,7 @@
                 alert('In-Validation Reply approved. Status set to "IN-VALID APPROVAL - ORIGINATOR".');
             }
 
+            closeApproveModal();
             document.dispatchEvent(new CustomEvent('rcpa:refresh'));
         } catch (err) {
             console.error(err);
@@ -897,11 +1071,13 @@
             } else {
                 alert('Approval failed: ' + (err.message || err));
             }
+        } finally {
+            appSubmit.disabled = false;
+            appSubmit.textContent = 'Approve';
         }
     });
 
-
-
+    // ==================== REJECT (unchanged) ====================
     document.addEventListener('rcpa:action', (e) => {
         const { action, id } = e.detail || {};
         if (action !== 'reject' || !id) return;
