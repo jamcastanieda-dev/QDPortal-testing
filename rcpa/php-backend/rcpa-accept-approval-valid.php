@@ -131,7 +131,6 @@ try {
     }
 
     // 3.1) Set hit_reply if NULL based on no_days_reply (<=5 => 'hit', >5 => 'missed')
-    // Determine the effective number of days (freshly computed or existing)
     $effectiveDays = ($ndr === null) ? $computedDays : (int)$ndr;
     if ($effectiveDays !== null) {
         $hitVal = ($effectiveDays <= 5) ? 'hit' : 'missed';
@@ -182,9 +181,20 @@ try {
     // Commit DB work first
     $db->commit();
 
-    // ====================== EMAIL: To QMS, CC Assignee =======================
+    // ====================== EMAIL: To QMS, CC Assignee (clean + section-aware) =======================
     try {
         require_once __DIR__ . '/../../send-email.php';
+
+        // Helper: sanitize list (skip null/empty/'-' and invalids; lowercase; unique)
+        $cleanList = function(array $arr): array {
+            $out = [];
+            foreach ($arr as $e) {
+                $e = strtolower(trim((string)$e));
+                if ($e === '' || $e === '-' || !filter_var($e, FILTER_VALIDATE_EMAIL)) continue;
+                $out[$e] = true;
+            }
+            return array_keys($out);
+        };
 
         // 1) Fetch assignee department/section for CC and display
         $assigneeDept = ''; $assigneeSection = '';
@@ -199,45 +209,50 @@ try {
         $assigneeDept = trim((string)$assigneeDept);
         $assigneeSection = trim((string)$assigneeSection);
 
-        // 2) Build To: all QMS department users
+        // 2) Build To: all QMS department users (cleaned)
         $toRecipients = [];
-        if ($qmsStmt = $db->prepare("SELECT email FROM system_users WHERE department = 'QMS' AND email IS NOT NULL AND email <> ''")) {
+        if ($qmsStmt = $db->prepare("SELECT TRIM(email) AS email FROM system_users WHERE TRIM(department) = 'QMS' AND email IS NOT NULL AND TRIM(email) <> ''")) {
             if ($qmsStmt->execute()) {
                 $qmsStmt->bind_result($qmsEmail);
-                while ($qmsStmt->fetch()) {
-                    $qmsEmail = trim((string)$qmsEmail);
-                    if ($qmsEmail !== '') $toRecipients[] = $qmsEmail;
-                }
+                while ($qmsStmt->fetch()) { $toRecipients[] = $qmsEmail; }
             }
             $qmsStmt->close();
         }
+        $toRecipients = $cleanList($toRecipients);
 
-        // 3) Build CC: assignee users (respect section when present)
+        // 3) Build CC: assignee users (respect section when present; cleaned)
         $ccRecipients = [];
         if ($assigneeDept !== '') {
             if ($assigneeSection !== '') {
-                $ccSql = "SELECT email FROM system_users WHERE department = ? AND section = ? AND email IS NOT NULL AND email <> ''";
+                $ccSql = "SELECT TRIM(email) AS email
+                            FROM system_users
+                           WHERE TRIM(department) = ?
+                             AND TRIM(section)    = ?
+                             AND email IS NOT NULL
+                             AND TRIM(email) <> ''";
                 $ccStmt = $db->prepare($ccSql);
                 if ($ccStmt) $ccStmt->bind_param('ss', $assigneeDept, $assigneeSection);
             } else {
-                $ccSql = "SELECT email FROM system_users WHERE department = ? AND email IS NOT NULL AND email <> ''";
+                $ccSql = "SELECT TRIM(email) AS email
+                            FROM system_users
+                           WHERE TRIM(department) = ?
+                             AND email IS NOT NULL
+                             AND TRIM(email) <> ''";
                 $ccStmt = $db->prepare($ccSql);
                 if ($ccStmt) $ccStmt->bind_param('s', $assigneeDept);
             }
             if (isset($ccStmt) && $ccStmt && $ccStmt->execute()) {
                 $ccStmt->bind_result($ccEmail);
-                while ($ccStmt->fetch()) {
-                    $ccEmail = trim((string)$ccEmail);
-                    if ($ccEmail !== '') $ccRecipients[] = $ccEmail;
-                }
+                while ($ccStmt->fetch()) { $ccRecipients[] = $ccEmail; }
                 $ccStmt->close();
             }
         }
+        $ccRecipients = $cleanList($ccRecipients);
 
-        // 4) Clean up and ensure no overlap between To and CC
-        $toRecipients = array_values(array_unique(array_filter($toRecipients)));
-        $ccRecipients = array_values(array_unique(array_filter($ccRecipients)));
-        $ccRecipients = array_values(array_diff($ccRecipients, $toRecipients));
+        // 4) Ensure no overlap between To and CC
+        if (!empty($toRecipients)) {
+            $ccRecipients = array_values(array_diff($ccRecipients, $toRecipients));
+        }
 
         if (!empty($toRecipients)) {
             // Display name: "Department - Section" (if section exists)
@@ -255,7 +270,7 @@ try {
             $statusSafe    = htmlspecialchars($newStatus, ENT_QUOTES, 'UTF-8');
             $portalUrlSafe = htmlspecialchars($portalUrl, ENT_QUOTES, 'UTF-8');
 
-            // HTML body (simple + Outlook-friendly)
+            // --- FIXES: strong preheader hiding + correct line-height ---
             $htmlBody = '
 <!doctype html>
 <html lang="en">
@@ -265,7 +280,7 @@ try {
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body style="margin:0; padding:0; background:#f3f4f6; font-family: Arial, Helvetica, sans-serif; color:#111827;">
-  <div style="display:none; overflow:hidden; line-height:1px; opacity:0; max-height:0; max-width:0;">
+  <div style="display:none!important; visibility:hidden; mso-hide:all; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">
     RCPA #'.$rcpaNo.' '.$statusSafe.' for '.$deptDispSafe.'
   </div>
 
@@ -292,10 +307,10 @@ try {
           </tr>
 
           <tr>
-            <td style="padding:8px 24px 0 24px; color:#374151; font-size:14px; line-height:1.6;">
-              Good day,<br>
-              The Assignee Supervisor/Manager has <strong>approved the Assignee reply as VALID</strong> for RCPA <strong>#'.$rcpaNo.'</strong>.<br>
-              The request is now in status <strong>'.$statusSafe.'</strong>.
+            <td style="padding:8px 24px 0 24px; color:#374151; font-size:14px; line-height:1.6; mso-line-height-rule:exactly;">
+              <p style="margin:0 0 10px 0;">Good day,</p>
+              <p style="margin:0 0 10px 0;">The Assignee Supervisor/Manager has <strong>approved the Assignee reply as VALID</strong> for RCPA <strong>#'.$rcpaNo.'</strong>.</p>
+              <p style="margin:0;">The request is now in status <strong>'.$statusSafe.'</strong>.</p>
             </td>
           </tr>
 
@@ -345,7 +360,7 @@ try {
             $altBody .= "Assignee: " . html_entity_decode($deptDispSafe, ENT_QUOTES, 'UTF-8') . "\n";
             $altBody .= "Open QD Portal: $portalUrl\n";
 
-            // Fire email: To = QMS, CC = Assignee
+            // Fire email: To = QMS (cleaned), CC = Assignee dept/section (cleaned)
             sendEmailNotification($toRecipients, $subject, $htmlBody, $altBody, $ccRecipients);
         }
     } catch (Throwable $mailErr) {

@@ -134,15 +134,50 @@ try {
     if (!$historyStmt->execute()) throw new Exception('History insert execute failed: ' . $historyStmt->error);
     $historyStmt->close();
 
-    // === Email notification to assignees (do not modify send-email.php; catch errors; non-blocking) ===
+    // === Email notification to assignees (ignore junk emails; non-blocking) ===
     try {
         require_once __DIR__ . '/../../send-email.php';
 
-        // Fetch assignee department and (optional) section from this RCPA record
-        $asSel = $conn->prepare('SELECT assignee, section FROM rcpa_request WHERE id = ? LIMIT 1');
+        // ---- helper: fetch & clean emails for a dept[/section] ----
+        $getEmailsByDeptSection = function(mysqli $db, string $dept, ?string $section = null): array {
+            $emails = [];
+
+            if ($section !== null && $section !== '') {
+                $sql = "SELECT TRIM(email) AS email
+                          FROM system_users
+                         WHERE TRIM(department) = ?
+                           AND TRIM(section)    = ?
+                           AND email IS NOT NULL
+                           AND TRIM(email) <> ''";
+                $stmt = $db->prepare($sql);
+                if ($stmt) $stmt->bind_param('ss', $dept, $section);
+            } else {
+                $sql = "SELECT TRIM(email) AS email
+                          FROM system_users
+                         WHERE TRIM(department) = ?
+                           AND email IS NOT NULL
+                           AND TRIM(email) <> ''";
+                $stmt = $db->prepare($sql);
+                if ($stmt) $stmt->bind_param('s', $dept);
+            }
+
+            if (isset($stmt) && $stmt && $stmt->execute()) {
+                $stmt->bind_result($email);
+                while ($stmt->fetch()) {
+                    $e = trim((string)$email);
+                    // drop placeholders & invalids
+                    if ($e === '' || $e === '-' || !filter_var($e, FILTER_VALIDATE_EMAIL)) continue;
+                    $emails[] = strtolower($e);
+                }
+                $stmt->close();
+            }
+            return array_values(array_unique($emails));
+        };
+
+        // Fetch assignee department/section from this RCPA
         $assigneeDept = '';
         $assigneeSection = '';
-        if ($asSel) {
+        if ($asSel = $conn->prepare('SELECT assignee, section FROM rcpa_request WHERE id = ? LIMIT 1')) {
             $asSel->bind_param('i', $id);
             if ($asSel->execute()) {
                 $asSel->bind_result($assigneeDept, $assigneeSection);
@@ -150,71 +185,55 @@ try {
             }
             $asSel->close();
         }
-        $assigneeDept = trim((string)$assigneeDept);
+        $assigneeDept    = trim((string)$assigneeDept);
         $assigneeSection = trim((string)$assigneeSection);
 
+        // TO: all matching assignee emails (dept + section when present)
+        $toRecipients = [];
         if ($assigneeDept !== '') {
-            // Build recipient query based on presence of section
-            if ($assigneeSection !== '') {
-                $usrSql = 'SELECT email FROM system_users WHERE department = ? AND section = ? AND email IS NOT NULL AND email <> ""';
-                $usrStmt = $conn->prepare($usrSql);
-                if ($usrStmt) $usrStmt->bind_param('ss', $assigneeDept, $assigneeSection);
-            } else {
-                $usrSql = 'SELECT email FROM system_users WHERE department = ? AND email IS NOT NULL AND email <> ""';
-                $usrStmt = $conn->prepare($usrSql);
-                if ($usrStmt) $usrStmt->bind_param('s', $assigneeDept);
-            }
+            $toRecipients = $getEmailsByDeptSection($conn, $assigneeDept, $assigneeSection !== '' ? $assigneeSection : null);
+        }
 
-            $toRecipients = [];
-            if (isset($usrStmt) && $usrStmt && $usrStmt->execute()) {
-                $usrStmt->bind_result($email);
-                while ($usrStmt->fetch()) {
-                    $email = trim((string)$email);
-                    if ($email !== '') $toRecipients[] = $email;
+        // CC: all QMS users (cleaned)
+        $ccRecipients = [];
+        if ($qmsStmt = $conn->prepare("SELECT TRIM(email) AS email FROM system_users WHERE TRIM(department) = 'QMS' AND email IS NOT NULL AND TRIM(email) <> ''")) {
+            if ($qmsStmt->execute()) {
+                $qmsStmt->bind_result($ccEmail);
+                while ($qmsStmt->fetch()) {
+                    $e = trim((string)$ccEmail);
+                    if ($e === '' || $e === '-' || !filter_var($e, FILTER_VALIDATE_EMAIL)) continue;
+                    $ccRecipients[] = strtolower($e);
                 }
-                $usrStmt->close();
             }
+            $qmsStmt->close();
+        }
+        $ccRecipients = array_values(array_unique($ccRecipients));
 
-            // === CC all QMS department emails ===
-            $ccRecipients = [];
-            $ccSql = "SELECT email FROM system_users WHERE department = 'QMS' AND email IS NOT NULL AND email <> ''";
-            if ($ccStmt = $conn->prepare($ccSql)) {
-                if ($ccStmt->execute()) {
-                    $ccStmt->bind_result($ccEmail);
-                    while ($ccStmt->fetch()) {
-                        $ccEmail = trim((string)$ccEmail);
-                        if ($ccEmail !== '') $ccRecipients[] = $ccEmail;
-                    }
-                }
-                $ccStmt->close();
-            }
-
-            // De-dup & clean
-            $toRecipients = array_values(array_unique(array_filter($toRecipients)));
-            $ccRecipients = array_values(array_unique(array_filter($ccRecipients)));
-            // Avoid the same address appearing in both To and CC
+        // Avoid overlap between To and CC
+        if (!empty($toRecipients)) {
             $ccRecipients = array_values(array_diff($ccRecipients, $toRecipients));
+        }
 
-            if (!empty($toRecipients)) {
-                // Subject & dates
-                $deptDisplay      = $assigneeDept . ($assigneeSection !== '' ? ' - ' . $assigneeSection : '');
-                $subject          = sprintf('RCPA #%d assigned to %s - status: ASSIGNEE PENDING', (int)$id, $deptDisplay);
-                $replyDueFmt      = $reply_due_date ? date('F j, Y', strtotime($reply_due_date)) : '—';
-                $closeDueFmt      = $close_due_date ? date('F j, Y', strtotime($close_due_date)) : '—';
+        if (!empty($toRecipients)) {
+            // Subject & dates
+            $deptDisplay      = $assigneeDept . ($assigneeSection !== '' ? ' - ' . $assigneeSection : '');
+            $subject          = sprintf('RCPA #%d assigned to %s - status: ASSIGNEE PENDING', (int)$id, $deptDisplay);
+            $replyDueFmt      = $reply_due_date ? date('F j, Y', strtotime($reply_due_date)) : '—';
+            $closeDueFmt      = $close_due_date ? date('F j, Y', strtotime($close_due_date)) : '—';
 
-                // Fixed portal link (per request)
-                $portalUrl = 'http://rti10517/qdportal/login.php';
+            // Fixed portal link (per request)
+            $portalUrl = 'http://rti10517/qdportal/login.php';
 
-                // Safe strings for HTML
-                $rcpaNo        = (int)$id;
-                $deptDispSafe  = htmlspecialchars($deptDisplay, ENT_QUOTES, 'UTF-8');
-                $replyDueSafe  = htmlspecialchars($replyDueFmt, ENT_QUOTES, 'UTF-8');
-                $closeDueSafe  = htmlspecialchars($closeDueFmt, ENT_QUOTES, 'UTF-8');
-                $statusTxtSafe = htmlspecialchars($status, ENT_QUOTES, 'UTF-8');
-                $portalUrlSafe = htmlspecialchars($portalUrl, ENT_QUOTES, 'UTF-8');
+            // Safe strings for HTML
+            $rcpaNo        = (int)$id;
+            $deptDispSafe  = htmlspecialchars($deptDisplay, ENT_QUOTES, 'UTF-8');
+            $replyDueSafe  = htmlspecialchars($replyDueFmt, ENT_QUOTES, 'UTF-8');
+            $closeDueSafe  = htmlspecialchars($closeDueFmt, ENT_QUOTES, 'UTF-8');
+            $statusTxtSafe = htmlspecialchars($status, ENT_QUOTES, 'UTF-8');
+            $portalUrlSafe = htmlspecialchars($portalUrl, ENT_QUOTES, 'UTF-8');
 
-                // HTML body
-                $htmlBody = '
+            // HTML body
+            $htmlBody = '
 <!doctype html>
 <html lang="en">
 <head>
@@ -306,16 +325,15 @@ try {
 </body>
 </html>';
 
-                // Plain-text alternative
-                $altBody  = "RCPA #$rcpaNo is now $status\n";
-                $altBody .= "Assignee: " . html_entity_decode($deptDispSafe, ENT_QUOTES, 'UTF-8') . "\n";
-                $altBody .= "Reply Due Date: " . html_entity_decode($replyDueSafe, ENT_QUOTES, 'UTF-8') . "\n";
-                $altBody .= "Close Due Date: " . html_entity_decode($closeDueSafe, ENT_QUOTES, 'UTF-8') . "\n";
-                $altBody .= "Open QD Portal: $portalUrl\n";
+            // Plain-text alternative
+            $altBody  = "RCPA #$rcpaNo is now $status\n";
+            $altBody .= "Assignee: " . html_entity_decode($deptDispSafe, ENT_QUOTES, 'UTF-8') . "\n";
+            $altBody .= "Reply Due Date: " . html_entity_decode($replyDueSafe, ENT_QUOTES, 'UTF-8') . "\n";
+            $altBody .= "Close Due Date: " . html_entity_decode($closeDueSafe, ENT_QUOTES, 'UTF-8') . "\n";
+            $altBody .= "Open QD Portal: $portalUrl\n";
 
-                // Use existing helper (send-email.php) with CC to QMS
-                sendEmailNotification($toRecipients, $subject, $htmlBody, $altBody, $ccRecipients);
-            }
+            // Send (TO: Assignee dept/section; CC: QMS)
+            sendEmailNotification($toRecipients, $subject, $htmlBody, $altBody, $ccRecipients);
         }
     } catch (Throwable $mailErr) {
         // Never block the main flow because of email issues; log only.
