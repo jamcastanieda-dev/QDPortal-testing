@@ -46,23 +46,27 @@ $mysqli->set_charset('utf8mb4');
          * rcpa_request.assignee = user's department
          * OR rcpa_request.originator_name = current user's name
 --------------------------- */
+/* Resolve user's department + section */
 $dept = '';
+$user_section = '';
 if ($user_name !== '') {
-    $sqlDept = "SELECT department
+    $sqlDept = "SELECT department, section
                 FROM system_users
                 WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                 LIMIT 1";
     if ($stmt = $mysqli->prepare($sqlDept)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department);
+        $stmt->bind_result($db_department, $db_section);
         if ($stmt->fetch()) {
             $dept = (string)$db_department;
+            $user_section = (string)$db_section;
         }
         $stmt->close();
     }
 }
 $isQaqms = in_array(strtoupper(trim($dept)), ['QA', 'QMS'], true);
+
 
 /* ---------------------------
    Inputs (filters + paging)
@@ -116,18 +120,27 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     }
 }
 
-/* Visibility restriction:
-   - QA/QMS: no extra restriction (see all)
-   - Else:
-       * If department known: (assignee = dept OR originator_name = user_name)
-       * If department unknown: only originator_name = user_name (or see nothing if user_name empty)
+/* Visibility restriction
+   - QA/QMS: see all
+   - Others:
+       (assignee = user's dept AND (section IS NULL/'' OR section = user.section))
+       OR originator_name = user
 */
 if (!$isQaqms) {
     if ($dept !== '') {
-        $where[]  = "(assignee = ? OR originator_name = ?)";
+        $where[]  = "(
+            assignee = ?
+            AND (
+                section IS NULL
+                OR TRIM(section) = ''
+                OR LOWER(TRIM(section)) = LOWER(TRIM(?))
+            )
+            OR originator_name = ?
+        )";
         $params[] = $dept;
+        $params[] = $user_section;
         $params[] = $user_name;
-        $types   .= 'ss';
+        $types   .= 'sss';
     } else {
         if ($user_name !== '') {
             $where[]  = "originator_name = ?";
@@ -138,6 +151,7 @@ if (!$isQaqms) {
         }
     }
 }
+
 
 $where_sql = $where ? implode(' AND ', $where) : '1=1';
 

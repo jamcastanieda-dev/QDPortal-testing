@@ -70,9 +70,12 @@
     }
 
 
-    // Backend: monthly data
-    async function fetchMonthly(year) {
-      const url = `../php-backend/rcpa-monthly.php?year=${encodeURIComponent(year)}`;
+    // Backend: monthly data (now site-aware)
+    async function fetchMonthly(year, site) {
+      const q = new URLSearchParams();
+      if (year) q.set('year', year);
+      if (site) q.set('site', site);
+      const url = `../php-backend/rcpa-monthly.php?${q.toString()}`;
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error(`Monthly data HTTP ${res.status}`);
       return res.json();
@@ -86,18 +89,24 @@
       return res.json();
     }
 
-    // Backend: reply & closing pies
-    async function fetchReplyStatus(year) {
-      const url = `../php-backend/rcpa-reply-status.php?year=${encodeURIComponent(year)}`;
+    // Backend: reply & closing pies (now site-aware)
+    async function fetchReplyStatus(year, site) {
+      const q = new URLSearchParams();
+      if (year) q.set('year', year);
+      if (site) q.set('site', site);
+      const url = `../php-backend/rcpa-reply-status.php?${q.toString()}`;
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error(`Reply status HTTP ${res.status}`);
-      return res.json(); // { labels, series, total, year }
+      return res.json(); // { labels, series, total, year, site }
     }
-    async function fetchClosingStatus(year) {
-      const url = `../php-backend/rcpa-closing-status.php?year=${encodeURIComponent(year)}`;
+    async function fetchClosingStatus(year, site) {
+      const q = new URLSearchParams();
+      if (year) q.set('year', year);
+      if (site) q.set('site', site);
+      const url = `../php-backend/rcpa-closing-status.php?${q.toString()}`;
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error(`Closing status HTTP ${res.status}`);
-      return res.json(); // { labels, series, total, year }
+      return res.json(); // { labels, series, total, year, site }
     }
 
     const safeArray12 = arr => {
@@ -177,7 +186,7 @@
         dataLabels: { enabled: false },
         tooltip: { y: { formatter: v => `${int(v)} reports` } }
       });
-      charts.monthly.render().then(() => loadMonthly(state.year));
+      charts.monthly.render().then(() => loadMonthly(state.year, state.site));
 
       // REPLY (3-slice donut: Hit / Missed / On-going reply)
       charts.reply = new ApexCharts(els.chartReply, {
@@ -270,7 +279,7 @@
       charts.closing.render();
 
       // Initial load for pies
-      loadReplyAndClosing(state.year);
+      loadReplyAndClosing(state.year, state.site);
     }
 
     function loadAssignee(year, site) {
@@ -304,11 +313,42 @@
       });
     }
 
-    function loadMonthly(year) {
-      fetchMonthly(year).then(d => {
+    // --- site-aware fetchers ---
+    async function fetchMonthly(year, site) {
+      const q = new URLSearchParams();
+      if (year) q.set('year', year);
+      if (site) q.set('site', site);
+      const url = `../php-backend/rcpa-monthly.php?${q.toString()}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error(`Monthly data HTTP ${res.status}`);
+      return res.json();
+    }
+
+    async function fetchReplyStatus(year, site) {
+      const q = new URLSearchParams();
+      if (year) q.set('year', year);
+      if (site) q.set('site', site);
+      const url = `../php-backend/rcpa-reply-status.php?${q.toString()}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error(`Reply status HTTP ${res.status}`);
+      return res.json(); // { labels, series, total, year, site }
+    }
+
+    async function fetchClosingStatus(year, site) {
+      const q = new URLSearchParams();
+      if (year) q.set('year', year);
+      if (site) q.set('site', site);
+      const url = `../php-backend/rcpa-closing-status.php?${q.toString()}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error(`Closing status HTTP ${res.status}`);
+      return res.json(); // { labels, series, total, year, site }
+    }
+
+    // --- updated loaders ---
+    function loadMonthly(year, site) {
+      fetchMonthly(year, site).then(d => {
         const data = safeArray12(d.monthly);
 
-        // --- Y-axis: show 5, 10, 15, 20... ---
         const STEP = 5;
         const maxVal = Math.max(0, ...data);
         const yMax = Math.max(STEP, STEP * Math.ceil(maxVal / STEP));
@@ -339,8 +379,8 @@
     }
 
     // Load pies for reply & closing
-    function loadReplyAndClosing(year) {
-      fetchReplyStatus(year).then(d => {
+    function loadReplyAndClosing(year, site) {
+      fetchReplyStatus(year, site).then(d => {
         charts.reply.updateOptions({ labels: d.labels }, false, true);
         charts.reply.updateSeries(d.series, true);
       }).catch(err => {
@@ -348,7 +388,7 @@
         charts.reply.updateSeries([0, 0, 0], true);
       });
 
-      fetchClosingStatus(year).then(d => {
+      fetchClosingStatus(year, site).then(d => {
         charts.closing.updateOptions({ labels: d.labels }, false, true);
         charts.closing.updateSeries(d.series, true);
       }).catch(err => {
@@ -358,13 +398,12 @@
     }
 
     function updateCharts() {
-      // Monthly & pies remain year-only (unchanged)
-      loadMonthly(state.year);
-      loadReplyAndClosing(state.year);
-
-      // Assignee now depends on year + site
+      // All charts now respect Year + Site
+      loadMonthly(state.year, state.site);
+      loadReplyAndClosing(state.year, state.site);
       loadAssignee(state.year, state.site);
     }
+
 
     /* ------- TOOLBAR BINDING ------- */
     if (els.siteSelect) {
@@ -724,6 +763,15 @@
   const apClose = document.getElementById('approve-remarks-close');
   const apText = document.getElementById('approve-remarks-text');
 
+  const companyFilter = document.getElementById('rcpaListCompanyFilter');
+
+
+  // Add near your other helpers
+  function companyFromDepartment(dept) {
+    return String(dept || '').trim().toUpperCase() === 'SSD' ? 'SSD' : 'RTI';
+  }
+
+
   function openApproveModal(item) {
     if (!apModal) return;
     if (apText) {
@@ -1039,10 +1087,19 @@
 
   function applyFilter() {
     const y = yearFilter.value;
-    filteredRows = (y === 'all') ? allRows : allRows.filter(r => deriveYear(r.date_request) === y);
-    page = 1;         // reset to first page on filter change
-    renderPage();     // render page slice + update footer
+    const c = (companyFilter?.value || 'all').toUpperCase();
+
+    filteredRows = allRows.filter(r => {
+      const okYear = (y === 'all') || (deriveYear(r.date_request) === y);
+      const company = companyFromDepartment(r.originator_department);
+      const okCompany = (c === 'ALL') || (company === c);
+      return okYear && okCompany;
+    });
+
+    page = 1;      // reset to first page on filter change
+    renderPage();  // render page slice + update footer
   }
+
 
   function render(rows) {
     if (!rows.length) {
@@ -1051,7 +1108,8 @@
     }
     tbody.innerHTML = rows.map(r => `
     <tr>
-      <td>${esc(r.originator_department)}</td>
+      <!-- BEFORE: <td>${esc(r.originator_department)}</td> -->
+      <td>${companyFromDepartment(r.originator_department)}</td>
       <td>${esc(r.id)}</td>
       <td>${esc(r.rcpa_type_label || r.rcpa_type)}</td>
       <td>${badgeForCategory(r.category || r.category_label)}</td>
@@ -1066,8 +1124,6 @@
       <td>${r.no_days_close ?? ''}</td>
       <td>${fmtYmd(r.close_date)}</td>
       <td>${fmtYmd(r.close_due_date)}</td>
-
-      <!-- Action -->
       <td>
         <button type="button" class="rcpa-btn rcpa-view-btn"
                 data-view-id="${esc(r.id)}"
@@ -1075,8 +1131,6 @@
           View
         </button>
       </td>
-
-      <!-- History -->
       <td>
         <button type="button"
                 class="rcpa-history-btn"
@@ -1092,6 +1146,7 @@
   `).join('');
   }
 
+
   async function openListModal() {
     tbody.innerHTML = `<tr><td colspan="${COLS}" class="rcpa-empty">Loading…</td></tr>`;
     modal.classList.add('show');
@@ -1100,6 +1155,10 @@
 
     try {
       allRows = await fetchRows();
+
+      // Reset filters (optional)
+      if (companyFilter) companyFilter.value = 'all';
+
       populateYearFilter(allRows);
       applyFilter(); // will render page 1 and update footer
     } catch (e) {
@@ -1132,6 +1191,7 @@
       if (modal.classList.contains('show')) { closeListModal(); }
     }
   });
+  companyFilter?.addEventListener('change', applyFilter);
   yearFilter?.addEventListener('change', applyFilter);
 
   /* NEW: pagination events */
@@ -2023,7 +2083,7 @@
   // #reject-remarks-modal { z-index: 1200; }
 })();
 
-
+// grade modal
 (() => {
   'use strict';
 

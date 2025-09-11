@@ -1,23 +1,31 @@
 // LIST TABLE
 (function () {
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
-  const tbody = document.querySelector('#rcpa-table tbody');
-  const totalEl = document.getElementById('rcpa-total');
-  const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn = document.getElementById('rcpa-prev');
-  const nextBtn = document.getElementById('rcpa-next');
-  const fType = document.getElementById('rcpa-filter-type');
+  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase(); // <-- needs to be exposed in rcpa-cookie.php
+
+  const tbody     = document.querySelector('#rcpa-table tbody');
+  const totalEl   = document.getElementById('rcpa-total');
+  const pageInfo  = document.getElementById('rcpa-page-info');
+  const prevBtn   = document.getElementById('rcpa-prev');
+  const nextBtn   = document.getElementById('rcpa-next');
+  const fType     = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn = document.getElementById('view-button');
-  const validBtn = document.getElementById('valid-button');         // renamed
-  const notValidBtn = document.getElementById('not-valid-button');  // renamed
+  const viewBtn     = document.getElementById('view-button');
+  const validBtn    = document.getElementById('valid-button');
+  const notValidBtn = document.getElementById('not-valid-button');
 
-  function norm(s) { return (s ?? '').toString().trim().toLowerCase(); }
-  function canActOnRowAssignee(rowAssignee) {
-    return norm(rowAssignee) === CURRENT_DEPT;
-  }
+  const norm = (s) => (s ?? '').toString().trim().toLowerCase();
+
+  // Dept must match AND if row has a section, that must match user's section too
+  const canActOnRow = (rowAssignee, rowSection) => {
+    if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+    const rs = norm(rowSection);
+    if (!rs) return true;                 // no section on row → dept match is enough
+    if (!CURRENT_SECT) return false;      // user has no section but row does → cannot act
+    return rs === CURRENT_SECT;           // both must match
+  };
 
   let page = 1;
   const pageSize = 10;
@@ -62,14 +70,11 @@
     if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
-
-
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
     if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
-
 
   function badgeForCategory(c) {
     const v = (c || '').toLowerCase();
@@ -79,27 +84,25 @@
     return '';
   }
 
-  function actionButtonHtml(id, assignee) {
+  // Show hamburger (Valid / Not Valid) only if dept/section matches; otherwise show View
+  function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
-    if (canActOnRowAssignee(assignee)) {
-      // Show hamburger (Valid / Not Valid) for rows assigned to the user's department
+    if (canActOnRow(assignee, section)) {
       return `
+        <div class="rcpa-actions">
+          <button class="rcpa-more" data-id="${safeId}" title="Actions">
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
+            <span class="sr-only">Actions</span>
+          </button>
+        </div>
+      `;
+    }
+    return `
       <div class="rcpa-actions">
-        <button class="rcpa-more" data-id="${safeId}" title="Actions">
-          <i class="fa-solid fa-bars" aria-hidden="true"></i>
-          <span class="sr-only">Actions</span>
-        </button>
+        <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
       </div>
     `;
-    }
-    // Otherwise, show a simple View button
-    return `
-    <div class="rcpa-actions">
-      <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
-    </div>
-  `;
   }
-
 
   function fmtDate(s) {
     if (!s) return '';
@@ -108,42 +111,35 @@
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
 
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const month = months[d.getMonth()];
-    const day = String(d.getDate()).padStart(2, '0');
-    const year = d.getFullYear();
+    const day   = String(d.getDate()).padStart(2, '0');
+    const year  = d.getFullYear();
     let h = d.getHours();
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
 
-    // e.g. "Aug 19, 2025, 10:32 AM"
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
 
   function formatYmdPretty(ymd) {
-    // expects 'YYYY-MM-DD' → 'Sep 03, 2025'
-    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const m = parseInt(ymd.slice(5, 7), 10) - 1;
     const d = parseInt(ymd.slice(8, 10), 10);
     const y = parseInt(ymd.slice(0, 4), 10);
     if (Number.isNaN(m) || Number.isNaN(d) || Number.isNaN(y)) return ymd;
     return `${mnames[m]} ${String(d).padStart(2, '0')}, ${y}`;
   }
-
   function daysDiffFromToday(ymd) {
-    // diff in whole days: (due - today)
     const y = parseInt(ymd.slice(0, 4), 10);
     const m = parseInt(ymd.slice(5, 7), 10) - 1;
     const d = parseInt(ymd.slice(8, 10), 10);
     if ([y, m, d].some(n => Number.isNaN(n))) return null;
-
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // local TZ
     const due = new Date(y, m, d);
     const msPerDay = 24 * 60 * 60 * 1000;
-
-    // round to nearest whole day to avoid DST/time drift
     return Math.round((due - today) / msPerDay);
   }
 
@@ -158,30 +154,22 @@
     const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
 
     let className = '';
-    if (abs > 5) {
-      className = 'badge-cat-obs'; // > 5 days: Observation category
-    } else if (abs > 2) {
-      className = 'badge-cat-minor'; // < 5 days, > 2 days: Minor category
-    } else if (abs <= 2) {
-      className = 'badge-cat-major'; // < 2 days: Major category
-    }
+    if (abs > 5) className = 'badge-cat-obs';
+    else if (abs > 2) className = 'badge-cat-minor';
+    else className = 'badge-cat-major';
 
-    // Wrap the date and the days left in a <span> with the conditional class.
     return `
-    <span class="rcpa-badge ${className}">
-      ${pretty} (${valueText})
-    </span>
-  `;
+      <span class="rcpa-badge ${className}">
+        ${pretty} (${valueText})
+      </span>
+    `;
   }
-
 
   async function load() {
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-    if (fType.value) params.set('type', fType.value);
+    if (fType?.value) params.set('type', fType.value);
 
     hideActions();
-
-    // ⬇️ 10 columns now (extra History col)
     tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Loading…</td></tr>`;
 
     let res;
@@ -203,23 +191,23 @@
       tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">No records.</td></tr>`;
     } else {
       tbody.innerHTML = rows.map(r => `
-    <tr>
-      <td>${r.id ?? ''}</td>
-      <td>${labelForType(r.rcpa_type)}</td>
-      <td>${badgeForCategory(r.category || r.cetegory)}</td>
-      <td>${fmtDate(r.date_request)}</td>
-      <td>${formatReplyDueCell(r.reply_due_date)}</td>
-      <td>${badgeForStatus(r.status)}</td>
-      <td>${escapeHtml(r.originator_name)}</td>
-      <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
-      <td>${actionButtonHtml(r.id ?? '', r.assignee)}</td>
-      <td>
-        <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
-           data-id="${r.id ?? ''}" role="button" tabindex="0"
-           title="View history"></i>
-      </td>
-    </tr>
-  `).join('');
+        <tr>
+          <td>${r.id ?? ''}</td>
+          <td>${labelForType(r.rcpa_type)}</td>
+          <td>${badgeForCategory(r.category || r.cetegory)}</td>
+          <td>${fmtDate(r.date_request)}</td>
+          <td>${formatReplyDueCell(r.reply_due_date)}</td>
+          <td>${badgeForStatus(r.status)}</td>
+          <td>${escapeHtml(r.originator_name)}</td>
+          <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
+          <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section)}</td>
+          <td>
+            <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
+               data-id="${r.id ?? ''}" role="button" tabindex="0"
+               title="View history"></i>
+          </td>
+        </tr>
+      `).join('');
     }
 
     const total = Number(data.total || 0);
@@ -230,17 +218,18 @@
     nextBtn.disabled = page >= lastPage;
   }
 
-  document.addEventListener('rcpa:refresh', () => { load(); });
-
+  // simple debounce (not used now but handy)
   function debounce(fn, ms) {
     let t;
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   }
 
-  prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
-  nextBtn.addEventListener('click', () => { page++; load(); });
-  [fType].forEach(el => el.addEventListener('change', () => { page = 1; load(); }));
+  // pagination + filter events
+  prevBtn?.addEventListener('click', () => { if (page > 1) { page--; load(); } });
+  nextBtn?.addEventListener('click', () => { page++; load(); });
+  fType?.addEventListener('change', () => { page = 1; load(); });
 
+  // icon morph helpers for the floating menu
   const switchIcon = (iconElement, newIcon) => {
     if (!iconElement) return;
     iconElement.classList.add('icon-fade-out');
@@ -269,7 +258,7 @@
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
 
-    top = Math.max(8, Math.min(top, vh - popH - 8));
+    top  = Math.max(8, Math.min(top,  vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
 
     actionContainer.style.top = `${top}px`;
@@ -296,17 +285,17 @@
     currentTarget = null;
   }
 
-  // Open/close hamburger actions
+  // Open/close hamburger actions + history
   tbody.addEventListener('click', (e) => {
-
-    // View-only path for rows where user can't act
+    // View-only path
     const viewOnly = e.target.closest('.rcpa-view-only');
     if (viewOnly) {
       const id = viewOnly.getAttribute('data-id');
       if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'view', id } }));
       return;
     }
-    // History icon click
+
+    // History icon
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist) {
       const id = hist.getAttribute('data-id');
@@ -352,10 +341,11 @@
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
-  validBtn.addEventListener('click', () => { dispatchAction('valid', actionContainer.dataset.id); hideActions(); });
+  viewBtn.addEventListener('click',     () => { dispatchAction('view',      actionContainer.dataset.id); hideActions(); });
+  validBtn.addEventListener('click',    () => { dispatchAction('valid',     actionContainer.dataset.id); hideActions(); });
   notValidBtn.addEventListener('click', () => { dispatchAction('not-valid', actionContainer.dataset.id); hideActions(); });
 
+  // Initial load
   load();
 })();
 

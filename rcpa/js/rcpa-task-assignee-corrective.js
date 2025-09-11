@@ -1,25 +1,33 @@
 (function () {
-  // --- Per-row permission: match assignee to user's department ---
+  // --- Per-row permission: dept must match; if row has section, it must also match user's section ---
+  const IS_APPROVER  = !!window.RCPA_IS_APPROVER;
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
+  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+
   const norm = s => (s ?? '').toString().trim().toLowerCase();
-  const canActOnRowAssignee = (rowAssignee) => norm(rowAssignee) === CURRENT_DEPT;
+  // Returns true if user can act on this row based on dept/section
+  const canActOnRow = (rowAssignee, rowSection) => {
+    if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+    const rs = norm(rowSection);
+    if (!rs) return true;             // no section on row → dept match is enough
+    if (!CURRENT_SECT) return false;  // row has section but user lacks one
+    return rs === CURRENT_SECT;
+  };
 
-  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
-
-  const tbody = document.querySelector('#rcpa-table tbody');
-  const totalEl = document.getElementById('rcpa-total');
+  const tbody    = document.querySelector('#rcpa-table tbody');
+  const totalEl  = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn = document.getElementById('rcpa-prev');
-  const nextBtn = document.getElementById('rcpa-next');
-  const fType = document.getElementById('rcpa-filter-type');
+  const prevBtn  = document.getElementById('rcpa-prev');
+  const nextBtn  = document.getElementById('rcpa-next');
+  const fType    = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn = document.getElementById('view-button');
+  const viewBtn   = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
-  // ⛔️ Do NOT hide the action container globally anymore — visibility is per-row
+  // ⛔️ Do NOT hide the action container globally — visibility is per-row
   // if (!IS_APPROVER) { actionContainer.classList.add('hidden'); }
 
   let page = 1;
@@ -79,22 +87,22 @@
     return '';
   }
 
-  // Show hamburger if approver OR assignee matches user's department; otherwise show View-only
-  function actionButtonHtml(id, assignee) {
+  // Show hamburger if user is an approver OR (dept matches and, if present, section matches)
+  function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
-    if (IS_APPROVER || canActOnRowAssignee(assignee)) {
+    if (IS_APPROVER || canActOnRow(assignee, section)) {
       return `
-      <div class="rcpa-actions">
-        <button class="rcpa-more" data-id="${safeId}" title="Actions">
-          <i class="fa-solid fa-bars" aria-hidden="true"></i>
-          <span class="sr-only">Actions</span>
-        </button>
-      </div>`;
+        <div class="rcpa-actions">
+          <button class="rcpa-more" data-id="${safeId}" title="Actions">
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
+            <span class="sr-only">Actions</span>
+          </button>
+        </div>`;
     }
     return `
-    <div class="rcpa-actions">
-      <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
-    </div>`;
+      <div class="rcpa-actions">
+        <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
+      </div>`;
   }
 
   // ---------- Closing due date helpers (Manila) ----------
@@ -105,8 +113,8 @@
     const [, Y, M, D] = m;
     const d = new Date(`${Y}-${M}-${D}T00:00:00`);
     if (isNaN(d)) return s;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
   }
   const MANILA_TZ = 'Asia/Manila';
   const MANILA_OFFSET = '+08:00';
@@ -122,11 +130,10 @@
     return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`);
   }
   function diffDaysFromTodayManila(ymd) {
-    const today = dateAtMidnightManila(todayYmdManila());
+    const today  = dateAtMidnightManila(todayYmdManila());
     const target = dateAtMidnightManila(ymd);
     if (!today || !target) return null;
-    const msPerDay = 24 * 60 * 60 * 1000;
-    return Math.trunc((target - today) / msPerDay);
+    return Math.trunc((target - today) / (24*60*60*1000));
   }
   function renderCloseDue(ymd) {
     if (!ymd) return '';
@@ -144,16 +151,14 @@
     if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const month = months[d.getMonth()];
-    const day = String(d.getDate()).padStart(2, '0');
-    const year = d.getFullYear();
+    const day   = String(d.getDate()).padStart(2, '0');
+    const year  = d.getFullYear();
     let h = d.getHours();
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
-
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
 
@@ -162,7 +167,6 @@
     if (fType.value) params.set('type', fType.value);
 
     hideActions();
-
     tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Loading…</td></tr>`;
 
     let res;
@@ -184,23 +188,23 @@
       tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">No records.</td></tr>`;
     } else {
       tbody.innerHTML = rows.map(r => `
-      <tr>
-        <td>${r.id ?? ''}</td>
-        <td>${labelForType(r.rcpa_type)}</td>
-        <td>${badgeForCategory(r.category || r.cetegory)}</td>
-        <td>${fmtDate(r.date_request)}</td>
-        <td>${renderCloseDue(r.close_due_date)}</td>
-        <td>${badgeForStatus(r.status)}</td>
-        <td>${escapeHtml(r.originator_name)}</td>
-        <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
-        <td>${actionButtonHtml(r.id ?? '', r.assignee)}</td>
-        <td>
-          <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
-            data-id="${r.id ?? ''}" role="button" tabindex="0"
-            title="View history"></i>
-        </td>
-      </tr>
-    `).join('');
+        <tr>
+          <td>${r.id ?? ''}</td>
+          <td>${labelForType(r.rcpa_type)}</td>
+          <td>${badgeForCategory(r.category || r.cetegory)}</td>
+          <td>${fmtDate(r.date_request)}</td>
+          <td>${renderCloseDue(r.close_due_date)}</td>
+          <td>${badgeForStatus(r.status)}</td>
+          <td>${escapeHtml(r.originator_name)}</td>
+          <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
+          <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section)}</td>
+          <td>
+            <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
+               data-id="${r.id ?? ''}" role="button" tabindex="0"
+               title="View history"></i>
+          </td>
+        </tr>
+      `).join('');
     }
 
     const total = Number(data.total || 0);
@@ -241,7 +245,7 @@
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
 
-    top = Math.max(8, Math.min(top, vh - popH - 8));
+    top  = Math.max(8, Math.min(top,  vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
 
     actionContainer.style.top = `${top}px`;
@@ -332,17 +336,18 @@
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
+  viewBtn  .addEventListener('click', () => { dispatchAction('view',   actionContainer.dataset.id); hideActions(); });
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
   // Pagination + filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  fType.addEventListener('change', () => { page = 1; load(); });
+  fType  .addEventListener('change', () => { page = 1; load(); });
 
   load();
 })();
+
 
 /* ====== VIEW MODAL: fetch, fill, show ====== */
 (function () {

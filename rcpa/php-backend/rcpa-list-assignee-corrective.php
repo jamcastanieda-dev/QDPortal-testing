@@ -2,7 +2,6 @@
 // rcpa-list-assignee-corrective.php
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-
 date_default_timezone_set('Asia/Manila');
 
 /* ---------------------------
@@ -10,7 +9,8 @@ date_default_timezone_set('Asia/Manila');
 --------------------------- */
 $user = json_decode($_COOKIE['user'] ?? 'null', true);
 if (!$user || !is_array($user)) {
-    header('Location: ../../login.php');
+    http_response_code(401);
+    echo json_encode(['error' => 'Not logged in']);
     exit;
 }
 $current_user = $user;
@@ -34,25 +34,27 @@ if (!$mysqli || $mysqli->connect_errno) {
 $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
-   Resolve current user's department
+   Resolve current user's department & section
    Visibility rules:
      - QA or QMS  => can see ALL rows
      - Others     => can see rows where:
-         * rcpa_request.assignee = user's department
-         * OR rcpa_request.originator_name = current user's name
+         (assignee = user_dept AND (section IS NULL/'' OR section = user_section))
+         OR originator_name = user_name
 --------------------------- */
 $user_dept = '';
+$user_sect = '';
 if ($user_name !== '') {
-    $sqlDept = "SELECT department
+    $sqlDept = "SELECT department, section
                 FROM system_users
                 WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                 LIMIT 1";
     if ($stmt = $mysqli->prepare($sqlDept)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department);
+        $stmt->bind_result($db_department, $db_section);
         if ($stmt->fetch()) {
             $user_dept = (string)$db_department;
+            $user_sect = (string)$db_section;
         }
         $stmt->close();
     }
@@ -97,8 +99,6 @@ if ($q !== '') {
     $types   .= 'sssss';
 }
 
-
-
 if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     $where[]  = "status = ?";
     $params[] = $status;
@@ -115,15 +115,19 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
 /* Visibility restriction:
    - QA/QMS: no extra restriction (see all)
    - Else:
-       * If department known: (assignee = user_dept OR originator_name = user_name)
-       * If department unknown: only originator_name = user_name (or see nothing if user_name empty)
+       * (assignee = user_dept AND (section IS NULL/'' OR LOWER(TRIM(section)) = LOWER(TRIM(user_sect))))
+         OR originator_name = user_name
 */
 if (!$is_qaqms) {
     if ($user_dept !== '') {
-        $where[]  = "(assignee = ? OR originator_name = ?)";
+        $where[]  = "(
+            (assignee = ? AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
+            OR originator_name = ?
+        )";
         $params[] = $user_dept;
+        $params[] = $user_sect;
         $params[] = $user_name;
-        $types   .= 'ss';
+        $types   .= 'sss';
     } else {
         if ($user_name !== '') {
             $where[]  = "originator_name = ?";
@@ -146,9 +150,7 @@ if (!($stmt = $mysqli->prepare($sql_total))) {
     echo json_encode(['error' => 'Failed to prepare total query']);
     exit;
 }
-if ($types !== '') {
-    $stmt->bind_param($types, ...$params);
-}
+if ($types !== '') $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $stmt->bind_result($total);
 $stmt->fetch();
@@ -166,7 +168,7 @@ $sql = "SELECT
             conformance,
             originator_name,
             assignee,
-            section,            -- 👈 add this
+            section,
             project_name,
             wbs_number,
             close_due_date
@@ -174,7 +176,6 @@ $sql = "SELECT
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
         LIMIT ? OFFSET ?";
-
 
 if (!($stmt = $mysqli->prepare($sql))) {
     http_response_code(500);
@@ -200,7 +201,7 @@ while ($r = $res->fetch_assoc()) {
         'status'           => (string)($r['status'] ?? ''),
         'originator_name'  => (string)($r['originator_name'] ?? ''),
         'assignee'         => (string)($r['assignee'] ?? ''),
-        'section'          => (string)($r['section'] ?? ''),   // 👈 add this
+        'section'          => (string)($r['section'] ?? ''),
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'close_due_date'   => $r['close_due_date'] ? date('Y-m-d', strtotime($r['close_due_date'])) : null,

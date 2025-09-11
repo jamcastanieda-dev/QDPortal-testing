@@ -1,22 +1,23 @@
 
 (function () {
-  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
+  const IS_APPROVER  = !!window.RCPA_IS_APPROVER;
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
+  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase(); // expose in rcpa-cookie.php
 
-  const tbody = document.querySelector('#rcpa-table tbody');
-  const totalEl = document.getElementById('rcpa-total');
+  const tbody    = document.querySelector('#rcpa-table tbody');
+  const totalEl  = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn = document.getElementById('rcpa-prev');
-  const nextBtn = document.getElementById('rcpa-next');
-  const fType = document.getElementById('rcpa-filter-type');
+  const prevBtn  = document.getElementById('rcpa-prev');
+  const nextBtn  = document.getElementById('rcpa-next');
+  const fType    = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn = document.getElementById('view-button');
+  const viewBtn   = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
-  // Non-approvers never need the action container globally
+  // Non-approvers never need the action container
   if (!IS_APPROVER) actionContainer.classList.add('hidden');
 
   let page = 1;
@@ -24,7 +25,15 @@
   let currentTarget = null;
 
   const norm = (s) => (s ?? '').toString().trim().toLowerCase();
-  const canActOnRowAssignee = (rowAssignee) => norm(rowAssignee) === CURRENT_DEPT;
+
+  // Dept must match AND if row has a section, that must match user's section too
+  const canActOnRow = (rowAssignee, rowSection) => {
+    if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+    const rs = norm(rowSection);
+    if (!rs) return true;                 // no section on row → department match is enough
+    if (!CURRENT_SECT) return false;      // row has section but user doesn't → cannot act
+    return rs === CURRENT_SECT;
+  };
 
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
@@ -76,10 +85,10 @@
     return '';
   }
 
-  // ✅ Only show hamburger if approver AND this row belongs to their department
-  function actionButtonHtml(id, assignee) {
+  // ✅ Only show hamburger if approver AND dept/section match
+  function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
-    if (IS_APPROVER && canActOnRowAssignee(assignee)) {
+    if (IS_APPROVER && canActOnRow(assignee, section)) {
       return `
         <div class="rcpa-actions">
           <button class="rcpa-more" data-id="${safeId}" title="Actions">
@@ -98,35 +107,26 @@
 
   function fmtDate(s) {
     if (!s) return '';
-    const str = String(s);
-    if (/^0{4}-0{2}-0{2}/.test(str)) return '';
-    const d = new Date(str.replace(' ', 'T'));
-    if (isNaN(d)) return str;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = months[d.getMonth()];
-    const day = String(d.getDate()).padStart(2, '0');
-    const year = d.getFullYear();
-    let h = d.getHours();
-    const m = String(d.getMinutes()).padStart(2, '0');
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
+    const d = new Date(String(s).replace(' ', 'T'));
+    if (isNaN(d)) return String(s);
+    const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mon = M[d.getMonth()], day = String(d.getDate()).padStart(2,'0'), y = d.getFullYear();
+    let h = d.getHours(); const m = String(d.getMinutes()).padStart(2,'0'); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+    return `${mon} ${day}, ${y}, ${h}:${m} ${ap}`;
   }
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '';
-    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
-    if ([y, m, d].some(Number.isNaN)) return ymd;
-    return `${mnames[m]} ${String(d).padStart(2, '0')}, ${y}`;
+    const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const y = +ymd.slice(0,4), m = +ymd.slice(5,7) - 1, d = +ymd.slice(8,10);
+    if ([y,m,d].some(Number.isNaN)) return ymd;
+    return `${M[m]} ${String(d).padStart(2,'0')}, ${y}`;
   }
   function daysDiffFromToday(ymd) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
-    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
-    if ([y, m, d].some(Number.isNaN)) return null;
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const due = new Date(y, m, d);
-    const msPerDay = 24 * 60 * 60 * 1000;
+    const y = +ymd.slice(0,4), m = +ymd.slice(5,7) - 1, d = +ymd.slice(8,10);
+    if ([y,m,d].some(Number.isNaN)) return null;
+    const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const due = new Date(y,m,d); const msPerDay = 86400000;
     return Math.round((due - today) / msPerDay);
   }
   function formatReplyDueCell(ymd) {
@@ -134,26 +134,9 @@
     const pretty = formatYmdPretty(ymd);
     const diff = daysDiffFromToday(ymd);
     if (diff === null) return pretty;
-
-    const abs = Math.abs(diff);
-    const plural = abs === 1 ? 'day' : 'days';
-    const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
-
-    let className = '';
-    if (abs > 5) {
-      className = 'badge-cat-obs'; // > 5 days: Observation category
-    } else if (abs > 2) {
-      className = 'badge-cat-minor'; // < 5 days, > 2 days: Minor category
-    } else if (abs <= 2) {
-      className = 'badge-cat-major'; // < 2 days: Major category
-    }
-
-    // Wrap the date and the days left in a <span> with the conditional class.
-    return `
-    <span class="rcpa-badge ${className}">
-      ${pretty} (${valueText})
-    </span>
-  `;
+    const abs = Math.abs(diff), plural = abs === 1 ? 'day' : 'days';
+    let cls = abs > 5 ? 'badge-cat-obs' : abs > 2 ? 'badge-cat-minor' : 'badge-cat-major';
+    return `<span class="rcpa-badge ${cls}">${pretty} (${diff < 0 ? `-${abs}` : abs} ${plural})</span>`;
   }
 
   async function load() {
@@ -191,7 +174,7 @@
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
           <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
-          <td>${actionButtonHtml(r.id ?? '', r.assignee)}</td>
+          <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section)}</td>
           <td>
             <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
                data-id="${r.id ?? ''}" role="button" tabindex="0"
@@ -209,63 +192,48 @@
     nextBtn.disabled = page >= lastPage;
   }
 
-  document.addEventListener('rcpa:refresh', () => { load(); });
-
-  const switchIcon = (iconElement, newIcon) => {
-    if (!iconElement) return;
-    iconElement.classList.add('icon-fade-out');
-    iconElement.addEventListener('transitionend', function onFadeOut() {
-      iconElement.removeEventListener('transitionend', onFadeOut);
-      iconElement.classList.remove('fa-bars', 'fa-xmark');
-      iconElement.classList.add(newIcon);
-      iconElement.classList.remove('icon-fade-out');
-      iconElement.classList.add('icon-fade-in');
-      setTimeout(() => iconElement.classList.remove('icon-fade-in'), 300);
+  const switchIcon = (el, icon) => {
+    if (!el) return;
+    el.classList.add('icon-fade-out');
+    el.addEventListener('transitionend', function onOut() {
+      el.removeEventListener('transitionend', onOut);
+      el.classList.remove('fa-bars', 'fa-xmark');
+      el.classList.add(icon);
+      el.classList.remove('icon-fade-out');
+      el.classList.add('icon-fade-in');
+      setTimeout(() => el.classList.remove('icon-fade-in'), 300);
     });
   };
 
   function positionActionContainer(target) {
     const wasHidden = actionContainer.classList.contains('hidden');
     if (wasHidden) { actionContainer.style.visibility = 'hidden'; actionContainer.classList.remove('hidden'); }
-
-    const rect = target.getBoundingClientRect();
-    const gap = 8;
-    const popW = actionContainer.offsetWidth;
-    const popH = actionContainer.offsetHeight;
-    const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
-
+    const rect = target.getBoundingClientRect(), gap = 8;
+    const popW = actionContainer.offsetWidth, popH = actionContainer.offsetHeight;
+    const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
     let top = rect.top + (rect.height - popH) / 2;
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
-
-    top = Math.max(8, Math.min(top, vh - popH - 8));
+    top  = Math.max(8, Math.min(top,  vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
-
     actionContainer.style.top = `${top}px`;
     actionContainer.style.left = `${left}px`;
-
     if (wasHidden) { actionContainer.classList.add('hidden'); actionContainer.style.visibility = ''; }
   }
-
   function showActions(target, id) {
     currentTarget = target;
     actionContainer.dataset.id = id;
     positionActionContainer(target);
     actionContainer.classList.remove('hidden');
-
-    const icon = target.querySelector('i.fa-solid');
-    switchIcon(icon, 'fa-xmark');
+    switchIcon(target.querySelector('i.fa-solid'), 'fa-xmark');
   }
   function hideActions() {
     if (!currentTarget) return;
-    const icon = currentTarget.querySelector('i.fa-solid');
-    switchIcon(icon, 'fa-bars');
+    switchIcon(currentTarget.querySelector('i.fa-solid'), 'fa-bars');
     actionContainer.classList.add('hidden');
     currentTarget = null;
   }
 
-  // Open/close hamburger actions + history
   tbody.addEventListener('click', (e) => {
     const viewOnly = e.target.closest('.rcpa-view-only');
     if (viewOnly) {
@@ -273,26 +241,20 @@
       if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'view', id } }));
       return;
     }
-
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist) {
       const id = hist.getAttribute('data-id');
       if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'history', id } }));
       return;
     }
-
     const moreBtn = e.target.closest('.rcpa-more');
     if (!moreBtn) return;
 
     const id = moreBtn.dataset.id;
-    if (currentTarget === moreBtn) {
-      hideActions();
-    } else {
-      showActions(moreBtn, id);
-    }
+    if (currentTarget === moreBtn) hideActions();
+    else showActions(moreBtn, id);
   });
 
-  // Keyboard support for history icon
   tbody.addEventListener('keydown', (e) => {
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist && (e.key === 'Enter' || e.key === ' ')) {
@@ -308,7 +270,6 @@
     }
   });
 
-  // Top tabs navigation
   document.querySelector('.rcpa-table-toolbar')?.addEventListener('click', (e) => {
     const tab = e.target.closest('.rcpa-tab[data-href]');
     if (!tab) return;
@@ -326,17 +287,17 @@
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
+  viewBtn  .addEventListener('click', () => { dispatchAction('view',   actionContainer.dataset.id); hideActions(); });
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
-  // Pagination + filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  fType.addEventListener('change', () => { page = 1; load(); });
+  fType  .addEventListener('change', () => { page = 1; load(); });
 
   load();
 })();
+
 
 (function () {
   // Main view modal

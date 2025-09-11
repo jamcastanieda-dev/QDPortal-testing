@@ -17,7 +17,7 @@ try {
         echo json_encode(['ok' => false, 'error' => 'Invalid user']);
         exit;
     }
-    $user_name = trim($user['name'] ?? '');
+    $user_name = trim((string)($user['name'] ?? ''));
 
     // DB
     require '../../connection.php';
@@ -31,19 +31,24 @@ try {
         echo json_encode(['ok' => false, 'error' => 'DB unavailable']);
         exit;
     }
+    $mysqli->set_charset('utf8mb4');
 
-    // Lookup user's department
+    // Lookup user's department + section
     $department = '';
+    $section    = '';
     if ($user_name !== '') {
-        $sql = "SELECT department
+        $sql = "SELECT department, section
                   FROM system_users
                  WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                  LIMIT 1";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->bind_param('s', $user_name);
             $stmt->execute();
-            $stmt->bind_result($db_department);
-            if ($stmt->fetch()) $department = (string)$db_department;
+            $stmt->bind_result($db_department, $db_section);
+            if ($stmt->fetch()) {
+                $department = (string)$db_department;
+                $section    = (string)$db_section;
+            }
             $stmt->close();
         }
     }
@@ -72,15 +77,20 @@ try {
             $stmt->close();
         }
     } elseif ($department !== '') {
-        // Scoped to user's department (assignee)
+        // Scoped to user's department AND (section is blank OR matches user's section)
+        // NOTE: We use LOWER(TRIM()) for robust comparisons.
         $sql = "SELECT
                     SUM(CASE WHEN status = 'ASSIGNEE PENDING' THEN 1 ELSE 0 END) AS assignee_pending,
                     SUM(CASE WHEN status = 'FOR CLOSING'      THEN 1 ELSE 0 END) AS for_closing
                 FROM rcpa_request
                 WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
-                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                  AND (
+                        section IS NULL OR section = '' OR
+                        LOWER(TRIM(section)) = LOWER(TRIM(?))
+                  )";
         if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('s', $department);
+            $stmt->bind_param('ss', $department, $section);
             $stmt->execute();
             $stmt->bind_result($p, $c);
             if ($stmt->fetch()) {

@@ -240,6 +240,7 @@
 /* ====== VIEW MODAL: fetch, fill, show ====== */
 (function () {
     // Modal elems
+    const CAN_QMS = !!window.RCPA_SHOW_QMS; // QMS OR (QA & approver)
     const modal = document.getElementById('rcpa-view-modal');
     const closeX = document.getElementById('rcpa-view-close');
 
@@ -1135,7 +1136,9 @@
             const hasData = (tgt && String(tgt).trim() !== '') ||
                 (notes && String(notes).trim() !== '') ||
                 (files && String(files).trim() !== '');
-            setSectionVisible(fs, hasData);
+            // change to:
+            const allowFollowupView = CAN_QMS;
+            setSectionVisible(fs, hasData && allowFollowupView);
 
             // Button label: Add vs Update
             const followBtn = document.getElementById('rcpa-followup-open');
@@ -1158,7 +1161,8 @@
         }
         setSectionVisible(corrFs, hasCorrRemarks || hasCorrAttach);
 
-        if (actionsWrap) actionsWrap.hidden = !row.can_followup;
+        if (actionsWrap) actionsWrap.hidden = !(row.can_followup && CAN_QMS);
+
 
 
         // Ensure Why-Why button exists & is bound
@@ -1273,27 +1277,59 @@
         }
 
         function openFu() {
-            if (!currentViewId) { alert('Open a record first.'); return; }
+            const CAN_QMS = !!window.RCPA_SHOW_QMS; // QMS OR QA (Supervisor/Manager)
+
+            // Permission gate
+            if (!CAN_QMS) {
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Not allowed',
+                        text: 'Only QMS or QA (Supervisor/Manager) can manage follow-up for effectiveness.'
+                    });
+                } else {
+                    alert('Not allowed. Only QMS or QA (Supervisor/Manager).');
+                }
+                return;
+            }
+
+            // Must have a record open
+            if (!currentViewId) {
+                if (window.Swal) {
+                    Swal.fire({ icon: 'warning', title: 'Open a record first' });
+                } else {
+                    alert('Open a record first.');
+                }
+                return;
+            }
 
             // Prefill or clear
             if (currentFollowUpRec) {
                 if (fuText) fuText.value = currentFollowUpRec.remarks || '';
                 if (fuDate) fuDate.value = (currentFollowUpRec.target_date || '').slice(0, 10);
+
                 // existing attachments (read-only list)
                 renderAttachmentsTo('rcpa-followup-existing-list', currentFollowUpRec.attachment || '');
                 const exWrap = document.getElementById('rcpa-followup-existing');
-                if (exWrap) exWrap.hidden = !(currentFollowUpRec.attachment && String(currentFollowUpRec.attachment).trim() !== '');
+                if (exWrap) {
+                    exWrap.hidden = !(
+                        currentFollowUpRec.attachment &&
+                        String(currentFollowUpRec.attachment).trim() !== ''
+                    );
+                }
             } else {
                 clearFuForm();
                 const exWrap = document.getElementById('rcpa-followup-existing');
                 if (exWrap) exWrap.hidden = true;
             }
 
+            // Open modal
             fuModal.removeAttribute('hidden');
             requestAnimationFrame(() => fuModal.classList.add('show'));
             setTimeout(() => fuText?.focus(), 80);
             document.body.style.overflow = 'hidden';
         }
+
 
         function closeFu() {
             fuModal.classList.remove('show');
@@ -1331,9 +1367,32 @@
             const remarks = (fuText?.value || '').trim();
             const date = (fuDate?.value || '').trim();
 
-            if (!currentViewId) { alert('Missing record id.'); return; }
-            if (!remarks) { alert('Remarks required.'); return; }
-            if (!date) { alert('Target Date required.'); return; }
+            if (!currentViewId) {
+                if (window.Swal) Swal.fire({ icon: 'warning', title: 'Open a record first' });
+                else alert('Open a record first.');
+                return;
+            }
+            if (!remarks) {
+                if (window.Swal) Swal.fire({ icon: 'warning', title: 'Remarks required', text: 'Please enter your follow-up remarks.' });
+                else alert('Remarks required');
+                fuText?.focus();
+                return;
+            }
+            if (!date) {
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Target date required',
+                        text: 'Please select a target date before submitting.',
+                        confirmButtonText: 'OK'
+                    }).then(() => fuDate?.focus());
+                } else {
+                    alert('Target Date required');
+                    fuDate?.focus();
+                }
+                return;
+            }
+
 
             try {
                 fuSubmit.disabled = true;

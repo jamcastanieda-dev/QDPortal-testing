@@ -2,11 +2,10 @@
 // rcpa-list-approval-invalid.php
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-
 date_default_timezone_set('Asia/Manila');
 
 /* ---------------------------
-   Auth: require cookie
+   Auth
 --------------------------- */
 if (!isset($_COOKIE['user'])) {
     http_response_code(401);
@@ -26,7 +25,6 @@ $user_name = trim((string)($current_user['name'] ?? ''));
    DB connection
 --------------------------- */
 require '../../connection.php'; // must define $mysqli, $conn, or $link
-
 if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
     if (isset($conn) && $conn instanceof mysqli)      $mysqli = $conn;
     elseif (isset($link) && $link instanceof mysqli)  $mysqli = $link;
@@ -40,25 +38,27 @@ if (!$mysqli || $mysqli->connect_errno) {
 $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
-   Resolve user's department
+   Resolve user's department & section
    Visibility rules:
      - QA or QMS  => can see ALL rows
      - Others     => can see rows where:
-         * rcpa_request.assignee = user's department
-         * OR rcpa_request.originator_name = current user's name
+         * (assignee = user's department AND (section IS NULL/'' OR section = user's section))
+           OR originator_name = current user's name
 --------------------------- */
 $dept = '';
+$sect = '';
 if ($user_name !== '') {
-    $sqlDept = "SELECT department
+    $sqlDept = "SELECT department, section
                 FROM system_users
                 WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                 LIMIT 1";
     if ($stmt = $mysqli->prepare($sqlDept)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department);
+        $stmt->bind_result($db_department, $db_section);
         if ($stmt->fetch()) {
             $dept = (string)$db_department;
+            $sect = (string)$db_section;
         }
         $stmt->close();
     }
@@ -73,8 +73,8 @@ $page_size = min(100, max(1, (int)($_GET['page_size'] ?? 10)));
 $offset    = ($page - 1) * $page_size;
 
 $type   = trim((string)($_GET['type'] ?? ''));    // rcpa_type filter (optional)
-$status = trim((string)($_GET['status'] ?? ''));  // optional, but constrained to allowed list
-$q      = trim((string)($_GET['q'] ?? ''));       // free-text query (project/wbs/assignee)
+$status = trim((string)($_GET['status'] ?? ''));  // optional, constrained to allowed list
+$q      = trim((string)($_GET['q'] ?? ''));       // free-text query
 
 /* ---------------------------
    WHERE builder
@@ -103,7 +103,6 @@ if ($q !== '') {
     $types   .= 'sssss';
 }
 
-
 if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     $where[]  = "status = ?";
     $params[] = $status;
@@ -117,18 +116,18 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     }
 }
 
-/* Visibility restriction:
-   - QA/QMS: no extra restriction (see all)
-   - Else:
-       * If department known: (assignee = dept OR originator_name = user_name)
-       * If department unknown: only originator_name = user_name (or see nothing if user_name empty)
-*/
+/* Visibility restriction with section match (for non QA/QMS) */
 if (!$isQaqms) {
     if ($dept !== '') {
-        $where[]  = "(assignee = ? OR originator_name = ?)";
+        // When row has a non-empty section, it must match user's section. Empty/NULL section is allowed with dept match.
+        $where[]  = "(
+            (assignee = ? AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
+            OR originator_name = ?
+        )";
         $params[] = $dept;
+        $params[] = $sect;
         $params[] = $user_name;
-        $types   .= 'ss';
+        $types   .= 'sss';
     } else {
         if ($user_name !== '') {
             $where[]  = "originator_name = ?";
@@ -151,7 +150,7 @@ if (!($stmt = $mysqli->prepare($sql_total))) {
     echo json_encode(['error' => 'Failed to prepare total query']);
     exit;
 }
-if ($types !== '') { // only bind when there are placeholders
+if ($types !== '') {
     $stmt->bind_param($types, ...$params);
 }
 $stmt->execute();
@@ -207,8 +206,6 @@ while ($r = $res->fetch_assoc()) {
         'section'          => (string)($r['section'] ?? ''),
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
-
-        // pass Y-m-d for the JS formatter
         'reply_due_date'   => $r['reply_due_date'] ? date('Y-m-d', strtotime($r['reply_due_date'])) : null,
     ];
 }

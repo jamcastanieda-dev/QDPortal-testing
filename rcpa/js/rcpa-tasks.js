@@ -1,4 +1,3 @@
-/* === Modal wiring === */
 (function () {
   // --- Assignee Approval modal ---
   const openBtn = document.getElementById('approvalBtn');
@@ -157,7 +156,7 @@
         }
 
         // Modal chips: only show counts for QMS/QA approvers
-        setBadge(bQmsReply,   allowQms ? data.counts.qms_reply_approval   : 0);
+        setBadge(bQmsReply, allowQms ? data.counts.qms_reply_approval : 0);
         setBadge(bQmsClosing, allowQms ? data.counts.qms_closing_approval : 0);
 
         // CLOSED

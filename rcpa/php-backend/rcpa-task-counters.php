@@ -22,32 +22,33 @@ try {
     // DB handle
     require '../../connection.php';
     if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
-        if (isset($conn) && $conn instanceof mysqli) {
-            $mysqli = $conn;
-        } elseif (isset($link) && $link instanceof mysqli) {
-            $mysqli = $link;
-        } else {
-            $mysqli = @new mysqli('localhost', 'DB_USER', 'DB_PASS', 'DB_NAME');
-        }
+        if (isset($conn) && $conn instanceof mysqli)      $mysqli = $conn;
+        elseif (isset($link) && $link instanceof mysqli)  $mysqli = $link;
+        else                                              $mysqli = @new mysqli('localhost', 'DB_USER', 'DB_PASS', 'DB_NAME');
     }
     if (!$mysqli || $mysqli->connect_errno) {
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => 'DB unavailable']);
         exit;
     }
+    $mysqli->set_charset('utf8mb4');
 
-    // Look up user's department
+    // Look up user's department + section
     $department = '';
+    $section    = '';
     if ($user_name !== '') {
-        $sql = "SELECT department
+        $sql = "SELECT department, section
                   FROM system_users
                  WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                  LIMIT 1";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->bind_param('s', $user_name);
             $stmt->execute();
-            $stmt->bind_result($db_department);
-            if ($stmt->fetch()) $department = (string)$db_department;
+            $stmt->bind_result($db_department, $db_section);
+            if ($stmt->fetch()) {
+                $department = (string)$db_department;
+                $section    = (string)$db_section;
+            }
             $stmt->close();
         }
     }
@@ -58,7 +59,7 @@ try {
 
     // ---------- COUNTS ----------
 
-    // 1) QMS TASKS (visible only to QMS/QA)
+    // 1) QMS TASKS (visible only to QMS/QA) — global
     $qms = 0;
     if ($is_qms) {
         $sql = "
@@ -73,11 +74,18 @@ try {
         }
     }
 
+    // Helper snippet used in several queries for non-QMS users:
+    // scope to user's department AND (row has no section OR row.section matches user's section)
+    // SQL fragment:
+    //   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+    //   AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
+    //
+    // Bind order for the pair is: [$department, $section]
+
     // 2) ASSIGNEE TASKS
-    //    If QA/QMS -> show ALL (no assignee filter)
-    //    Else      -> only where assignee = user's department
     $assignee_pending = 0;
     if ($is_qms) {
+        // Global for QA/QMS
         $sql = "
             SELECT COUNT(*)
             FROM rcpa_request
@@ -93,9 +101,13 @@ try {
             SELECT COUNT(*)
             FROM rcpa_request
             WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
-              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+              AND (
+                    section IS NULL OR section = '' OR
+                    LOWER(TRIM(section)) = LOWER(TRIM(?))
+                  )";
         if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('s', $department);
+            $stmt->bind_param('ss', $department, $section);
             $stmt->execute();
             $stmt->bind_result($cnt);
             if ($stmt->fetch()) $assignee_pending = (int)$cnt;
@@ -104,18 +116,17 @@ try {
     }
 
     // 3) ASSIGNEE APPROVAL (VALID/IN-VALID/FOR CLOSING APPROVAL)
-    //    QA/QMS -> all approvals (global)
-    //    Others -> only where assignee = user's department
     $valid_approval = 0;
     $not_valid_approval = 0;
     $for_closing_approval = 0;
 
     if ($is_qms) {
+        // Global for QA/QMS
         $sql = "
             SELECT
-                SUM(CASE WHEN status = 'VALID APPROVAL' THEN 1 ELSE 0 END) AS valid_approval,
-                SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS not_valid_approval,
-                SUM(CASE WHEN status = 'FOR CLOSING APPROVAL' THEN 1 ELSE 0 END) AS for_closing_approval
+                SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END) AS valid_approval,
+                SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END) AS not_valid_approval,
+                SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END) AS for_closing_approval
             FROM rcpa_request
             WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')";
         if ($stmt = $mysqli->prepare($sql)) {
@@ -131,14 +142,18 @@ try {
     } elseif ($department !== '') {
         $sql = "
             SELECT
-                SUM(CASE WHEN status = 'VALID APPROVAL' THEN 1 ELSE 0 END) AS valid_approval,
-                SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS not_valid_approval,
-                SUM(CASE WHEN status = 'FOR CLOSING APPROVAL' THEN 1 ELSE 0 END) AS for_closing_approval
+                SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END) AS valid_approval,
+                SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END) AS not_valid_approval,
+                SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END) AS for_closing_approval
             FROM rcpa_request
             WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
-              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+              AND (
+                    section IS NULL OR section = '' OR
+                    LOWER(TRIM(section)) = LOWER(TRIM(?))
+                  )";
         if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('s', $department);
+            $stmt->bind_param('ss', $department, $section);
             $stmt->execute();
             $stmt->bind_result($v1, $v2, $v3);
             if ($stmt->fetch()) {
@@ -158,7 +173,7 @@ try {
         $sql = "
             SELECT
                 SUM(CASE WHEN status = 'IN-VALIDATION REPLY APPROVAL' THEN 1 ELSE 0 END) AS qms_reply_approval,
-                SUM(CASE WHEN status = 'EVIDENCE APPROVAL' THEN 1 ELSE 0 END) AS qms_evidence_approval
+                SUM(CASE WHEN status = 'EVIDENCE APPROVAL'           THEN 1 ELSE 0 END) AS qms_evidence_approval
             FROM rcpa_request
             WHERE status IN ('IN-VALIDATION REPLY APPROVAL','EVIDENCE APPROVAL')";
         if ($stmt = $mysqli->prepare($sql)) {
@@ -174,8 +189,6 @@ try {
     $qms_approval_total = $qms_reply_approval + $qms_evidence_approval;
 
     // 5) CLOSED
-    //    QA/QMS -> count ALL closed
-    //    Others -> only where assignee = user's department
     $closed = 0;
     if ($is_qms) {
         $sql = "
@@ -193,9 +206,13 @@ try {
             SELECT COUNT(*)
             FROM rcpa_request
             WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
-              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+              AND (
+                    section IS NULL OR section = '' OR
+                    LOWER(TRIM(section)) = LOWER(TRIM(?))
+                  )";
         if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('s', $department);
+            $stmt->bind_param('ss', $department, $section);
             $stmt->execute();
             $stmt->bind_result($cnt);
             if ($stmt->fetch()) $closed = (int)$cnt;

@@ -42,17 +42,19 @@ $mysqli->set_charset('utf8mb4');
    Resolve user's department
 --------------------------- */
 $dept = '';
+$user_section = '';
 if ($user_name !== '') {
-    $sqlDept = "SELECT department
+    $sqlDept = "SELECT department, section
                 FROM system_users
                 WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                 LIMIT 1";
     if ($stmt = $mysqli->prepare($sqlDept)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department);
+        $stmt->bind_result($db_department, $db_section);
         if ($stmt->fetch()) {
             $dept = (string)$db_department;
+            $user_section = (string)$db_section;
         }
         $stmt->close();
     }
@@ -118,24 +120,38 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     }
 }
 
-/* Visibility restriction */
+/* Visibility restriction
+   - QA/QMS: see all
+   - Others:
+       (assignee = user's dept AND (row.section IS NULL/'' OR row.section = user.section))
+       OR originator_name = user
+*/
 if (!$isQaqms) {
     if ($dept !== '') {
-        $where[]  = "(assignee = ? OR originator_name = ?)";
+        $where[]  = "(
+            assignee = ?
+            AND (
+                section IS NULL
+                OR TRIM(section) = ''
+                OR LOWER(TRIM(section)) = LOWER(TRIM(?))
+            )
+            OR originator_name = ?
+        )";
         $params[] = $dept;
+        $params[] = $user_section;   // empty means they only see rows with empty section
         $params[] = $user_name;
-        $types   .= 'ss';
+        $types   .= 'sss';
     } else {
         if ($user_name !== '') {
             $where[]  = "originator_name = ?";
             $params[] = $user_name;
             $types   .= 's';
         } else {
-            // no dept and no user_name (very unlikely) => see nothing
-            $where[] = "1=0";
+            $where[] = "1=0"; // no dept and no name: see nothing
         }
     }
 }
+
 
 $where_sql = $where ? implode(' AND ', $where) : '1=1';
 

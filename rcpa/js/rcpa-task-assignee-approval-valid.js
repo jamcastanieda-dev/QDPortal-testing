@@ -1,6 +1,7 @@
 (function () {
-  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
+  const IS_APPROVER  = !!window.RCPA_IS_APPROVER;
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
+  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
 
   const tbody    = document.querySelector('#rcpa-table tbody');
   const totalEl  = document.getElementById('rcpa-total');
@@ -15,17 +16,22 @@
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
-  // You can keep this — non-approvers never need the action container
-  if (!IS_APPROVER) {
-    actionContainer.classList.add('hidden');
-  }
+  // Non-approvers never need the action container
+  if (!IS_APPROVER) actionContainer.classList.add('hidden');
 
   let page = 1;
   const pageSize = 10;
   let currentTarget = null; // the currently-open hamburger button
 
   const norm = (s) => (s ?? '').toString().trim().toLowerCase();
-  const canActOnRowAssignee = (rowAssignee) => norm(rowAssignee) === CURRENT_DEPT;
+
+  // Require dept match AND (no row.section) OR (row.section matches user's section)
+  const canActOnRow = (rowAssignee, rowSection) => {
+    if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+    const rs = norm(rowSection);
+    if (!rs) return true;            // no section on row → dept match is enough
+    return rs === CURRENT_SECT;      // otherwise section must match too
+  };
 
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
@@ -66,7 +72,6 @@
     if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
-
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
     if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
@@ -81,10 +86,10 @@
     return '';
   }
 
-  // 🔐 Show hamburger ONLY if user is approver AND this row is assigned to their department
-  function actionButtonHtml(id, assignee) {
+  // Show hamburger ONLY if user is approver AND this row is assigned to their department/section
+  function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
-    if (IS_APPROVER && canActOnRowAssignee(assignee)) {
+    if (IS_APPROVER && canActOnRow(assignee, section)) {
       return `
         <div class="rcpa-actions">
           <button class="rcpa-more" data-id="${safeId}" title="Actions">
@@ -116,7 +121,7 @@
     let h = d.getHours();
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
+    h = (h % 12) || 12;
 
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
@@ -139,7 +144,6 @@
     return Math.round((due - today) / msPerDay);
   }
 
-
   function formatReplyDueCell(ymd) {
     if (!ymd) return '';
     const pretty = formatYmdPretty(ymd);
@@ -151,20 +155,15 @@
     const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
 
     let className = '';
-    if (abs > 5) {
-      className = 'badge-cat-obs'; // > 5 days: Observation category
-    } else if (abs > 2) {
-      className = 'badge-cat-minor'; // < 5 days, > 2 days: Minor category
-    } else if (abs <= 2) {
-      className = 'badge-cat-major'; // < 2 days: Major category
-    }
+    if (abs > 5) className = 'badge-cat-obs';
+    else if (abs > 2) className = 'badge-cat-minor';
+    else className = 'badge-cat-major';
 
-    // Wrap the date and the days left in a <span> with the conditional class.
     return `
-    <span class="rcpa-badge ${className}">
-      ${pretty} (${valueText})
-    </span>
-  `;
+      <span class="rcpa-badge ${className}">
+        ${pretty} (${valueText})
+      </span>
+    `;
   }
 
   async function load() {
@@ -202,7 +201,7 @@
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
           <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
-          <td>${actionButtonHtml(r.id ?? '', r.assignee)}</td>
+          <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section)}</td>
           <td>
             <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
                data-id="${r.id ?? ''}" role="button" tabindex="0"

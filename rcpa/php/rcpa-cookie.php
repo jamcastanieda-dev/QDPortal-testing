@@ -40,22 +40,24 @@ if (!$mysqli || $mysqli->connect_errno) {
     exit('Database connection not available.');
 }
 
-// 3) Lookup role and department using employee_name from the cookie (case/space-insensitive)
+// 3) Lookup role, department, section
 $role = '';
 $department = '';
+$section = '';
 $user_name = trim($current_user['name'] ?? '');
 if ($user_name !== '') {
-    $sql = "SELECT role, department
+    $sql = "SELECT role, department, section
             FROM system_users
             WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
             LIMIT 1";
     if ($stmt = $mysqli->prepare($sql)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_role, $db_department);
+        $stmt->bind_result($db_role, $db_department, $db_section);
         if ($stmt->fetch()) {
-            $role = (string) $db_role;
-            $department = (string) $db_department;
+            $role = (string)$db_role;
+            $department = (string)$db_department;
+            $section = (string)$db_section;
         }
         $stmt->close();
     }
@@ -80,7 +82,8 @@ echo '<script>
   window.RCPA_CAN_ACTIONS = ' . ($rcpa_can_actions ? 'true' : 'false') . ';
   window.RCPA_IS_APPROVER = ' . ($can_see_rcpa_approval ? 'true' : 'false') . ';
   window.RCPA_DEPARTMENT = ' . json_encode($department, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) . ';
-   window.RCPA_SHOW_QMS = ' . ($rcpa_show_qms ? 'true' : 'false') . ';
+  window.RCPA_SECTION = ' . json_encode($section, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) . ';
+  window.RCPA_SHOW_QMS = ' . ($rcpa_show_qms ? 'true' : 'false') . ';
 </script>';
 
 

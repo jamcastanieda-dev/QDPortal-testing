@@ -124,7 +124,9 @@ try {
 
     // Merge (append) new files to existing; if you want “replace”, set $files = $newFiles instead
     $files = array_values(array_merge($existingFiles, $newFiles));
-    $attachmentJson = $files ? json_encode(['files' => $files], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : '';
+    $attachmentJson = $files
+    ? json_encode(['files' => $files], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+    : null;
 
     if ($existing) {
         // UPDATE

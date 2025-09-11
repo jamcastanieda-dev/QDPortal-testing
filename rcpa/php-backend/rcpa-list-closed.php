@@ -40,25 +40,27 @@ if (!$mysqli || $mysqli->connect_errno) {
 $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
-   Resolve user's department
+   Resolve user's department + section
    Visibility rules:
      - QA or QMS  => can see ALL rows
      - Others     => can see rows where:
-         * rcpa_request.assignee = user's department
-         * OR rcpa_request.originator_name = current user's name
+         * (assignee = user's department AND (section is NULL/'' OR section = user's section))
+           OR originator_name = current user's name
 --------------------------- */
 $dept = '';
+$section = '';
 if ($user_name !== '') {
-    $sqlDept = "SELECT department
+    $sqlDept = "SELECT department, section
                 FROM system_users
                 WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                 LIMIT 1";
     if ($stmt = $mysqli->prepare($sqlDept)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department);
+        $stmt->bind_result($db_department, $db_section);
         if ($stmt->fetch()) {
-            $dept = (string)$db_department;
+            $dept    = (string)$db_department;
+            $section = (string)$db_section;
         }
         $stmt->close();
     }
@@ -85,7 +87,7 @@ if ($statusParamRaw !== '') {
     } elseif ($up === 'INVALID' || $up === 'IN-VALID' || $up === 'CLOSED (IN-VALID)') {
         $statusNorm = 'CLOSED (IN-VALID)';
     } elseif ($up === 'ALL') {
-        $statusNorm = ''; // no narrowing; include both allowed statuses below
+        $statusNorm = ''; // include both allowed statuses
     } else {
         $statusNorm = '';
     }
@@ -114,14 +116,9 @@ if ($q !== '') {
         OR section    LIKE CONCAT('%', ?, '%')
         OR CONCAT(assignee, ' - ', COALESCE(section, '')) LIKE CONCAT('%', ?, '%')
     )";
-    $params[] = $q;
-    $params[] = $q;
-    $params[] = $q;
-    $params[] = $q;
-    $params[] = $q;
+    $params[] = $q; $params[] = $q; $params[] = $q; $params[] = $q; $params[] = $q;
     $types   .= 'sssss';
 }
-
 
 // Status: if a valid specific status was requested, use it; else include both allowed
 if ($statusNorm !== '' && in_array($statusNorm, $allowed_statuses, true)) {
@@ -140,15 +137,28 @@ if ($statusNorm !== '' && in_array($statusNorm, $allowed_statuses, true)) {
 /* Visibility restriction:
    - QA/QMS: no extra restriction (see all)
    - Else:
-       * If department known: (assignee = dept OR originator_name = user_name)
+       * If department known:
+            (
+              (LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
+              )
+              OR originator_name = ?
+            )
        * If department unknown: only originator_name = user_name (or see nothing if user_name empty)
 */
 if (!$isQaqms) {
     if ($dept !== '') {
-        $where[]  = "(assignee = ? OR originator_name = ?)";
+        $where[]  = "(
+            (
+              LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+              AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
+            )
+            OR originator_name = ?
+        )";
         $params[] = $dept;
+        $params[] = $section;
         $params[] = $user_name;
-        $types   .= 'ss';
+        $types   .= 'sss';
     } else {
         if ($user_name !== '') {
             $where[]  = "originator_name = ?";

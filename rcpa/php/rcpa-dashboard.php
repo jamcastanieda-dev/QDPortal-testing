@@ -499,38 +499,38 @@
 
     <!-- GRADE modal -->
     <div class="modal-overlay" id="gradeModal" aria-hidden="true" role="dialog" aria-modal="true" style="padding:0;">
-  <div class="modal-content" role="document"
-       style="position:relative; max-width:99vw; width:100%; height:96vh; max-height:96vh; padding:0; display:flex; flex-direction:column; box-sizing:border-box;">
-    <!-- keep close button above header content -->
-    <button class="close-btn" id="closeGradeBtn" aria-label="Close grade modal" title="Close"
-            style="position:absolute; top:8px; right:8px; z-index:20;">×</button>
+        <div class="modal-content" role="document"
+            style="position:relative; max-width:99vw; width:100%; height:96vh; max-height:96vh; padding:0; display:flex; flex-direction:column; box-sizing:border-box;">
+            <!-- keep close button above header content -->
+            <button class="close-btn" id="closeGradeBtn" aria-label="Close grade modal" title="Close"
+                    style="position:absolute; top:8px; right:8px; z-index:20;">×</button>
 
-    <!-- your grade content -->
-    <div class="rcpa-grade-wrap" style="padding:0; flex:1 1 auto; display:flex; flex-direction:column; min-height:0;">
+            <!-- your grade content -->
+            <div class="rcpa-grade-wrap" style="padding:0; flex:1 1 auto; display:flex; flex-direction:column; min-height:0;">
 
-      <!-- header: title left, buttons perfectly centered -->
-      <div class="rcpa-modal-head"
-           style="padding:12px 16px; border-bottom:1px solid #eee; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px;">
-        <div style="font-weight:600;">GRADE <span style="font-weight:600;">2025</span></div>
+            <!-- header: title left, buttons perfectly centered -->
+            <div class="rcpa-modal-head"
+                style="padding:12px 16px; border-bottom:1px solid #eee; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px;">
+                <div style="font-weight:600;">GRADE <span style="font-weight:600;">2025</span></div>
 
-        <div style="justify-self:center; display:flex; gap:8px;">
-          <button id="dlXlsxBtn" class="btn small">Excel (.xlsx)</button>
-          <button id="dlPdfBtn"  class="btn small">PDF</button>
+                <div style="justify-self:center; display:flex; gap:8px;">
+                <button id="dlXlsxBtn" class="btn small">Excel (.xlsx)</button>
+                <button id="dlPdfBtn"  class="btn small">PDF</button>
+                </div>
+
+                <div></div> <!-- right spacer so center stays centered -->
+            </div>
+
+            <!-- scrollable grid area -->
+            <div id="gradeTableWrap" style="overflow:auto; flex:1 1 auto; min-height:0;">
+                <table id="gradeTable" class="grade-table"
+                    style="border-collapse:separate; border-spacing:0; width:100%; min-width:900px;">
+                <!-- built by JS -->
+                </table>
+            </div>
+            </div>
         </div>
-
-        <div></div> <!-- right spacer so center stays centered -->
-      </div>
-
-      <!-- scrollable grid area -->
-      <div id="gradeTableWrap" style="overflow:auto; flex:1 1 auto; min-height:0;">
-        <table id="gradeTable" class="grade-table"
-               style="border-collapse:separate; border-spacing:0; width:100%; min-width:900px;">
-          <!-- built by JS -->
-        </table>
-      </div>
     </div>
-  </div>
-</div>
 
     <!-- RCPA LIST MODAL -->
     <div class="modal-overlay" id="rcpaListModal" aria-hidden="true" role="dialog" aria-modal="true">
@@ -538,8 +538,21 @@
             <button class="close-btn" id="closeRcpaListBtn" aria-label="Close RCPA list" title="Close">×</button>
 
             <div class="rcpa-modal-head" style="display:flex;align-items:center;gap:12px;padding:12px 16px;">
+
+            
                 <!-- in-modal Year filter -->
                 <div class="rcpa-modal-controls" style="display:flex;align-items:center;gap:8px;">
+
+                   <!-- Company filter -->
+                    <label for="rcpaListCompanyFilter" style="font-weight:800;color:#334155;">Company</label>
+                    <select id="rcpaListCompanyFilter"
+                            style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
+                    <option value="all" selected>All</option>
+                    <option value="RTI">RTI</option>
+                    <option value="SSD">SSD</option>
+                    </select>
+
+                    <!-- year filter -->
                     <label for="rcpaListYearFilter" style="font-weight:800;color:#334155;">Year</label>
                     <select id="rcpaListYearFilter" style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
                     <option value="all" selected>All</option>
@@ -552,7 +565,7 @@
             <table class="rcpa-table-list" id="rcpaListTable">
             <thead>
                 <tr>
-                    <th>Department</th>
+                    <th>Company</th>
                     <th>RCPA No.</th>
                     <th>Type Of RCPA</th>
                     <th>Category</th>
