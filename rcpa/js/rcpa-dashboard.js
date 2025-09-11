@@ -2023,7 +2023,7 @@
   // #reject-remarks-modal { z-index: 1200; }
 })();
 
-/* ===== GRADE modal IIFE (builds table + loads departments) ===== */
+
 (() => {
   'use strict';
 
@@ -2041,11 +2041,88 @@
     const tableEl = document.getElementById('gradeTable');
     const metaEl = document.getElementById('gradeMeta');
 
+    // Export buttons
+    const dlXlsxBtn = document.getElementById('dlXlsxBtn');
+    const dlPdfBtn = document.getElementById('dlPdfBtn');
+    dlXlsxBtn?.setAttribute('disabled', '');
+    dlPdfBtn?.setAttribute('disabled', '');
+
     const DEPT_API_URL = '../php-backend/rcpa-grade-departments.php';
+    const DATA_API_URL = '../php-backend/rcpa-grade-data.php';
+
+    const YEAR = 2025;
+    const now = new Date();
+    const currentMonth = (now.getFullYear() === YEAR) ? (now.getMonth() + 1) : 12;
 
     let gradeLoaded = false;
     let gradeDepartments = [];
+    let cellIndex = new Map(); // key: `${m}|${metric}|${label}` -> <td>
 
+    const attEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    /* ---------- Robust dynamic loaders (try multiple CDNs + optional local) ---------- */
+    const XLSX_SRCS = [
+      '/assets/libs/xlsx.full.min.js', // optional local path (place file here to avoid CDN)
+      'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js',
+      'https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js',
+      'https://unpkg.com/xlsx@0.19.3/dist/xlsx.full.min.js'
+    ];
+    const JSPDF_SRCS = [
+      '/assets/libs/jspdf.umd.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+      'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+      'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+    ];
+    const AUTOTABLE_SRCS = [
+      '/assets/libs/jspdf.plugin.autotable.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js',
+      'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.1/dist/jspdf.plugin.autotable.min.js',
+      'https://unpkg.com/jspdf-autotable@3.8.1/dist/jspdf.plugin.autotable.min.js'
+    ];
+    const EXCELJS_SRCS = [
+      '/assets/libs/exceljs.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
+      'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+      'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'
+    ];
+
+    async function ensureExcelJS() {
+      await tryLoadAny(EXCELJS_SRCS, () => !!window.ExcelJS, 'ExcelJS');
+    }
+
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.defer = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function tryLoadAny(sources, testFn, what) {
+      if (testFn()) return true;
+      for (const src of sources) {
+        try {
+          await loadScript(src);
+          if (testFn()) return true;
+        } catch (_) { /* try next */ }
+      }
+      throw new Error(`${what} not available after trying: \n${sources.join('\n')}`);
+    }
+
+    async function ensureExcelLib() {
+      await tryLoadAny(XLSX_SRCS, () => !!window.XLSX, 'XLSX');
+    }
+
+    async function ensurePdfLibs() {
+      await tryLoadAny(JSPDF_SRCS, () => !!(window.jspdf && window.jspdf.jsPDF), 'jsPDF');
+      await tryLoadAny(AUTOTABLE_SRCS, () => !!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable), 'jsPDF-AutoTable');
+    }
+
+    /* --------------------- Data loading helpers --------------------- */
     async function loadDepartments() {
       const res = await fetch(DEPT_API_URL, { credentials: 'same-origin' });
       const data = await res.json();
@@ -2053,134 +2130,158 @@
       gradeDepartments = Array.isArray(data.departments) ? data.departments : [];
     }
 
+    async function loadMetrics() {
+      const url = `${DATA_API_URL}?year=${encodeURIComponent(YEAR)}`;
+      const res = await fetch(url, { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Failed to load grade data');
+      return data.metrics || {};
+    }
+
+    function deptIsSection(label) { return typeof label === 'string' && label.includes(' - '); }
+    function baseDeptLabels() { return gradeDepartments.filter(l => !deptIsSection(l)); }
+    function addCellRef(m, metric, label, tdEl) { cellIndex.set(`${m}|${metric}|${label}`, tdEl); }
+    function getCell(m, metric, label) { return cellIndex.get(`${m}|${metric}|${label}`); }
+    function percent(n, d) { if (!d) return null; return Math.round((n / d) * 100); }
+    function setCellText(td, val, isPct = false) {
+      if (!td) return;
+      if (val === null) td.innerHTML = '<span class="no-rcpa">NO RCPA</span>';
+      else td.textContent = isPct ? `${val}%` : String(val);
+    }
+
+    /* --------------------- Table building --------------------- */
     function buildGradeTable() {
       if (!tableEl) return;
 
-      const th = (txt, cls = '') => `<th class="${cls}">${txt}</th>`;
-      const td = (txt, cls = '') => `<td class="${cls}">${txt}</td>`;
-      const tdAtt = (txt, cls = '', attrs = '') => `<td class="${cls}" ${attrs}>${txt}</td>`;
+      const th = (txt, cls = '', attrs = '') => `<th class="${cls}" ${attrs}>${txt}</th>`;
+      const td = (txt, cls = '', attrs = '') => `<td class="${cls}" ${attrs}>${txt}</td>`;
+      const tdBlank = (cls = '', attrs = '') => `<td class="${cls}" ${attrs}></td>`;
 
       const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-      const deptHeaders = gradeDepartments.map(d => th(d, 'hdr-dept sticky-top'));
+      const deptHeaders = gradeDepartments.map(label => {
+        const isSection = deptIsSection(label) ? '1' : '0';
+        return th(attEsc(label), 'hdr-dept sticky-top', `data-col="${attEsc(label)}" data-is-section="${isSection}"`);
+      });
 
       const theadHTML = `
-        <thead>
-          <tr>
-            ${th('MONTH', 'left sticky-top')}
-            ${th('&nbsp;', 'sticky-top band-head')}
-            ${th('DEPARTMENT', 'left sticky-top')}
-            ${deptHeaders.join('')}
-            ${th('Total', 'total sticky-top')}
-          </tr>
-        </thead>
+      <thead>
+        <tr>
+          ${th('MONTH', 'left sticky-top')}
+          ${th('DEPARTMENT', 'left sticky-top', 'colspan="2"')}
+          ${deptHeaders.join('')}
+          ${th('Total', 'total sticky-top')}
+        </tr>
+      </thead>
       `;
 
+
       const replyRows = [
-        ['HIT REPLY', '0'],
-        ['MISSED', '0'],
-        ['W/ REPLY', '0'],
-        ['FILL RATE', '<span class="no-rcpa">NO RCPA</span>'],
-        ['SERVICE LEVEL', '<span class="no-rcpa">NO RCPA</span>']
+        ['HIT REPLY', 'reply_hit', false],
+        ['MISSED', 'reply_missed', false],
+        ['W/ REPLY', 'reply_total', false],
+        ['FILL RATE', 'reply_fill', true],
+        ['SERVICE LEVEL', 'reply_sl', true],
       ];
       const closingRows = [
-        ['Hit Closing', '0'],
-        ['Missed', '0'],
-        ['Closed', '0'],
-        ['Fill Rate', '<span class="no-rcpa">NO RCPA</span>'],
-        ['Service Level', '<span class="no-rcpa">NO RCPA</span>']
+        ['Hit Closing', 'close_hit', false],
+        ['Missed', 'close_missed', false],
+        ['Closed', 'close_total', false],
+        ['Fill Rate', 'close_fill', true],
+        ['Service Level', 'close_sl', true],
       ];
       const ROWS_PER_GROUP = replyRows.length + closingRows.length;
 
-      const makeMonthBlock = (monthLabel) => {
-        let html = '';
+      let tbodyHTML = '<tbody>';
+      for (let mi = 0; mi < 12; mi++) {
+        const m = mi + 1;
 
-        /* ---- TOTAL RCPA row for this month (mark row + last cell) ---- */
-        html += '<tr class="total-row">';
-        html += tdAtt(monthLabel, 'month-col', `rowspan="${ROWS_PER_GROUP + 1}"`);
-        html += td('', 'band-title');
-        html += td('TOTAL RCPA', 'hdr-dept left');
-        html += gradeDepartments.map(() => td('0', 'hdr-dept')).join('');
-        html += td('0', 'hdr-dept col-total');   /* ⭐ total column cell */
-        html += '</tr>';
+        // TOTAL RCPA (Apply correct color #ffe8a6 here)
+        tbodyHTML += `<tr class="total-row" style="background-color: #ffe8a6;">`;
+        tbodyHTML += td(MONTHS[mi], 'month-col', `rowspan="${ROWS_PER_GROUP + 1}"`);
+        tbodyHTML += td('TOTAL RCPA', 'hdr-dept left', 'colspan="2"');
+
+        gradeDepartments.forEach(label => {
+          tbodyHTML += td('0', '', `data-month="${m}" data-metric="total" data-col="${attEsc(label)}"`);
+        });
+        tbodyHTML += td('0', 'col-total', `data-month="${m}" data-metric="total_sum"`);
+        tbodyHTML += `</tr>`;
 
         // REPLY
-        replyRows.forEach(([label, defVal], i) => {
-          html += '<tr>';
-          if (i === 0) {
-            html += tdAtt('REPLY', 'band-title left', `rowspan="${replyRows.length}"`);
-          }
-          html += td(label, 'left row-subhead');
-          html += gradeDepartments.map(() => td(defVal)).join('');
-          html += td(defVal, 'col-total');        /* ⭐ total column cell */
-          html += '</tr>';
+        replyRows.forEach(([labelTxt, metricKey, isPct], idx) => {
+          tbodyHTML += `<tr>`;
+          if (idx === 0) tbodyHTML += td('REPLY', 'band-title left', `rowspan="${replyRows.length}"`);
+          tbodyHTML += td(labelTxt, 'left row-subhead');
+          gradeDepartments.forEach(label => {
+            tbodyHTML += td(isPct ? '<span class="no-rcpa">NO RCPA</span>' : '0', '', `data-month="${m}" data-metric="${metricKey}" data-col="${attEsc(label)}"`);
+          });
+          tbodyHTML += td(isPct ? '<span class="no-rcpa">NO RCPA</span>' : '0', 'col-total', `data-month="${m}" data-metric="${metricKey}_sum"`);
+          tbodyHTML += `</tr>`;
         });
 
         // CLOSING
-        closingRows.forEach(([label, defVal], i) => {
-          html += '<tr>';
-          if (i === 0) {
-            html += tdAtt('CLOSING', 'band-title left', `rowspan="${closingRows.length}"`);
-          }
-          html += td(label, 'left row-subhead');
-          html += gradeDepartments.map(() => td(defVal)).join('');
-          html += td(defVal, 'col-total');        /* ⭐ total column cell */
-          html += '</tr>';
+        closingRows.forEach(([labelTxt, metricKey, isPct], idx) => {
+          tbodyHTML += `<tr>`;
+          if (idx === 0) tbodyHTML += td('CLOSING', 'band-title left', `rowspan="${closingRows.length}"`);
+          tbodyHTML += td(labelTxt, 'left row-subhead');
+          gradeDepartments.forEach(label => {
+            tbodyHTML += td(isPct ? '<span class="no-rcpa">NO RCPA</span>' : '0', '', `data-month="${m}" data-metric="${metricKey}" data-col="${attEsc(label)}"`);
+          });
+          tbodyHTML += td(isPct ? '<span class="no-rcpa">NO RCPA</span>' : '0', 'col-total', `data-month="${m}" data-metric="${metricKey}_sum"`);
+          tbodyHTML += `</tr>`;
         });
+      }
 
-        return html;
-      };
+      // Spacer
+      tbodyHTML += `<tr class="ytd-sep"><td colspan="${gradeDepartments.length + 4}" style="padding:0;border:0;height:32px;"></td></tr>`;
 
-      const makeYtdBlock = () => {
-        let html = '';
-        html += '<tr class="total-row">';
-        html += tdAtt('YTD', 'month-col ytd-col', `rowspan="${ROWS_PER_GROUP + 1}"`);
-        html += td('', 'band-title');
-        html += td('TOTAL RCPA', 'hdr-dept left');
-        html += gradeDepartments.map(() => td('0', 'hdr-dept')).join('');
-        html += td('0', 'hdr-dept col-total');   /* ⭐ total column cell */
-        html += '</tr>';
+      // YTD block
+      const ytdM = 'ytd';
+      tbodyHTML += `<tr class="total-row" style="background-color: #ffe8a6;">`;
+      tbodyHTML += td('YTD', 'month-col ytd-col', `rowspan="${ROWS_PER_GROUP + 1}"`);
+      // merge band-title + department into one cell (like monthly)
+      tbodyHTML += td('TOTAL RCPA', 'hdr-dept left', 'colspan="2"');
+      gradeDepartments.forEach(label => {
+        tbodyHTML += td('0', '', `data-month="${ytdM}" data-metric="total" data-col="${attEsc(label)}"`);
+      });
+      tbodyHTML += td('0', 'col-total', `data-month="${ytdM}" data-metric="total_sum"`);
+      tbodyHTML += `</tr>`;
 
-        // REPLY
-        replyRows.forEach(([label, defVal], i) => {
-          html += '<tr>';
-          if (i === 0) {
-            html += tdAtt('REPLY', 'band-title left', `rowspan="${replyRows.length}"`);
-          }
-          html += td(label, 'left row-subhead');
-          html += gradeDepartments.map(() => td(defVal)).join('');
-          html += td(defVal, 'col-total');        /* ⭐ total column cell */
-          html += '</tr>';
+      replyRows.forEach(([labelTxt, metricKey, isPct], idx) => {
+        tbodyHTML += `<tr>`;
+        if (idx === 0) tbodyHTML += td('REPLY', 'band-title left', `rowspan="${replyRows.length}"`);
+        tbodyHTML += td(labelTxt, 'left row-subhead');
+        gradeDepartments.forEach(label => {
+          tbodyHTML += td(isPct ? '<span class="no-rcpa">NO RCPA</span>' : '0', '', `data-month="${ytdM}" data-metric="${metricKey}" data-col="${attEsc(label)}"`);
         });
+        tbodyHTML += td(isPct ? '<span class="no-rcpa">NO RCPA</span>' : '0', 'col-total', `data-month="${ytdM}" data-metric="${metricKey}_sum"`);
+        tbodyHTML += `</tr>`;
+      });
 
-        // CLOSING
-        closingRows.forEach(([label, defVal], i) => {
-          html += '<tr>';
-          if (i === 0) {
-            html += tdAtt('CLOSING', 'band-title left', `rowspan="${closingRows.length}"`);
-          }
-          html += td(label, 'left row-subhead');
-          html += gradeDepartments.map(() => td(defVal)).join('');
-          html += td(defVal, 'col-total');        /* ⭐ total column cell */
-          html += '</tr>';
+      closingRows.forEach(([labelTxt, metricKey, isPct], idx) => {
+        tbodyHTML += `<tr>`;
+        if (idx === 0) tbodyHTML += td('CLOSING', 'band-title left', `rowspan="${closingRows.length}"`);
+        tbodyHTML += td(labelTxt, 'left row-subhead');
+        gradeDepartments.forEach(label => {
+          tbodyHTML += td(isPct ? '<span class="no-rcpa">NO RCPA</span>' : '0', '', `data-month="${ytdM}" data-metric="${metricKey}" data-col="${attEsc(label)}"`);
         });
+        tbodyHTML += td(isPct ? '<span class="no-rcpa">NO RCPA</span>' : '0', 'col-total', `data-month="${ytdM}" data-metric="${metricKey}_sum"`);
+        tbodyHTML += `</tr>`;
+      });
 
-        return html;
-      };
-
-      const makeSpacerRow = () =>
-        `<tr class="ytd-sep"><td colspan="${gradeDepartments.length + 4}" style="padding:0;border:0;height:32px;"></td></tr>`;
-
-      const tbodyHTML = `
-        <tbody>
-          ${MONTHS.map(makeMonthBlock).join('')}
-          ${makeSpacerRow()}
-          ${makeYtdBlock()}
-        </tbody>
-      `;
-
+      tbodyHTML += '</tbody>';
       tableEl.innerHTML = theadHTML + tbodyHTML;
 
+      // Cache cells
+      cellIndex.clear();
+      tableEl.querySelectorAll('td[data-month][data-metric][data-col]').forEach(td => {
+        const m = td.getAttribute('data-month');
+        const metric = td.getAttribute('data-metric');
+        const label = td.getAttribute('data-col');
+        addCellRef(m, metric, label, td);
+      });
+
+      // header spacing calc
       const hdr1 = tableEl.querySelector('thead tr:first-child');
       const h1 = hdr1 ? hdr1.getBoundingClientRect().height : 0;
       tableEl.style.setProperty('--hdr1-h', `${h1}px`);
@@ -2192,6 +2293,519 @@
       if (tableWrap) tableWrap.style.maxHeight = '';
     }
 
+    function populate(metrics) {
+      const labels = gradeDepartments.slice();
+      const baseOnly = baseDeptLabels();
+
+      for (let m = 1; m <= 12; m++) {
+        labels.forEach(label => {
+          const rec = (metrics[label] && metrics[label][m]) || { total: 0, reply_total: 0, reply_hit: 0, close_total: 0, close_hit: 0 };
+          const missedReply = Math.max(0, rec.reply_total - rec.reply_hit);
+          const missedClose = Math.max(0, rec.close_total - rec.close_hit);
+
+          setCellText(getCell(String(m), 'total', label), rec.total, false);
+
+          setCellText(getCell(String(m), 'reply_hit', label), rec.reply_hit, false);
+          setCellText(getCell(String(m), 'reply_missed', label), missedReply, false);
+          setCellText(getCell(String(m), 'reply_total', label), rec.reply_total, false);
+          const fillR = percent(rec.reply_total, rec.total);
+          const slR = percent(rec.reply_hit, rec.reply_total);
+          setCellText(getCell(String(m), 'reply_fill', label), fillR, true);
+          setCellText(getCell(String(m), 'reply_sl', label), slR, true);
+
+          setCellText(getCell(String(m), 'close_hit', label), rec.close_hit, false);
+          setCellText(getCell(String(m), 'close_missed', label), missedClose, false);
+          setCellText(getCell(String(m), 'close_total', label), rec.close_total, false);
+          const fillC = percent(rec.close_total, rec.total);
+          const slC = percent(rec.close_hit, rec.close_total);
+          setCellText(getCell(String(m), 'close_fill', label), fillC, true);
+          setCellText(getCell(String(m), 'close_sl', label), slC, true);
+        });
+
+        const sumMetrics = ['total', 'reply_hit', 'reply_missed', 'reply_total', 'reply_fill', 'reply_sl', 'close_hit', 'close_missed', 'close_total', 'close_fill', 'close_sl'];
+        sumMetrics.forEach(metricKey => {
+          let sum = 0, num = 0, den = 0, isPct = metricKey.endsWith('_fill') || metricKey.endsWith('_sl');
+          if (isPct) {
+            if (metricKey === 'reply_fill') {
+              baseOnly.forEach(label => { const r = (metrics[label] && metrics[label][m]) || { total: 0, reply_total: 0 }; num += r.reply_total; den += r.total; });
+            } else if (metricKey === 'reply_sl') {
+              baseOnly.forEach(label => { const r = (metrics[label] && metrics[label][m]) || { reply_total: 0, reply_hit: 0 }; num += r.reply_hit; den += r.reply_total; });
+            } else if (metricKey === 'close_fill') {
+              baseOnly.forEach(label => { const r = (metrics[label] && metrics[label][m]) || { total: 0, close_total: 0 }; num += r.close_total; den += r.total; });
+            } else if (metricKey === 'close_sl') {
+              baseOnly.forEach(label => { const r = (metrics[label] && metrics[label][m]) || { close_total: 0, close_hit: 0 }; num += r.close_hit; den += r.close_total; });
+            }
+            const pct = percent(num, den);
+            setCellText(tableEl.querySelector(`td.col-total[data-month="${m}"][data-metric="${metricKey}_sum"]`), pct, true);
+          } else {
+            baseOnly.forEach(label => {
+              const r = (metrics[label] && metrics[label][m]) || { total: 0, reply_total: 0, reply_hit: 0, close_total: 0, close_hit: 0 };
+              if (metricKey === 'total') sum += r.total;
+              if (metricKey === 'reply_hit') sum += r.reply_hit;
+              if (metricKey === 'reply_missed') sum += Math.max(0, r.reply_total - r.reply_hit);
+              if (metricKey === 'reply_total') sum += r.reply_total;
+              if (metricKey === 'close_hit') sum += r.close_hit;
+              if (metricKey === 'close_missed') sum += Math.max(0, r.close_total - r.close_hit);
+              if (metricKey === 'close_total') sum += r.close_total;
+            });
+            setCellText(tableEl.querySelector(`td.col-total[data-month="${m}"][data-metric="${metricKey}_sum"]`), sum, false);
+          }
+        });
+      }
+
+      const monthsForYTD = Array.from({ length: (YEAR === now.getFullYear()) ? currentMonth : 12 }, (_, i) => i + 1);
+
+      labels.forEach(label => {
+        let agg = { total: 0, reply_total: 0, reply_hit: 0, close_total: 0, close_hit: 0 };
+        monthsForYTD.forEach(m => {
+          const r = (metrics[label] && metrics[label][m]) || { total: 0, reply_total: 0, reply_hit: 0, close_total: 0, close_hit: 0 };
+          agg.total += r.total; agg.reply_total += r.reply_total; agg.reply_hit += r.reply_hit;
+          agg.close_total += r.close_total; agg.close_hit += r.close_hit;
+        });
+        const missedReply = Math.max(0, agg.reply_total - agg.reply_hit);
+        const missedClose = Math.max(0, agg.close_total - agg.close_hit);
+
+        setCellText(getCell('ytd', 'total', label), agg.total, false);
+        setCellText(getCell('ytd', 'reply_hit', label), agg.reply_hit, false);
+        setCellText(getCell('ytd', 'reply_missed', label), missedReply, false);
+        setCellText(getCell('ytd', 'reply_total', label), agg.reply_total, false);
+        setCellText(getCell('ytd', 'reply_fill', label), percent(agg.reply_total, agg.total), true);
+        setCellText(getCell('ytd', 'reply_sl', label), percent(agg.reply_hit, agg.reply_total), true);
+
+        setCellText(getCell('ytd', 'close_hit', label), agg.close_hit, false);
+        setCellText(getCell('ytd', 'close_missed', label), missedClose, false);
+        setCellText(getCell('ytd', 'close_total', label), agg.close_total, false);
+        setCellText(getCell('ytd', 'close_fill', label), percent(agg.close_total, agg.total), true);
+        setCellText(getCell('ytd', 'close_sl', label), percent(agg.close_hit, agg.close_total), true);
+      });
+
+      const ytdSum = (metricKey) => {
+        let num = 0, den = 0, sum = 0;
+        const baseOnly = baseDeptLabels();
+        const monthsForYTD = Array.from({ length: (YEAR === now.getFullYear()) ? currentMonth : 12 }, (_, i) => i + 1);
+        if (metricKey === 'total') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].total : 0)));
+        if (metricKey === 'reply_hit') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].reply_hit : 0)));
+        if (metricKey === 'reply_missed') baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { reply_total: 0, reply_hit: 0 }; sum += Math.max(0, r.reply_total - r.reply_hit); }));
+        if (metricKey === 'reply_total') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].reply_total : 0)));
+        if (metricKey === 'close_hit') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].close_hit : 0)));
+        if (metricKey === 'close_missed') baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { close_total: 0, close_hit: 0 }; sum += Math.max(0, r.close_total - r.close_hit); }));
+        if (metricKey === 'close_total') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].close_total : 0)));
+        if (metricKey === 'reply_fill') { baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { total: 0, reply_total: 0 }; num += r.reply_total; den += r.total; })); return percent(num, den); }
+        if (metricKey === 'reply_sl') { baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { reply_total: 0, reply_hit: 0 }; num += r.reply_hit; den += r.reply_total; })); return percent(num, den); }
+        if (metricKey === 'close_fill') { baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { total: 0, close_total: 0 }; num += r.close_total; den += r.total; })); return percent(num, den); }
+        if (metricKey === 'close_sl') { baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { close_total: 0, close_hit: 0 }; num += r.close_hit; den += r.close_total; })); return percent(num, den); }
+        return sum;
+      };
+
+      ['total', 'reply_hit', 'reply_missed', 'reply_total', 'reply_fill', 'reply_sl', 'close_hit', 'close_missed', 'close_total', 'close_fill', 'close_sl'].forEach(metricKey => {
+        const isPct = metricKey.endsWith('_fill') || metricKey.endsWith('_sl');
+        const val = ytdSum(metricKey);
+        setCellText(tableEl.querySelector(`td.col-total[data-month="ytd"][data-metric="${metricKey}_sum"]`), val, isPct);
+      });
+    }
+
+    /* --------------------- Export helpers --------------------- */
+    function getCleanTableClone() {
+      const clone = tableEl.cloneNode(true);
+      clone.querySelectorAll('tr.ytd-sep').forEach(tr => tr.remove());
+      Array.from(clone.querySelectorAll('tbody > tr')).forEach(tr => {
+        const td = tr.querySelector('td');
+        if (td && /Loading/i.test(td.textContent)) tr.remove();
+      });
+      clone.querySelectorAll('span.no-rcpa').forEach(s => {
+        s.replaceWith(document.createTextNode('NO RCPA'));
+      });
+      return clone;
+    }
+
+    // hex -> [r,g,b]
+    function hex2rgb(hex) {
+      const h = hex.replace('#', '');
+      const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+      return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+    }
+
+    async function exportToXLSX() {
+      try {
+        await ensureExcelJS();
+      } catch (e) {
+        alert('ExcelJS not loaded and cannot be fetched.\nTip: host ExcelJS locally or check your network/SSL.\n' + e.message);
+        return;
+      }
+
+      // ---- helpers ----
+      const HEX = {
+        border: '9AA1A9',
+        head: 'F7F7F7',
+        band: 'EAF4E6',
+        sub: 'F1F8EE',
+        month: 'CFE2FF',
+        ytd: 'F6C667',
+        hdrDept: 'FFE8A6',
+        totalRow: 'FFE8A6',
+        // NEW for Total column
+        totalHead: '567FB6', // header "Total"
+        totalBody: 'E1E8F6', // normal body cells
+        totalSum: 'B9CAE6', // TOTAL rows (overrides row fill)
+        divider: '6B7280'  // stronger left border
+      };
+      const BORDER_THIN = { style: 'thin', color: { argb: 'FF' + HEX.border } };
+      const BORDER_MEDIUM = { style: 'medium', color: { argb: 'FF' + HEX.divider } };
+      const allBorders = { top: BORDER_THIN, left: BORDER_THIN, bottom: BORDER_THIN, right: BORDER_THIN };
+
+
+      // Build a clean clone (removes spacer row, converts "NO RCPA" spans, etc.)
+      const table = getCleanTableClone();
+
+      // Parse the HTML table into a grid with merges and class lists
+      function tableToGrid(tbl) {
+        const thead = tbl.querySelector('thead');
+        const tbody = tbl.querySelector('tbody');
+        const sections = [thead, tbody].filter(Boolean);
+
+        const rows = [];
+        const merges = []; // {r1,c1,r2,c2} 1-based for Excel
+        const classMap = []; // parallel to rows[r][c] -> {cellClasses, rowClasses, isHeader}
+
+        // reset span grid for each run
+        tableToGrid.spanGrid = [];
+
+        let excelRowIndex = 1;
+        sections.forEach((sec) => {
+          Array.from(sec.rows).forEach((tr) => {
+            const rowClasses = Array.from(tr.classList || []);
+            rows[excelRowIndex - 1] = rows[excelRowIndex - 1] || [];
+            classMap[excelRowIndex - 1] = classMap[excelRowIndex - 1] || [];
+
+            // occupancy map for this row (carry over via rowspan)
+            const occ = tableToGrid.spanGrid[excelRowIndex - 1] || (tableToGrid.spanGrid[excelRowIndex - 1] = []);
+
+            let col = 1;
+            Array.from(tr.cells).forEach((cell) => {
+              // advance to next free col
+              while (occ[col]) col++;
+
+              const txt = cell.textContent.trim();
+              const isHeader = cell.tagName.toLowerCase() === 'th';
+              const cellClasses = Array.from(cell.classList || []);
+              const rs = parseInt(cell.getAttribute('rowspan') || '1', 10);
+              const cs = parseInt(cell.getAttribute('colspan') || '1', 10);
+
+              // place text at (excelRowIndex, col)
+              rows[excelRowIndex - 1][col - 1] = txt;
+              classMap[excelRowIndex - 1][col - 1] = { cellClasses, rowClasses, isHeader };
+
+              // mark occupied cells for rowspans/colspans
+              for (let r = 0; r < rs; r++) {
+                const rr = (excelRowIndex - 1) + r;
+                tableToGrid.spanGrid[rr] = tableToGrid.spanGrid[rr] || [];
+                for (let c = 0; c < cs; c++) {
+                  tableToGrid.spanGrid[rr][col + c] = true;
+                }
+              }
+
+              // record merge if spanning
+              if (rs > 1 || cs > 1) {
+                merges.push({ r1: excelRowIndex, c1: col, r2: excelRowIndex + rs - 1, c2: col + cs - 1 });
+              }
+
+              col += cs;
+            });
+
+            excelRowIndex++;
+          });
+        });
+
+        return { rows, merges, classMap };
+      }
+
+      const { rows, merges, classMap } = tableToGrid(table);
+
+      // Create workbook + sheet (NO sticky/frozen panes)
+      const wb = new window.ExcelJS.Workbook();
+      wb.creator = 'RCPA Grade';
+      wb.created = new Date();
+      const ws = wb.addWorksheet(`GRADE ${YEAR}`);
+
+      // Determine max column count across all parsed rows
+      const maxCols = Math.max(...rows.map(r => r.length), 1);
+
+      // Column widths
+      const widths = [];
+      for (let c = 1; c <= maxCols; c++) {
+        if (c === 1) widths.push({ width: 8 });       // MONTH
+        else if (c === 2) widths.push({ width: 10 }); // band head
+        else if (c === 3) widths.push({ width: 20 }); // DEPARTMENT
+        else widths.push({ width: 11 });              // other departments + Total
+      }
+      ws.columns = widths;
+
+      // Style mapper from classes -> ExcelJS styles
+      function styleFor(cellInfo) {
+        const classes = cellInfo.cellClasses || [];
+        const rowClasses = cellInfo.rowClasses || [];
+        const isHeader = cellInfo.isHeader;
+
+        const s = {
+          alignment: { vertical: 'middle', horizontal: 'center', wrapText: true },
+          border: { ...allBorders },
+          font: { name: 'Calibri', size: 11 }
+        };
+
+        // Header base
+        if (isHeader) {
+          s.font.bold = true;
+          s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.head } };
+        }
+
+        // TOTAL column header cell
+        if (isHeader && classes.includes('total')) {
+          s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.totalHead } };
+          s.border.left = BORDER_MEDIUM; // stronger divider like in modal
+        }
+
+        // TOTAL RCPA row highlight
+        if (rowClasses.includes('total-row')) {
+          s.font.bold = true;
+          s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.totalRow } };
+        }
+
+        // Specific cell overrides
+        if (classes.includes('band-title')) {
+          s.font.bold = true;
+          s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.band } };
+        }
+        if (classes.includes('hdr-dept')) {
+          s.font.bold = true;
+          s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.hdrDept } };
+          s.alignment.horizontal = 'left';
+        }
+        if (classes.includes('row-subhead')) {
+          s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.sub } };
+          s.alignment.horizontal = 'left';
+        }
+        if (classes.includes('month-col')) {
+          s.font.bold = true;
+          s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.month } };
+        }
+        if (classes.includes('ytd-col')) {
+          s.font.bold = true;
+          s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.ytd } };
+        }
+
+        // TOTAL column body cells
+        if (classes.includes('col-total')) {
+          s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.totalBody } };
+          s.border.left = BORDER_MEDIUM; // column divider
+
+          // On TOTAL rows, override to mid-blue block
+          if (rowClasses.includes('total-row')) {
+            s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HEX.totalSum } };
+          }
+        }
+
+        if (classes.includes('left')) s.alignment.horizontal = 'left';
+        return s;
+      }
+
+
+      // Write EVERY cell up to maxCols so the rightmost "Total" column is never lost
+      // Write EVERY cell up to maxCols so the rightmost "Total" column is never lost
+      for (let r = 1; r <= rows.length; r++) {
+        ws.getRow(r); // ensure row exists
+        // Find the row label in the 3rd column to decide percent formatting
+        const rowLabelRaw = (rows[r - 1]?.[2] || '').toString().trim();
+        const rowLabel = rowLabelRaw.toUpperCase();
+        const isPercentRow = rowLabel === 'FILL RATE' || rowLabel === 'SERVICE LEVEL';
+
+        for (let c = 1; c <= maxCols; c++) {
+          const raw = (rows[r - 1] && rows[r - 1][c - 1] != null) ? rows[r - 1][c - 1] : '';
+          const cell = ws.getCell(r, c);
+
+          // style from class map (set style first)
+          const info = (classMap[r - 1] && classMap[r - 1][c - 1]) || { cellClasses: [], rowClasses: [], isHeader: false };
+          const s = styleFor(info);
+          // "NO RCPA" look
+          if (raw === 'NO RCPA') {
+            s.font = { ...(s.font || {}), italic: true, color: { argb: 'FF777777' } };
+          }
+          Object.assign(cell, { style: s });
+
+          // value normalization + percent handling
+          let appliedPercentFmt = false;
+
+          if (typeof raw === 'string' && /^\d+%$/.test(raw)) {
+            // Already a percent string like "45%"
+            cell.value = parseInt(raw, 10) / 100;
+            appliedPercentFmt = true;
+          } else if (isPercentRow && raw !== '' && raw !== 'NO RCPA') {
+            // Force percent on Fill Rate / Service Level rows even if it's "0", "12", or 12
+            const n = (typeof raw === 'number') ? raw : Number(raw);
+            if (!Number.isNaN(n)) {
+              cell.value = n / 100;
+              appliedPercentFmt = true;
+            } else {
+              cell.value = raw; // non-numeric fallback
+            }
+          } else if (typeof raw === 'string' && /^\d+$/.test(raw)) {
+            cell.value = Number(raw); // integers elsewhere
+          } else {
+            cell.value = raw;
+          }
+
+          if (appliedPercentFmt) {
+            cell.numFmt = '0%';
+          }
+        }
+      }
+
+
+      // Apply merges after values exist
+      merges.forEach(m => ws.mergeCells(m.r1, m.c1, m.r2, m.c2));
+
+      // Row heights (optional)
+      ws.eachRow((row) => { if (row.number <= 2) row.height = 20; else row.height = 18; });
+
+      // Export
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      const filename = `GRADE_${YEAR}_${stamp}.xlsx`;
+
+      const buf = await wb.xlsx.writeBuffer({ useStyles: true, useSharedStrings: true });
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    async function exportToPDF() {
+      try {
+        await ensurePdfLibs();
+      } catch (e) {
+        alert('PDF libraries not loaded and cannot be fetched.\nTip: host jsPDF & autotable locally or check your network/SSL.\n' + e.message);
+        return;
+      }
+
+      const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      const margin = 36; // 0.5"
+      doc.setFontSize(12);
+      doc.text(`GRADE ${YEAR}`, margin, margin);
+
+      const borderRGB = hex2rgb('#9aa1a9');
+      const totalHeadRGB = hex2rgb('#567fb6');
+      const totalBodyRGB = hex2rgb('#e1e8f6');
+      const totalSumRGB = hex2rgb('#b9cae6');
+      const dividerRGB = hex2rgb('#6b7280');
+
+      // Track which column is DEPARTMENT and which is Total
+      let deptColIdx = -1;
+      let totalColIdx = -1;
+
+      // Per-row flags: is this the TOTAL RCPA row?
+      const rowMeta = Object.create(null);
+
+      doc.autoTable({
+        html: getCleanTableClone(),
+        startY: margin + 10,
+        theme: 'grid',
+        styles: {
+          fontSize: 7,
+          cellPadding: 3,
+          overflow: 'linebreak',
+          lineColor: borderRGB,
+          lineWidth: 0.5
+        },
+        headStyles: {
+          fillColor: hex2rgb('#f7f7f7'),
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          lineColor: borderRGB,
+          lineWidth: 0.75
+        },
+
+        didParseCell: (data) => {
+          const txt = String(data.cell.text ?? '').trim();
+          const txtUC = txt.toUpperCase();
+
+          // We'll detect these from the header row texts
+          // (deptColIdx / totalColIdx are declared outside in exportToPDF())
+          if (data.section === 'head') {
+            if (txtUC === 'DEPARTMENT') deptColIdx = data.column.index;
+            if (txtUC === 'TOTAL') totalColIdx = data.column.index;
+            // Apply Total header fill
+            if (totalColIdx === data.column.index) {
+              data.cell.styles.fillColor = totalHeadRGB;
+            }
+            // Don't return here — we still want to process classes like 'hdr-dept'
+          }
+
+          const cellEl = data.cell.raw || data.cell.element || null;
+          const trEl = data.row?.raw || data.row?.element || (cellEl ? cellEl.parentElement : null);
+          const classes = (cellEl && cellEl.classList) ? Array.from(cellEl.classList) : [];
+          const setFill = (hex) => { data.cell.styles.fillColor = hex2rgb(hex); };
+
+          // Mark TOTAL RCPA body rows by reading the DEPARTMENT cell
+          if (data.section === 'body' && data.column.index === deptColIdx) {
+            rowMeta[data.row.index] = { isTotalRCPA: (txtUC === 'TOTAL RCPA') };
+          }
+
+          // Class-based fills (apply for both head/body as needed)
+          if (classes.includes('band-title')) setFill('#eaf4e6');
+          if (classes.includes('hdr-dept')) setFill('#ffe8a6');  // <-- Department header cells (and "TOTAL RCPA" label cell)
+          if (classes.includes('row-subhead')) setFill('#f1f8ee');
+          if (classes.includes('month-col')) setFill('#cfe2ff');
+          if (classes.includes('ytd-col')) setFill('#f6c667');
+
+          // Total column default body fill
+          if (data.section === 'body' && data.column.index === totalColIdx) {
+            data.cell.styles.fillColor = totalBodyRGB;
+          }
+
+          // NO RCPA styling
+          if (txtUC === 'NO RCPA') {
+            data.cell.styles.fontStyle = 'italic';
+            data.cell.styles.textColor = [119, 119, 119];
+          }
+
+          // FINAL: If this is a TOTAL RCPA row, paint entire row amber
+          // except the Total column, which should be mid blue.
+          if (data.section === 'body') {
+            const meta = rowMeta[data.row.index];
+            if (meta && meta.isTotalRCPA) {
+              if (data.column.index === totalColIdx) {
+                data.cell.styles.fillColor = totalSumRGB; // mid blue for Total column
+              } else {
+                data.cell.styles.fillColor = hex2rgb('#ffe8a6'); // amber for the row
+              }
+            }
+          }
+
+          // Ensure header text is bold (headStyles already does this; this is just a guard)
+          if (data.section === 'head') data.cell.styles.fontStyle = 'bold';
+        },
+
+
+        // Stronger left divider before the Total column
+        didDrawCell: (data) => {
+          if (data.section !== 'head' && data.section !== 'body') return;
+          if (data.column.index !== totalColIdx) return;
+
+          const { x, y, height } = data.cell;
+          doc.setLineWidth(1.2);
+          doc.setDrawColor(dividerRGB[0], dividerRGB[1], dividerRGB[2]);
+          doc.line(x, y, x, y + height); // thicker left border
+          doc.setLineWidth(0.5);
+          doc.setDrawColor(borderRGB[0], borderRGB[1], borderRGB[2]);
+        }
+      });
+
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      doc.save(`GRADE_${YEAR}_${stamp}.pdf`);
+    }
+
+
+    /* --------------------- Modal open/close --------------------- */
     const open = async () => {
       modal.classList.add('show');
       modal.setAttribute('aria-hidden', 'false');
@@ -2207,13 +2821,31 @@
           }
           await loadDepartments();
           buildGradeTable();
+
+          // Now load metrics and fill
+          if (tableEl) {
+            const loadingRow = tableEl.querySelector('tbody');
+            if (loadingRow) loadingRow.insertAdjacentHTML('afterbegin',
+              `<tr><td class="left" style="padding:12px;">Loading RCPA data…</td></tr>`);
+          }
+          const metrics = await loadMetrics();
+          const tempRow = tableEl.querySelector('tbody > tr:first-child td') || null;
+          if (tempRow && tempRow.textContent.includes('Loading RCPA data…')) {
+            tempRow.parentElement.remove();
+          }
+          populate(metrics);
+
+          // Enable export buttons after data is ready
+          dlXlsxBtn?.removeAttribute('disabled');
+          dlPdfBtn?.removeAttribute('disabled');
+
           gradeLoaded = true;
         } catch (err) {
           console.error(err);
           if (tableEl) {
             tableEl.innerHTML = `
               <tbody>
-                <tr><td class="left" style="padding:12px;color:#b00020;">Failed to load departments.</td></tr>
+                <tr><td class="left" style="padding:12px;color:#b00020;">Failed to load grade data.</td></tr>
               </tbody>`;
           }
           if (metaEl) metaEl.textContent = '';
@@ -2230,6 +2862,10 @@
       openBtn?.focus();
     };
 
+    // Export button handlers
+    dlXlsxBtn?.addEventListener('click', exportToXLSX);
+    dlPdfBtn?.addEventListener('click', exportToPDF);
+
     openBtn.addEventListener('click', open);
     closeBtn.addEventListener('click', close);
     modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
@@ -2238,6 +2874,7 @@
     });
   }
 })();
+
 
 /* ====== HISTORY MODAL ====== */
 (function () {

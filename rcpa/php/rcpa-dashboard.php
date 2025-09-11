@@ -214,6 +214,10 @@
             background:#b9cae6;     /* mid blue-gray */
             }
 
+            .grade-table tr.total-row {
+            background-color: #ffe8a6;
+            }
+
             /* MONTH column style */
             .grade-table .month-col { background: #cfe2ff; font-weight: 600; }
 
@@ -269,6 +273,15 @@
             border: 0 !important;
             background: transparent;
             }
+
+         
+            .btn.small { padding:6px 10px; border:1px solid #ddd; border-radius:6px; background:#fafafa; cursor:pointer; }
+            .btn.small:hover { background:#f0f0f0; }
+            /* You already had this for colorizing TOTAL RCPA */
+            .grade-table tr.total-row { background:#ffe8a6; }
+
+            .btn.small[disabled] { opacity:.5; cursor:not-allowed; }
+            .grade-table tr.total-row { background:#ffe8a6; } /* your highlight */
 
 
     </style>
@@ -485,29 +498,39 @@
     </div>
 
     <!-- GRADE modal -->
-    <div class="modal-overlay" id="gradeModal" aria-hidden="true" role="dialog" aria-modal="true" style="padding: 0px;">
-    <div class="modal-content" role="document"
-        style="max-width:99vw; width:100%; height:96vh; max-height:96vh; padding:0; display:flex; flex-direction:column; box-sizing:border-box;">
-        <button class="close-btn" id="closeGradeBtn" aria-label="Close grade modal" title="Close">×</button>
+    <div class="modal-overlay" id="gradeModal" aria-hidden="true" role="dialog" aria-modal="true" style="padding:0;">
+  <div class="modal-content" role="document"
+       style="position:relative; max-width:99vw; width:100%; height:96vh; max-height:96vh; padding:0; display:flex; flex-direction:column; box-sizing:border-box;">
+    <!-- keep close button above header content -->
+    <button class="close-btn" id="closeGradeBtn" aria-label="Close grade modal" title="Close"
+            style="position:absolute; top:8px; right:8px; z-index:20;">×</button>
 
-        <!-- your grade content -->
-        <div class="rcpa-grade-wrap" style="padding:0; flex:1 1 auto; display:flex; flex-direction:column; min-height:0;">
+    <!-- your grade content -->
+    <div class="rcpa-grade-wrap" style="padding:0; flex:1 1 auto; display:flex; flex-direction:column; min-height:0;">
 
-        <!-- header strip -->
-        <div class="rcpa-modal-head" style="padding:12px 16px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px;">
-            <div style="font-weight:600;">GRADE <span style="font-weight:600;">2025</span></div>
-            <!-- <div id="gradeMeta" style="margin-left:auto; color:#666; font-size:12px;"></div> -->
+      <!-- header: title left, buttons perfectly centered -->
+      <div class="rcpa-modal-head"
+           style="padding:12px 16px; border-bottom:1px solid #eee; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px;">
+        <div style="font-weight:600;">GRADE <span style="font-weight:600;">2025</span></div>
+
+        <div style="justify-self:center; display:flex; gap:8px;">
+          <button id="dlXlsxBtn" class="btn small">Excel (.xlsx)</button>
+          <button id="dlPdfBtn"  class="btn small">PDF</button>
         </div>
 
-        <!-- scrollable grid area -->
-        <div id="gradeTableWrap" style="overflow:auto; flex:1 1 auto; min-height:0;">
-            <table id="gradeTable" class="grade-table" style="border-collapse:separate; border-spacing:0; width:100%; min-width:900px;">
-            <!-- built by JS -->
-            </table>
-        </div>
-        </div>
+        <div></div> <!-- right spacer so center stays centered -->
+      </div>
+
+      <!-- scrollable grid area -->
+      <div id="gradeTableWrap" style="overflow:auto; flex:1 1 auto; min-height:0;">
+        <table id="gradeTable" class="grade-table"
+               style="border-collapse:separate; border-spacing:0; width:100%; min-width:900px;">
+          <!-- built by JS -->
+        </table>
+      </div>
     </div>
-    </div>
+  </div>
+</div>
 
     <!-- RCPA LIST MODAL -->
     <div class="modal-overlay" id="rcpaListModal" aria-hidden="true" role="dialog" aria-modal="true">
@@ -1084,6 +1107,13 @@
     
     <!-- CDN JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- SheetJS for Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.17.0/dist/xlsx.full.min.js"></script>
+    <!-- jsPDF + AutoTable for PDF -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.1/dist/jspdf.plugin.autotable.min.js"></script>
+
 </body>
 
 </html>
