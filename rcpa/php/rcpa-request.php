@@ -349,7 +349,7 @@
                         <textarea class="u-area" id="finding_description" name="finding_description" rows="5" required></textarea>
 
                         <!-- hidden file input -->
-                        <input type="file" id="finding_files" name="finding_files[]" class="visually-hidden" multiple>
+                        <input type="file" id="finding_files" name="finding_files[]" class="visually-hidden" multiple required>
 
                         <!-- clickable paperclip -->
                         <label for="finding_files" class="attach-icon" title="Attach files">

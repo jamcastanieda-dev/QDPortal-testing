@@ -1,18 +1,18 @@
 (function () {
-  const IS_APPROVER  = !!window.RCPA_IS_APPROVER;
+  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
   const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
 
-  const tbody    = document.querySelector('#rcpa-table tbody');
-  const totalEl  = document.getElementById('rcpa-total');
+  const tbody = document.querySelector('#rcpa-table tbody');
+  const totalEl = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn  = document.getElementById('rcpa-prev');
-  const nextBtn  = document.getElementById('rcpa-next');
-  const fType    = document.getElementById('rcpa-filter-type');
+  const prevBtn = document.getElementById('rcpa-prev');
+  const nextBtn = document.getElementById('rcpa-next');
+  const fType = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn   = document.getElementById('view-button');
+  const viewBtn = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
@@ -114,10 +114,10 @@
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
 
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
-    const day   = String(d.getDate()).padStart(2, '0');
-    const year  = d.getFullYear();
+    const day = String(d.getDate()).padStart(2, '0');
+    const year = d.getFullYear();
     let h = d.getHours();
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -127,20 +127,20 @@
   }
 
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '';
-    const y = +ymd.slice(0,4), m = +ymd.slice(5,7) - 1, d = +ymd.slice(8,10);
-    if ([y,m,d].some(Number.isNaN)) return ymd;
-    return `${mnames[m]} ${String(d).padStart(2,'0')}, ${y}`;
+    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
+    if ([y, m, d].some(Number.isNaN)) return ymd;
+    return `${mnames[m]} ${String(d).padStart(2, '0')}, ${y}`;
   }
   function daysDiffFromToday(ymd) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
-    const y = +ymd.slice(0,4), m = +ymd.slice(5,7) - 1, d = +ymd.slice(8,10);
-    if ([y,m,d].some(Number.isNaN)) return null;
+    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
+    if ([y, m, d].some(Number.isNaN)) return null;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const due = new Date(y,m,d);
-    const msPerDay = 24*60*60*1000;
+    const due = new Date(y, m, d);
+    const msPerDay = 24 * 60 * 60 * 1000;
     return Math.round((due - today) / msPerDay);
   }
 
@@ -249,7 +249,7 @@
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
 
-    top  = Math.max(8, Math.min(top,  vh - popH - 8));
+    top = Math.max(8, Math.min(top, vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
 
     actionContainer.style.top = `${top}px`;
@@ -339,7 +339,7 @@
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn.addEventListener('click',   () => { dispatchAction('view',   actionContainer.dataset.id); hideActions(); });
+  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
@@ -1103,7 +1103,14 @@
     setVal('rcpa-view-supervisor', row.originator_supervisor_head);
 
     // Assignment & status
-    setVal('rcpa-view-assignee', row.assignee);
+    const assigneeRaw = (row.assignee ?? '').trim();
+    const sectionRaw = (row.section ?? '').trim();
+    const assigneeDisplay = sectionRaw
+      ? (assigneeRaw ? `${assigneeRaw} - ${sectionRaw}` : sectionRaw)
+      : assigneeRaw;
+
+    setVal('rcpa-view-assignee', assigneeDisplay);
+
     setVal('rcpa-view-status', row.status);
     setVal('rcpa-view-conformance', row.conformance);
 

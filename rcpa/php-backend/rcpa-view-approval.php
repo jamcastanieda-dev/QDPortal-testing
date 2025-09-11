@@ -1,5 +1,5 @@
 <?php
-// php-backend/rcpa-get.php
+// php-backend/rcpa-view-approval.php
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../../connection.php'; // adjust if your path differs
@@ -20,11 +20,11 @@ try {
     $conn->set_charset('utf8mb4');
 
     $sql = "SELECT id, rcpa_type, sem_year, project_name, wbs_number, quarter, category,
-                   originator_name, originator_department, date_request, conformance, remarks,
-                   remarks_attachment, system_applicable_std_violated, standard_clause_number,
-                   originator_supervisor_head, assignee, status
-            FROM rcpa_request
-            WHERE id = ?";
+               originator_name, originator_department, date_request, conformance, remarks,
+               remarks_attachment, system_applicable_std_violated, standard_clause_number,
+               originator_supervisor_head, assignee, section, status
+        FROM rcpa_request
+        WHERE id = ?";
     $stmt = $conn->prepare($sql);
     if (!$stmt) throw new Exception('Prepare failed: ' . $conn->error);
 

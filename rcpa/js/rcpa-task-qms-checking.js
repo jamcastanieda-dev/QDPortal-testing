@@ -654,7 +654,13 @@
     setVal('rcpa-view-supervisor', row.originator_supervisor_head);
 
     // ASSIGNEE / STATUS
-    setVal('rcpa-view-assignee', row.assignee);
+    const assigneeRaw = (row.assignee ?? '').trim();
+    const sectionRaw = (row.section ?? '').trim();
+    const assigneeDisplay = sectionRaw
+      ? (assigneeRaw ? `${assigneeRaw} - ${sectionRaw}` : sectionRaw)
+      : assigneeRaw;
+
+    setVal('rcpa-view-assignee', assigneeDisplay);
     setVal('rcpa-view-status', row.status);
     setVal('rcpa-view-conformance', row.conformance);
 

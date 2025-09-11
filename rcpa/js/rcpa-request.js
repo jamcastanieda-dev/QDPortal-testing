@@ -737,9 +737,16 @@
         swalError('Please select an Assignee (Department).', '#assigneeSelect');
         return;
       }
+      // B1.5) Require at least one attachment
 
       // C) Type-specific requirements (semester/quarter/etc.)
       if (!validateTypeSpecificOnSubmit(form)) {
+        return;
+      }
+
+      const filesInput = document.getElementById('finding_files');
+      if (!filesInput || !filesInput.files || filesInput.files.length === 0) {
+        swalError('Please attach at least one evidence file.', 'label[for="finding_files"]');
         return;
       }
 
@@ -1434,7 +1441,7 @@
         listEl.appendChild(row);
       });
     }
-    
+
     function openApproveRemarks(text, attachments) {
       if (!apModal) { alert(text || ''); return; }
       if (apText) {
@@ -2080,7 +2087,10 @@
         byId('rcpa-view-system').value = r.system_applicable_std_violated || '';
         byId('rcpa-view-clauses').value = r.standard_clause_number || '';
         byId('rcpa-view-supervisor').value = r.originator_supervisor_head || '';
-        byId('rcpa-view-assignee').value = r.assignee || '';
+        const assigneeDisplay = (r.section && String(r.section).trim())
+          ? `${r.assignee || ''} - ${r.section}`
+          : (r.assignee || '');
+        byId('rcpa-view-assignee').value = assigneeDisplay.trim();
         byId('rcpa-view-status').value = r.status || '';
         byId('rcpa-view-conformance').value = r.conformance || '';
 
@@ -2492,7 +2502,6 @@
   })();
 
 })();
-
 
 let socket;
 const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://172.31.11.252:8082?user_id=123`;

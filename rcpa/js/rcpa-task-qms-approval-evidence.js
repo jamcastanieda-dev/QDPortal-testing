@@ -381,14 +381,14 @@
     const whyViewList = document.getElementById('rcpa-why-view-list');
 
     // ===== Evidence modal (opens on Accept) =====
-    const evModal  = document.getElementById('rcpa-evidence-modal');
-    const evClose  = document.getElementById('rcpa-evidence-close');
-    const evForm   = document.getElementById('rcpa-evidence-form');
-    const evRemarks= document.getElementById('rcpa-ev-remarks');
-    const evClip   = document.getElementById('rcpa-ev-clip');
-    const evInput  = document.getElementById('rcpa-ev-files');
-    const evBadge  = document.getElementById('rcpa-ev-attach-count');
-    const evList   = document.getElementById('rcpa-ev-files-list');
+    const evModal = document.getElementById('rcpa-evidence-modal');
+    const evClose = document.getElementById('rcpa-evidence-close');
+    const evForm = document.getElementById('rcpa-evidence-form');
+    const evRemarks = document.getElementById('rcpa-ev-remarks');
+    const evClip = document.getElementById('rcpa-ev-clip');
+    const evInput = document.getElementById('rcpa-ev-files');
+    const evBadge = document.getElementById('rcpa-ev-attach-count');
+    const evList = document.getElementById('rcpa-ev-files-list');
     const evCancel = document.getElementById('rcpa-ev-cancel');
     const evSubmit = document.getElementById('rcpa-ev-submit');
 
@@ -1073,7 +1073,14 @@
         setVal('rcpa-view-supervisor', row.originator_supervisor_head);
 
         // Assignment & status
-        setVal('rcpa-view-assignee', row.assignee);
+        const assigneeRaw = (row.assignee ?? '').trim();
+        const sectionRaw = (row.section ?? '').trim();
+        const assigneeDisplay = sectionRaw
+            ? (assigneeRaw ? `${assigneeRaw} - ${sectionRaw}` : sectionRaw)
+            : assigneeRaw;
+
+        setVal('rcpa-view-assignee', assigneeDisplay);
+
         setVal('rcpa-view-status', row.status);
         setVal('rcpa-view-conformance', row.conformance);
 

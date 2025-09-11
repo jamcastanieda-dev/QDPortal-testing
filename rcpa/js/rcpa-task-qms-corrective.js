@@ -1182,7 +1182,14 @@
         setVal('rcpa-view-supervisor', row.originator_supervisor_head);
 
         // Assignment & status
-        setVal('rcpa-view-assignee', row.assignee);
+        const assigneeRaw = (row.assignee ?? '').trim();
+        const sectionRaw = (row.section ?? '').trim();
+        const assigneeDisplay = sectionRaw
+            ? (assigneeRaw ? `${assigneeRaw} - ${sectionRaw}` : sectionRaw)
+            : assigneeRaw;
+
+        setVal('rcpa-view-assignee', assigneeDisplay);
+
         setVal('rcpa-view-status', row.status);
         setVal('rcpa-view-conformance', row.conformance);
 
@@ -1362,7 +1369,7 @@
         }
     });
 
-    
+
     document.addEventListener('rcpa:action', async (e) => {
         const { action, id } = e.detail || {};
         if (action !== 'accept' || !id) return;

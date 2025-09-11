@@ -23,34 +23,69 @@ if (!$mysqli || $mysqli->connect_errno) {
 $mysqli->set_charset('utf8mb4');
 
 function esc($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function norm($s){
+  $s = trim((string)$s);
+  // treat junk placeholders as empty
+  if ($s === '-' || $s === '--' || strtoupper($s) === 'NULL') $s = '';
+  return $s;
+}
 
 /*
- * Distinct (department, section) list
- * Keep rows where department is non-empty; section may be empty.
+ * Build a map of departments → sections.
+ * If a department has any non-empty section, we will NOT output the bare department.
  */
 $sql = "
-  SELECT DISTINCT
+  SELECT
     TRIM(department) AS dept,
-    TRIM(section)    AS sect
+    TRIM(COALESCE(section, '')) AS sect
   FROM system_users
   WHERE department IS NOT NULL AND TRIM(department) <> ''
-  ORDER BY dept ASC, sect ASC
 ";
-
-if ($res = $mysqli->query($sql)) {
-  while ($row = $res->fetch_assoc()) {
-    $dept = (string)$row['dept'];
-    $sect = (string)$row['sect'];
-    $label = $dept . ( $sect !== '' ? (' - ' . $sect) : '' );
-
-    // value = label; include data attributes for convenience
-    echo '<option value="' . esc($label) . '" data-type="department" data-dept="' . esc($dept) . '" data-sect="' . esc($sect) . '">'
-       . esc($label)
-       . "</option>\n";
-  }
-  $res->free();
-} else {
+$res = $mysqli->query($sql);
+if (!$res) {
   http_response_code(500);
   echo "<!-- query error: {$mysqli->error} -->";
   exit;
+}
+
+$map = []; // dept => ['sections' => set(array), 'has_section' => bool, 'has_dept_only' => bool]
+while ($row = $res->fetch_assoc()) {
+  $dept = norm($row['dept']);
+  if ($dept === '') continue;
+
+  $sect = norm($row['sect']);
+  if (!isset($map[$dept])) $map[$dept] = ['sections' => [], 'has_section' => false];
+
+  if ($sect !== '') {
+    $map[$dept]['has_section'] = true;
+    $map[$dept]['sections'][$sect] = true; // set semantics
+  } else {
+    // bare department row; keep note but we will only output it if no sections exist
+    if (!isset($map[$dept]['has_dept_only'])) $map[$dept]['has_dept_only'] = true;
+  }
+}
+$res->free();
+
+/* Output:
+ * - If dept has sections → output each "Dept - Section" (unique, sorted)
+ * - Else → output single "Dept"
+ */
+ksort($map, SORT_NATURAL | SORT_FLAG_CASE);
+foreach ($map as $dept => $info) {
+  if (!empty($info['has_section'])) {
+    $sections = array_keys($info['sections']);
+    natcasesort($sections);
+    foreach ($sections as $sect) {
+      $label = $dept . ' - ' . $sect;
+      echo '<option value="' . esc($label) . '" data-type="department" data-dept="' . esc($dept) . '" data-sect="' . esc($sect) . '">'
+         . esc($label)
+         . "</option>\n";
+    }
+  } else {
+    // no sections at all → output bare department
+    $label = $dept;
+    echo '<option value="' . esc($label) . '" data-type="department" data-dept="' . esc($dept) . '" data-sect="">'
+       . esc($label)
+       . "</option>\n";
+  }
 }

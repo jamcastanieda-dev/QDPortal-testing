@@ -21,7 +21,7 @@ try {
     $sql = "SELECT id, rcpa_type, sem_year, project_name, wbs_number, quarter, category,
                originator_name, originator_department, date_request, conformance, remarks,
                remarks_attachment, system_applicable_std_violated, standard_clause_number,
-               originator_supervisor_head, assignee, status, close_due_date
+               originator_supervisor_head, assignee, section, status, close_due_date
         FROM rcpa_request
         WHERE id = ?";
 

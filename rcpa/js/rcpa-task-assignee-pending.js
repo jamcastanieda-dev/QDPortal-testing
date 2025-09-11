@@ -3,17 +3,17 @@
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
   const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase(); // <-- needs to be exposed in rcpa-cookie.php
 
-  const tbody     = document.querySelector('#rcpa-table tbody');
-  const totalEl   = document.getElementById('rcpa-total');
-  const pageInfo  = document.getElementById('rcpa-page-info');
-  const prevBtn   = document.getElementById('rcpa-prev');
-  const nextBtn   = document.getElementById('rcpa-next');
-  const fType     = document.getElementById('rcpa-filter-type');
+  const tbody = document.querySelector('#rcpa-table tbody');
+  const totalEl = document.getElementById('rcpa-total');
+  const pageInfo = document.getElementById('rcpa-page-info');
+  const prevBtn = document.getElementById('rcpa-prev');
+  const nextBtn = document.getElementById('rcpa-next');
+  const fType = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn     = document.getElementById('view-button');
-  const validBtn    = document.getElementById('valid-button');
+  const viewBtn = document.getElementById('view-button');
+  const validBtn = document.getElementById('valid-button');
   const notValidBtn = document.getElementById('not-valid-button');
 
   const norm = (s) => (s ?? '').toString().trim().toLowerCase();
@@ -111,10 +111,10 @@
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
 
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
-    const day   = String(d.getDate()).padStart(2, '0');
-    const year  = d.getFullYear();
+    const day = String(d.getDate()).padStart(2, '0');
+    const year = d.getFullYear();
     let h = d.getHours();
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -124,7 +124,7 @@
   }
 
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const m = parseInt(ymd.slice(5, 7), 10) - 1;
     const d = parseInt(ymd.slice(8, 10), 10);
     const y = parseInt(ymd.slice(0, 4), 10);
@@ -260,7 +260,7 @@
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
 
-    top  = Math.max(8, Math.min(top,  vh - popH - 8));
+    top = Math.max(8, Math.min(top, vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
 
     actionContainer.style.top = `${top}px`;
@@ -343,8 +343,8 @@
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn.addEventListener('click',     () => { dispatchAction('view',      actionContainer.dataset.id); hideActions(); });
-  validBtn.addEventListener('click',    () => { dispatchAction('valid',     actionContainer.dataset.id); hideActions(); });
+  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
+  validBtn.addEventListener('click', () => { dispatchAction('valid', actionContainer.dataset.id); hideActions(); });
   notValidBtn.addEventListener('click', () => { dispatchAction('not-valid', actionContainer.dataset.id); hideActions(); });
 
   // Initial load
@@ -1083,7 +1083,14 @@
     setVal('rcpa-view-clauses', row.standard_clause_number);
     setVal('rcpa-view-supervisor', row.originator_supervisor_head);
 
-    setVal('rcpa-view-assignee', row.assignee);
+    const assigneeRaw = (row.assignee ?? '').trim();
+    const sectionRaw = (row.section ?? '').trim();
+    const assigneeDisplay = sectionRaw
+      ? (assigneeRaw ? `${assigneeRaw} - ${sectionRaw}` : sectionRaw)
+      : assigneeRaw;
+
+    setVal('rcpa-view-assignee', assigneeDisplay);
+
     setVal('rcpa-view-status', row.status);
     setVal('rcpa-view-conformance', row.conformance);
 

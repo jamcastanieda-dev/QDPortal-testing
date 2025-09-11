@@ -1,6 +1,6 @@
 (function () {
   // --- Per-row permission: dept must match; if row has section, it must also match user's section ---
-  const IS_APPROVER  = !!window.RCPA_IS_APPROVER;
+  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
   const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
 
@@ -14,16 +14,16 @@
     return rs === CURRENT_SECT;
   };
 
-  const tbody    = document.querySelector('#rcpa-table tbody');
-  const totalEl  = document.getElementById('rcpa-total');
+  const tbody = document.querySelector('#rcpa-table tbody');
+  const totalEl = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn  = document.getElementById('rcpa-prev');
-  const nextBtn  = document.getElementById('rcpa-next');
-  const fType    = document.getElementById('rcpa-filter-type');
+  const prevBtn = document.getElementById('rcpa-prev');
+  const nextBtn = document.getElementById('rcpa-next');
+  const fType = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn   = document.getElementById('view-button');
+  const viewBtn = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
@@ -113,8 +113,8 @@
     const [, Y, M, D] = m;
     const d = new Date(`${Y}-${M}-${D}T00:00:00`);
     if (isNaN(d)) return s;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
   }
   const MANILA_TZ = 'Asia/Manila';
   const MANILA_OFFSET = '+08:00';
@@ -130,10 +130,10 @@
     return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`);
   }
   function diffDaysFromTodayManila(ymd) {
-    const today  = dateAtMidnightManila(todayYmdManila());
+    const today = dateAtMidnightManila(todayYmdManila());
     const target = dateAtMidnightManila(ymd);
     if (!today || !target) return null;
-    return Math.trunc((target - today) / (24*60*60*1000));
+    return Math.trunc((target - today) / (24 * 60 * 60 * 1000));
   }
   function renderCloseDue(ymd) {
     if (!ymd) return '';
@@ -151,10 +151,10 @@
     if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
-    const day   = String(d.getDate()).padStart(2, '0');
-    const year  = d.getFullYear();
+    const day = String(d.getDate()).padStart(2, '0');
+    const year = d.getFullYear();
     let h = d.getHours();
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -245,7 +245,7 @@
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
 
-    top  = Math.max(8, Math.min(top,  vh - popH - 8));
+    top = Math.max(8, Math.min(top, vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
 
     actionContainer.style.top = `${top}px`;
@@ -336,14 +336,14 @@
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn  .addEventListener('click', () => { dispatchAction('view',   actionContainer.dataset.id); hideActions(); });
+  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
   // Pagination + filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  fType  .addEventListener('change', () => { page = 1; load(); });
+  fType.addEventListener('change', () => { page = 1; load(); });
 
   load();
 })();
@@ -1132,7 +1132,14 @@
     setVal('rcpa-view-supervisor', row.originator_supervisor_head);
 
     // Assignment & status
-    setVal('rcpa-view-assignee', row.assignee);
+    const assigneeRaw = (row.assignee ?? '').trim();
+    const sectionRaw = (row.section ?? '').trim();
+    const assigneeDisplay = sectionRaw
+      ? (assigneeRaw ? `${assigneeRaw} - ${sectionRaw}` : sectionRaw)
+      : assigneeRaw;
+
+    setVal('rcpa-view-assignee', assigneeDisplay);
+
     setVal('rcpa-view-status', row.status);
     setVal('rcpa-view-conformance', row.conformance);
 

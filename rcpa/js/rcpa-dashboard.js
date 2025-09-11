@@ -1114,7 +1114,15 @@
       <td>${esc(r.rcpa_type_label || r.rcpa_type)}</td>
       <td>${badgeForCategory(r.category || r.category_label)}</td>
       <td>${esc(r.originator_name)}</td>
-      <td>${esc(r.assignee)}</td>
+      <td>${esc(
+      (() => {
+        const a = (r.assignee ?? '').trim();
+        const s = (r.section ?? '').trim();
+        return s ? (a ? `${a} - ${s}` : s) : a;
+      })()
+    )
+      }</td>
+
       <td>${fmtDateTime(r.date_request)}</td>
       <td>${badgeForStatus(r.status)}</td>
       <td>${fmtYmd(r.reply_received)}</td>
@@ -1621,7 +1629,14 @@
     setVal('rcpa-view-supervisor', row.originator_supervisor_head);
 
     // Assignee/status
-    setVal('rcpa-view-assignee', row.assignee);
+    const assigneeRaw = (row.assignee ?? '').trim();
+    const sectionRaw = (row.section ?? '').trim();
+    const assigneeDisplay = sectionRaw
+      ? (assigneeRaw ? `${assigneeRaw} - ${sectionRaw}` : sectionRaw)
+      : assigneeRaw;
+
+    setVal('rcpa-view-assignee', assigneeDisplay);
+
     setVal('rcpa-view-status', row.status);
     setVal('rcpa-view-conformance', row.conformance);
 
