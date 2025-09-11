@@ -218,6 +218,8 @@
     nextBtn.disabled = page >= lastPage;
   }
 
+  document.addEventListener('rcpa:refresh', () => { load(); });
+
   // simple debounce (not used now but handy)
   function debounce(fn, ms) {
     let t;
