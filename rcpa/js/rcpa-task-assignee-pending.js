@@ -1,7 +1,7 @@
 // LIST TABLE
 (function () {
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
-  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase(); // <-- needs to be exposed in rcpa-cookie.php
+  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
 
   const tbody = document.querySelector('#rcpa-table tbody');
   const totalEl = document.getElementById('rcpa-total');
@@ -29,7 +29,11 @@
 
   let page = 1;
   const pageSize = 10;
-  let currentTarget = null; // the currently-open hamburger button
+  let currentTarget = null;
+
+  // ⚡ SSE tracking
+  let lastSeenId = 0;
+  let es = null;
 
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
@@ -84,7 +88,6 @@
     return '';
   }
 
-  // Show hamburger (Valid / Not Valid) only if dept/section matches; otherwise show View
   function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
     if (canActOnRow(assignee, section)) {
@@ -94,24 +97,21 @@
             <i class="fa-solid fa-bars" aria-hidden="true"></i>
             <span class="sr-only">Actions</span>
           </button>
-        </div>
-      `;
+        </div>`;
     }
     return `
       <div class="rcpa-actions">
         <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
-      </div>
-    `;
+      </div>`;
   }
 
   function fmtDate(s) {
     if (!s) return '';
     const str = String(s);
-    if (/^0{4}-0{2}-0{2}/.test(str)) return ''; // handle "0000-00-00 ..."
+    if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
     const year = d.getFullYear();
@@ -119,50 +119,41 @@
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
-
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
 
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const m = parseInt(ymd.slice(5, 7), 10) - 1;
-    const d = parseInt(ymd.slice(8, 10), 10);
-    const y = parseInt(ymd.slice(0, 4), 10);
-    if (Number.isNaN(m) || Number.isNaN(d) || Number.isNaN(y)) return ymd;
-    return `${mnames[m]} ${String(d).padStart(2, '0')}, ${y}`;
+    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const m = parseInt(ymd.slice(5,7), 10) - 1;
+    const d = parseInt(ymd.slice(8,10), 10);
+    const y = parseInt(ymd.slice(0,4), 10);
+    if ([m,d,y].some(Number.isNaN)) return ymd;
+    return `${mnames[m]} ${String(d).padStart(2,'0')}, ${y}`;
   }
   function daysDiffFromToday(ymd) {
-    const y = parseInt(ymd.slice(0, 4), 10);
-    const m = parseInt(ymd.slice(5, 7), 10) - 1;
-    const d = parseInt(ymd.slice(8, 10), 10);
-    if ([y, m, d].some(n => Number.isNaN(n))) return null;
+    const y = parseInt(ymd.slice(0,4), 10);
+    const m = parseInt(ymd.slice(5,7), 10) - 1;
+    const d = parseInt(ymd.slice(8,10), 10);
+    if ([y,m,d].some(Number.isNaN)) return null;
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // local TZ
-    const due = new Date(y, m, d);
-    const msPerDay = 24 * 60 * 60 * 1000;
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const due = new Date(y,m,d);
+    const msPerDay = 24*60*60*1000;
     return Math.round((due - today) / msPerDay);
   }
-
   function formatReplyDueCell(ymd) {
     if (!ymd) return '';
     const pretty = formatYmdPretty(ymd);
     const diff = daysDiffFromToday(ymd);
     if (diff === null) return pretty;
-
     const abs = Math.abs(diff);
     const plural = abs === 1 ? 'day' : 'days';
     const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
-
     let className = '';
     if (abs > 5) className = 'badge-cat-obs';
     else if (abs > 2) className = 'badge-cat-minor';
     else className = 'badge-cat-major';
-
-    return `
-      <span class="rcpa-badge ${className}">
-        ${pretty} (${valueText})
-      </span>
-    `;
+    return `<span class="rcpa-badge ${className}">${pretty} (${valueText})</span>`;
   }
 
   async function load() {
@@ -206,8 +197,7 @@
                data-id="${r.id ?? ''}" role="button" tabindex="0"
                title="View history"></i>
           </td>
-        </tr>
-      `).join('');
+        </tr>`).join('');
     }
 
     const total = Number(data.total || 0);
@@ -216,20 +206,18 @@
     pageInfo.textContent = `Page ${data.page} of ${lastPage}`;
     prevBtn.disabled = page <= 1;
     nextBtn.disabled = page >= lastPage;
+
+    // Track the highest id we've seen (handy if you ever add resume logic)
+    const maxId = rows.reduce((m, r) => Math.max(m, Number(r.id || 0)), lastSeenId);
+    if (maxId > lastSeenId) lastSeenId = maxId;
   }
 
   document.addEventListener('rcpa:refresh', () => { load(); });
 
-  // simple debounce (not used now but handy)
-  function debounce(fn, ms) {
-    let t;
-    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-  }
-
   // pagination + filter events
   prevBtn?.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn?.addEventListener('click', () => { page++; load(); });
-  fType?.addEventListener('change', () => { page = 1; load(); });
+  fType?.addEventListener('change', () => { page = 1; load(); startSse(true); });
 
   // icon morph helpers for the floating menu
   const switchIcon = (iconElement, newIcon) => {
@@ -248,7 +236,6 @@
   function positionActionContainer(target) {
     const wasHidden = actionContainer.classList.contains('hidden');
     if (wasHidden) { actionContainer.style.visibility = 'hidden'; actionContainer.classList.remove('hidden'); }
-
     const rect = target.getBoundingClientRect();
     const gap = 8;
     const popW = actionContainer.offsetWidth;
@@ -274,7 +261,6 @@
     actionContainer.dataset.id = id;
     positionActionContainer(target);
     actionContainer.classList.remove('hidden');
-
     const icon = target.querySelector('i.fa-solid');
     switchIcon(icon, 'fa-xmark');
   }
@@ -289,31 +275,22 @@
 
   // Open/close hamburger actions + history
   tbody.addEventListener('click', (e) => {
-    // View-only path
     const viewOnly = e.target.closest('.rcpa-view-only');
     if (viewOnly) {
       const id = viewOnly.getAttribute('data-id');
       if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'view', id } }));
       return;
     }
-
-    // History icon
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist) {
       const id = hist.getAttribute('data-id');
       if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'history', id } }));
       return;
     }
-
     const moreBtn = e.target.closest('.rcpa-more');
     if (!moreBtn) return;
-
     const id = moreBtn.dataset.id;
-    if (currentTarget === moreBtn) {
-      hideActions();
-    } else {
-      showActions(moreBtn, id);
-    }
+    if (currentTarget === moreBtn) hideActions(); else showActions(moreBtn, id);
   });
 
   // Keyboard support for history icon
@@ -347,9 +324,24 @@
   validBtn.addEventListener('click', () => { dispatchAction('valid', actionContainer.dataset.id); hideActions(); });
   notValidBtn.addEventListener('click', () => { dispatchAction('not-valid', actionContainer.dataset.id); hideActions(); });
 
-  // Initial load
+  // ⚡ SSE: refresh whenever count/max changes for this viewer
+  function startSse(restart = false) {
+    if (restart && es) { try { es.close(); } catch {} }
+    const qs = new URLSearchParams();
+    if (fType?.value) qs.set('type', fType.value);
+    es = new EventSource(`../php-backend/rcpa-assignee-pending-sse.php?${qs.toString()}`);
+    es.addEventListener('rcpa', () => {
+      // Always refresh on event (covers older ids appearing due to status change)
+      load();
+    });
+    es.onerror = () => { /* EventSource auto-reconnects */ };
+  }
+
+  // Initial load + start stream
   load();
+  startSse();
 })();
+
 
 // view modal
 (function () {

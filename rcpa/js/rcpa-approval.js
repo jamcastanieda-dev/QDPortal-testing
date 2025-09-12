@@ -16,6 +16,10 @@
   const pageSize = 10;
   let currentTarget = null;
 
+  // ⚡ track latest seen id for SSE resume
+  let lastSeenId = 0;
+  let es = null;
+
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
     const map = {
@@ -55,14 +59,11 @@
     if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
-
-
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
     if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
-
 
   function badgeForCategory(c) {
     const v = (c || '').toLowerCase();
@@ -87,7 +88,7 @@
   function fmtDate(s) {
     if (!s) return '';
     const str = String(s);
-    if (/^0{4}-0{2}-0{2}/.test(str)) return ''; // handle "0000-00-00 ..."
+    if (/^0{4}-0{2}-0{2}/.test(str)) return ''; // "0000-00-00 ..."
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
 
@@ -99,13 +100,24 @@
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
-
-    // e.g. "Aug 19, 2025, 10:32 AM"
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
 
+  // ⚡ highlight a row
+  // remove blinking highlight – just scroll the new row into view
+  function highlightRowById(id) {
+    const rows = tbody.querySelectorAll('tr');
+    for (const tr of rows) {
+      const firstCell = tr.querySelector('td');
+      if (firstCell && firstCell.textContent.trim() === String(id)) {
+        tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        break;
+      }
+    }
+  }
 
-  async function load() {
+
+  async function load(highlightId) {
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (fType.value) params.set('type', fType.value);
     if (fStatus.value) params.set('status', fStatus.value);
@@ -138,7 +150,6 @@
           <td>${labelForType(r.rcpa_type)}</td>
           <td>${badgeForCategory(r.category || r.cetegory)}</td>
           <td>${fmtDate(r.date_request)}</td>
-          <!-- Conformance cell removed -->
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name || '')}</td>
           <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
@@ -158,6 +169,13 @@
     pageInfo.textContent = `Page ${data.page} of ${lastPage}`;
     prevBtn.disabled = page <= 1;
     nextBtn.disabled = page >= lastPage;
+
+    // ⚡ update lastSeenId to the max id we just rendered
+    const maxId = rows.reduce((m, r) => Math.max(m, Number(r.id || 0)), lastSeenId);
+    if (maxId > lastSeenId) lastSeenId = maxId;
+
+    // ⚡ highlight when requested (after SSE)
+    if (highlightId) highlightRowById(highlightId);
   }
 
   document.addEventListener('rcpa:refresh', () => { load(); });
@@ -252,11 +270,33 @@
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
-  // Optional refresh hook if other parts of the app dispatch it:
-  document.addEventListener('rcpa:refresh', () => load());
+  // ⚡ SSE: listen for new requests; reload immediately
+  function startSse() {
+    if (es) { try { es.close(); } catch { } }
+    es = new EventSource(`../php-backend/rcpa-approval-sse.php?since=${lastSeenId}`);
+    es.addEventListener('rcpa', (e) => {
+      try {
+        const data = JSON.parse(e.data || '{}');
+        if (data && data.max_id) {
+          lastSeenId = Math.max(lastSeenId, Number(data.max_id));
+          load(data.max_id); // highlight the fresh row
+        } else {
+          load();
+        }
+      } catch {
+        load();
+      }
+    });
+    es.onerror = () => {
+      // EventSource will auto-reconnect by itself (honors server "retry")
+    };
+  }
 
+  // Initial load, then begin SSE stream
   load();
+  startSse();
 })();
+
 
 /* ====== VIEW MODAL + ACCEPT / REJECT FLOWS ====== */
 (function () {

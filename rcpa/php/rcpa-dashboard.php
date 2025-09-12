@@ -11,11 +11,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-default@5/default.min.css">
-
     <title>RCPA Dashboard</title>
 
     <style>
-        /* ======= Base Dashboard ======= */
+         /* ======= Base Dashboard ======= */
         .rcpa-dashboard{display:flex;flex-direction:column;gap:14px; margin: 20px 20px;}
         body {overflow-y: auto;}
 
@@ -185,105 +184,139 @@
            max-width: 99vw;height: 100%;max-height: 97vh; width: 100%;
         } */
 
-            .grade-table th, .grade-table td {
-            border: 1px solid #9aa1a9; /* was #dcdcdc – darker for visibility */
-            padding: 6px 10px;
-            font-size: 13px;
-            text-align: center;
-            white-space: nowrap;
-            }
-            .grade-table th { background: #f7f7f7; font-weight: 700; }
-            .grade-table th.left, .grade-table td.left { text-align: left; white-space: normal; }
+        .grade-table th, .grade-table td {
+        border: 1px solid #9aa1a9; /* was #dcdcdc – darker for visibility */
+        padding: 6px 10px;
+        font-size: 13px;
+        text-align: center;
+        white-space: nowrap;
+        }
+        .grade-table th { background: #f7f7f7; font-weight: 700; }
+        .grade-table th.left, .grade-table td.left { text-align: left; white-space: normal; }
 
-            .grade-table .band-title {
-            background: #eaf4e6; font-weight: 700; text-transform: uppercase;
-            border-top: 2px solid #6b7280; /* stronger band separator */
-            }
-            .grade-table .hdr-dept   { background: #ffe8a6; font-weight: 700; }
-            .grade-table .row-subhead{ background: #f1f8ee; }
-            .grade-table .no-rcpa    { color: #777; font-style: italic; }
+        .grade-table .band-title {
+        background: #eaf4e6; font-weight: 700; text-transform: uppercase;
+        border-top: 2px solid #6b7280; /* stronger band separator */
+        }
+        .grade-table .hdr-dept   { background: #ffe8a6; font-weight: 700; }
+        .grade-table .row-subhead{ background: #f1f8ee; }
+        .grade-table .no-rcpa    { color: #777; font-style: italic; }
 
-            .grade-table th.total {
-            background: #567fb6; font-weight: 700;
-            border-left: 2px solid #6b7280; /* stronger divider before Total column */
-            }
-            .grade-table td.total { background: #e1e8f6; font-weight: 400; }
+        .grade-table th.total {
+        background: #567fb6; font-weight: 700;
+        border-left: 2px solid #6b7280; /* stronger divider before Total column */
+        }
+        .grade-table td.total { background: #e1e8f6; font-weight: 400; }
 
-            /* Optional: a bit darker on the month/YTD “TOTAL RCPA” rows */
-            .grade-table tr.total-row td.col-total{
-            background:#b9cae6;     /* mid blue-gray */
-            }
+        /* Optional: a bit darker on the month/YTD “TOTAL RCPA” rows */
+        .grade-table tr.total-row td.col-total{
+        background:#b9cae6;     /* mid blue-gray */
+        }
 
-            .grade-table tr.total-row {
-            background-color: #ffe8a6;
-            }
+        .grade-table tr.total-row {
+        background-color: #ffe8a6;
+        }
 
-            /* MONTH column style */
-            .grade-table .month-col { background: #cfe2ff; font-weight: 600; }
+        /* MONTH column style */
+        .grade-table .month-col { background: #cfe2ff; font-weight: 600; }
 
-            /* Yellow "TOTAL RCPA" label cell */
-            .grade-table th.hdr-rcpa-label {
-            background: #ffe8a6;
-            font-style: italic;
-            font-weight: 700;
-            text-align: center;
-            padding: 3px 8px;
-            line-height: 1.1;
-            }
+        /* Yellow "TOTAL RCPA" label cell */
+        .grade-table th.hdr-rcpa-label {
+        background: #ffe8a6;
+        font-style: italic;
+        font-weight: 700;
+        text-align: center;
+        padding: 3px 8px;
+        line-height: 1.1;
+        }
 
-            /* Sticky headers (two rows). --hdr1-h is set by JS after build */
-            .grade-table { --hdr1-h: 32px; }
-            .grade-table thead tr:first-child th.sticky-top { position: sticky; top: 0; z-index: 6; border-bottom: 2px solid #6b7280; } /* clearer edge */
-            .grade-table thead tr:nth-child(2) th.sticky-top { position: sticky; top: var(--hdr1-h, 32px); z-index: 5; border-bottom: 2px solid #9aa1a9; }
+        /* Sticky headers (two rows). --hdr1-h is set by JS after build */
+        .grade-table { --hdr1-h: 32px; }
+        .grade-table thead tr:first-child th.sticky-top { position: sticky; top: 0; z-index: 6; border-bottom: 2px solid #6b7280; } /* clearer edge */
+        .grade-table thead tr:nth-child(2) th.sticky-top { position: sticky; top: var(--hdr1-h, 32px); z-index: 5; border-bottom: 2px solid #9aa1a9; }
 
-            /* Sticky DEPARTMENT column (header + body) on horizontal scroll */
-            /* Sticky DEPARTMENT header cell */
-            .grade-table th.sticky-left {
-            position: sticky;
-            left: 0;
-            z-index: 7;          /* above other headers */
-            background: #f7f7f7; /* restore header background */
-            }
+        /* Sticky DEPARTMENT column (header + body) on horizontal scroll */
+        /* Sticky DEPARTMENT header cell */
+        .grade-table th.sticky-left {
+        position: sticky;
+        left: 0;
+        z-index: 7;          /* above other headers */
+        background: #f7f7f7; /* restore header background */
+        }
 
-            /* (If you ever make body cells sticky-left) keep their original bg */
-            .grade-table td.sticky-left {
-            position: sticky;
-            left: 0;
-            z-index: 4;
-            background: inherit;
-            }
+        /* (If you ever make body cells sticky-left) keep their original bg */
+        .grade-table td.sticky-left {
+        position: sticky;
+        left: 0;
+        z-index: 4;
+        background: inherit;
+        }
 
-            /* header cell over the REPLY/CLOSING band */
-            .grade-table th.band-head { background: #eaf4e6; }
+        /* header cell over the REPLY/CLOSING band */
+        .grade-table th.band-head { background: #eaf4e6; }
 
-            .grade-table .ytd-col { background: #f8d27a; font-weight: 700; } /* soft amber */
+        .grade-table .ytd-col { background: #f8d27a; font-weight: 700; } /* soft amber */
 
-            /* YTD month column style (matches the amber look in your mock) */
-            .grade-table .ytd-col {
-            background: #f6c667;   /* soft amber */
-            color: #000;
-            font-weight: 700;
-            border-right: 2px solid #b0892b; /* stronger edge, optional */
-            }
+        /* YTD month column style (matches the amber look in your mock) */
+        .grade-table .ytd-col {
+        background: #f6c667;   /* soft amber */
+        color: #000;
+        font-weight: 700;
+        border-right: 2px solid #b0892b; /* stronger edge, optional */
+        }
 
-            /* subtle gap before YTD block */
-            .grade-table .ytd-sep td {
-            height: 32px;           /* bump this value to make the gap larger/smaller */
-            padding: 0;
-            border: 0 !important;
-            background: transparent;
-            }
+        /* subtle gap before YTD block */
+        .grade-table .ytd-sep td {
+        height: 32px;           /* bump this value to make the gap larger/smaller */
+        padding: 0;
+        border: 0 !important;
+        background: transparent;
+        }
 
-         
-            .btn.small { padding:6px 10px; border:1px solid #ddd; border-radius:6px; background:#fafafa; cursor:pointer; }
-            .btn.small:hover { background:#f0f0f0; }
-            /* You already had this for colorizing TOTAL RCPA */
-            .grade-table tr.total-row { background:#ffe8a6; }
+        .btn.small { padding:6px 10px; border:1px solid #ddd; border-radius:6px; background:#fafafa; cursor:pointer; }
+        .btn.small:hover { background:#f0f0f0; }
+        /* You already had this for colorizing TOTAL RCPA */
+        .grade-table tr.total-row { background:#ffe8a6; }
 
-            .btn.small[disabled] { opacity:.5; cursor:not-allowed; }
-            .grade-table tr.total-row { background:#ffe8a6; } /* your highlight */
+        .btn.small[disabled] { opacity:.5; cursor:not-allowed; }
+        .grade-table tr.total-row { background:#ffe8a6; } /* your highlight */
 
+        /* RCPA List Modal – filter row fixes */
+        #rcpaListModal .rcpa-modal-head {
+        flex-wrap: wrap;                /* allow the whole header row to wrap */
+        }
 
+        #rcpaListModal .rcpa-modal-controls {
+        flex-wrap: wrap;                /* allow controls to move to next line */
+        }
+
+        #rcpaListModal .rcpa-modal-controls label {
+        white-space: nowrap;            /* keep "Type Of RCPA" on one line */
+        }
+
+        #rcpaListModal .rcpa-modal-controls select {
+        flex-shrink: 0;                 /* don't let selects get squished */
+        width: auto;                    /* size to content */
+        white-space: nowrap;            /* keep option text on one line */
+        min-width: 20ch;                /* sensible default width */
+        }
+
+        /* Give the Type filter extra room for long values */
+        #rcpaListTypeFilter {
+        min-width: 36ch;                /* tweak to taste (32–40ch works well) */
+        }
+
+        /* Let filter row wrap and keep inputs readable */
+        #rcpaListModal .rcpa-modal-controls { flex-wrap: wrap; gap: 8px; }
+        #rcpaListModal .rcpa-modal-controls label { white-space: nowrap; }
+        #rcpaListModal .rcpa-modal-controls input[type="search"],
+        #rcpaListModal .rcpa-modal-controls select {
+        flex-shrink: 0;
+        width: auto;
+        white-space: nowrap;
+        }
+
+        #rcpaListTypeFilter { min-width: 36ch; }  /* long Type strings */
     </style>
 
 </head>
@@ -382,69 +415,69 @@
     </div>
 
     <h2><span>RCPA Dashboard</span></h2>
-    
+
     <div class="rcpa-dashboard">
-            <!-- Top buttons + global dataset switch -->
+        <!-- Top buttons + global dataset switch -->
         <div class="rcpa-toolbar">
-                <!-- LEFT: filters grouped together -->
-                <div class="filters-group">
-                    <div class="toolbar-filter">
-                        <select id="siteSelect" aria-label="Dataset">
-                            <option value="RTI" selected>RTI</option>
-                            <option value="SSD">SSD</option>
-                        </select>
+            <!-- LEFT: filters grouped together -->
+            <div class="filters-group">
+                <div class="toolbar-filter">
+                    <select id="siteSelect" aria-label="Dataset">
+                        <option value="RTI" selected>RTI</option>
+                        <option value="SSD">SSD</option>
+                    </select>
+                </div>
+                <div class="toolbar-filter">
+                    <select id="yearSelect" aria-label="Year">
+                        <option value="2024" selected>2024</option>
+                        <option value="2025">2025</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- RIGHT: your three action buttons -->
+            <button class="dash-btn" id="openRcpaListBtn"><i class="fa-solid fa-clipboard-check"></i> RCPA</button>
+            <button class="dash-btn" id="openGradeBtn">
+                <i class="fa-solid fa-ranking-star"></i> GRADE
+            </button>
+            <!-- Change your existing CALENDAR button -->
+            <button class="dash-btn" id="openCalendarBtn">
+                <i class="fa-solid fa-calendar-days"></i> CALENDAR
+            </button>
+        </div>
+
+
+        <!-- Charts -->
+        <div class="rcpa-chart-grid">
+            <section class="chart-card span-2">
+                <div class="chart-head">
+                    <div class="chart-title">Number of RCPA per Assignee</div>
+                </div>
+                <div id="chart-assignee" class="apex-wrap"></div>
+            </section>
+
+            <section class="chart-card">
+                <div class="chart-head">
+                    <div class="chart-title">Number of RCPA per Month</div>
+                </div>
+                <div id="chart-monthly" class="apex-wrap"></div>
+            </section>
+
+            <section class="chart-card">
+                <div class="two-up">
+                    <div class="mini-card">
+                        <div class="chart-title" style="margin-bottom:4px;">Status of Reply</div>
+                        <div id="chart-reply" class="apex-wrap" style="height:220px;"></div>
                     </div>
-                    <div class="toolbar-filter">
-                        <select id="yearSelect" aria-label="Year">
-                            <option value="2024" selected>2024</option>
-                            <option value="2025">2025</option>
-                        </select>
+                    <div class="mini-card">
+                        <div class="chart-title" style="margin-bottom:4px;">Status of Closing</div>
+                        <div id="chart-closing" class="apex-wrap" style="height:220px;"></div>
                     </div>
                 </div>
+            </section>
+        </div>
+    </div>
 
-                <!-- RIGHT: your three action buttons -->
-                <button class="dash-btn" id="openRcpaListBtn"><i class="fa-solid fa-clipboard-check"></i> RCPA</button>
-                <button class="dash-btn" id="openGradeBtn">
-                    <i class="fa-solid fa-ranking-star"></i> GRADE
-                </button>
-                <!-- Change your existing CALENDAR button -->
-                <button class="dash-btn" id="openCalendarBtn">
-                    <i class="fa-solid fa-calendar-days"></i> CALENDAR
-                </button>
-            </div>
-
-
-            <!-- Charts -->
-            <div class="rcpa-chart-grid">
-                <section class="chart-card span-2">
-                    <div class="chart-head">
-                        <div class="chart-title">Number of RCPA per Assignee</div>
-                    </div>
-                    <div id="chart-assignee" class="apex-wrap"></div>
-                </section>
-
-                <section class="chart-card">
-                    <div class="chart-head">
-                        <div class="chart-title">Number of RCPA per Month</div>
-                    </div>
-                    <div id="chart-monthly" class="apex-wrap"></div>
-                </section>
-
-                <section class="chart-card">
-                    <div class="two-up">
-                        <div class="mini-card">
-                            <div class="chart-title" style="margin-bottom:4px;">Status of Reply</div>
-                            <div id="chart-reply" class="apex-wrap" style="height:220px;"></div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="chart-title" style="margin-bottom:4px;">Status of Closing</div>
-                            <div id="chart-closing" class="apex-wrap" style="height:220px;"></div>
-                        </div>
-                    </div>
-                </section>
-            </div>
-    </div> 
-    
     <!-- MUST exist for the JS to work -->
     <div class="modal-overlay" id="calendarModal" aria-hidden="true" role="dialog" aria-modal="true">
         <div class="modal-content" role="document" style="max-width: 860px; padding: 0;">
@@ -452,7 +485,7 @@
 
             <div class="rcpa-calendar-wrap">
                 <!-- LEFT: Not working list -->
-               <aside class="rcpa-nw-list">
+                <aside class="rcpa-nw-list">
                     <div class="nw-head">
                         <div class="nw-title">Non-Working Dates</div>
                         <div class="nw-sub">(from database)</div>
@@ -478,12 +511,12 @@
                         <button class="cal-nav" id="calNextBtn" aria-label="Next month">›</button>
                     </div>
 
-                   <div class="cal-toolbar">
+                    <div class="cal-toolbar">
                         <div id="calSelected" class="cal-selected" style="display:none;"></div>
-                            <div class="cal-toolbar-right">
-                                <button class="cal-today" id="calTodayBtn">Today</button>
-                                <!-- Legend -->
-                                <div class="cal-legend">
+                        <div class="cal-toolbar-right">
+                            <button class="cal-today" id="calTodayBtn">Today</button>
+                            <!-- Legend -->
+                            <div class="cal-legend">
                                 <span class="lg-dot lg-sun" aria-hidden="true"></span><span>Sunday</span>
                                 <span class="lg-dot lg-nw" aria-hidden="true"></span><span>Non-working</span>
                             </div>
@@ -503,31 +536,31 @@
             style="position:relative; max-width:99vw; width:100%; height:96vh; max-height:96vh; padding:0; display:flex; flex-direction:column; box-sizing:border-box;">
             <!-- keep close button above header content -->
             <button class="close-btn" id="closeGradeBtn" aria-label="Close grade modal" title="Close"
-                    style="position:absolute; top:8px; right:8px; z-index:20;">×</button>
+                style="position:absolute; top:8px; right:8px; z-index:20;">×</button>
 
             <!-- your grade content -->
             <div class="rcpa-grade-wrap" style="padding:0; flex:1 1 auto; display:flex; flex-direction:column; min-height:0;">
 
-            <!-- header: title left, buttons perfectly centered -->
-            <div class="rcpa-modal-head"
-                style="padding:12px 16px; border-bottom:1px solid #eee; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px;">
-                <div style="font-weight:600;">GRADE <span style="font-weight:600;">2025</span></div>
+                <!-- header: title left, buttons perfectly centered -->
+                <div class="rcpa-modal-head"
+                    style="padding:12px 16px; border-bottom:1px solid #eee; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px;">
+                    <div style="font-weight:600;">GRADE <span style="font-weight:600;">2025</span></div>
 
-                <div style="justify-self:center; display:flex; gap:8px;">
-                <button id="dlXlsxBtn" class="btn small">Excel (.xlsx)</button>
-                <button id="dlPdfBtn"  class="btn small">PDF</button>
+                    <div style="justify-self:center; display:flex; gap:8px;">
+                        <button id="dlXlsxBtn" class="btn small">Excel (.xlsx)</button>
+                        <button id="dlPdfBtn" class="btn small">PDF</button>
+                    </div>
+
+                    <div></div> <!-- right spacer so center stays centered -->
                 </div>
 
-                <div></div> <!-- right spacer so center stays centered -->
-            </div>
-
-            <!-- scrollable grid area -->
-            <div id="gradeTableWrap" style="overflow:auto; flex:1 1 auto; min-height:0;">
-                <table id="gradeTable" class="grade-table"
-                    style="border-collapse:separate; border-spacing:0; width:100%; min-width:900px;">
-                <!-- built by JS -->
-                </table>
-            </div>
+                <!-- scrollable grid area -->
+                <div id="gradeTableWrap" style="overflow:auto; flex:1 1 auto; min-height:0;">
+                    <table id="gradeTable" class="grade-table"
+                        style="border-collapse:separate; border-spacing:0; width:100%; min-width:900px;">
+                        <!-- built by JS -->
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -539,64 +572,79 @@
 
             <div class="rcpa-modal-head" style="display:flex;align-items:center;gap:12px;padding:12px 16px;">
 
-            
+
                 <!-- in-modal Year filter -->
                 <div class="rcpa-modal-controls" style="display:flex;align-items:center;gap:8px;">
 
-                   <!-- Company filter -->
+                <!-- Global search -->
+                    <label for="rcpaListSearch" style="font-weight:800;color:#334155;">Search</label>
+                    <input id="rcpaListSearch" type="search" placeholder="Search RCPA no., type, names, status…"
+                        style="height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:text;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);min-width:28ch;">
+
+
+                    <!-- Company filter -->
                     <label for="rcpaListCompanyFilter" style="font-weight:800;color:#334155;">Company</label>
                     <select id="rcpaListCompanyFilter"
-                            style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
-                    <option value="all" selected>All</option>
-                    <option value="RTI">RTI</option>
-                    <option value="SSD">SSD</option>
+                        style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
+                        <option value="all" selected>All</option>
+                        <option value="RTI">RTI</option>
+                        <option value="SSD">SSD</option>
                     </select>
 
                     <!-- year filter -->
                     <label for="rcpaListYearFilter" style="font-weight:800;color:#334155;">Year</label>
                     <select id="rcpaListYearFilter" style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
-                    <option value="all" selected>All</option>
+                        <option value="all" selected>All</option>
+                    </select>
+
+                    <!-- Type Of RCPA filter -->
+                    <label for="rcpaListTypeFilter" style="font-weight:800;color:#334155;">Type Of RCPA</label>
+                    <select id="rcpaListTypeFilter"
+                        style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
+                        <option value="all" selected>All</option>
                     </select>
                 </div>
             </div>
 
 
             <div class="rcpa-table-wrap">
-            <table class="rcpa-table-list" id="rcpaListTable">
-            <thead>
-                <tr>
-                    <th>Company</th>
-                    <th>RCPA No.</th>
-                    <th>Type Of RCPA</th>
-                    <th>Category</th>
-                    <th>Originator</th>
-                    <th>Assignee</th>
-                    <th>Date Requested</th>
-                    <th>Status</th>
-                    <th>Date Assignee Received</th>
-                    <th>No. of Days (5 days Reply)</th>
-                    <th>Actual date of reply</th>
-                    <th>Due Date (5 days reply)</th>
-                    <th>No. of Days (30 days Closing)</th>
-                    <th>Actual date of closing</th>
-                    <th>Due date of (30 days closing)</th>
-                    <th>Action</th>   <!-- existing -->
-                    <th>History</th>  <!-- moved: now last -->
-                </tr>
-            </thead>
-            <tbody id="rcpaListTbody">
-                <tr><td colspan="17" class="rcpa-empty">Loading…</td></tr>
-            </tbody>
-            </table>
+                <table class="rcpa-table-list" id="rcpaListTable">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>RCPA No.</th>
+                            <th>Type Of RCPA</th>
+                            <th>Category</th>
+                            <th>Originator</th>
+                            <th>Assignee</th>
+                            <th>Date Requested</th>
+                            <th>Status</th>
+                            <th>Date Assignee Received</th>
+                            <th>No. of Days (5 days Reply)</th>
+                            <th>Actual date of reply</th>
+                            <th>Due Date (5 days reply)</th>
+                            <th>No. of Days (30 days Closing)</th>
+                            <th>Actual date of closing</th>
+                            <th>Due date of (30 days closing)</th>
+                            <th>Action</th> <!-- existing -->
+                            <th>History</th> <!-- moved: now last -->
+                        </tr>
+                    </thead>
+                    <tbody id="rcpaListTbody">
+                        <tr>
+                            <td colspan="17" class="rcpa-empty">Loading…</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-             <footer class="rcpa-table-footer">
-            <div class="rcpa-paging">
-                <button id="rcpaListPrev" class="rcpa-btn" type="button" disabled>Prev</button>
-                <span id="rcpaListPageInfo" class="rcpa-muted">Page 1</span>
-                <button id="rcpaListNext" class="rcpa-btn" type="button" disabled>Next</button>
-            </div>
-            <div class="rcpa-total" id="rcpaListTotal">0 records</div> 
+            <footer class="rcpa-table-footer">
+                <div class="rcpa-paging">
+                    <button id="rcpaListPrev" class="rcpa-btn" type="button" disabled>Prev</button>
+                    <span id="rcpaListPageInfo" class="rcpa-muted">Page 1</span>
+                    <button id="rcpaListNext" class="rcpa-btn" type="button" disabled>Next</button>
+                </div>
+                <div class="rcpa-total" id="rcpaListTotal">0 records</div>
             </footer>
         </div>
     </div>
@@ -785,13 +833,13 @@
                     <legend>VALIDATION OF RCPA BY ASSIGNEE</legend>
 
                     <!-- Checkbox -->
-                   <label class="inline-check">
-                    <input type="checkbox" id="rcpa-view-findings-valid">
-                    <span>Findings Valid</span>
-                    <!-- NEW -->
-                    <button type="button" id="rcpa-view-open-why" class="rcpa-btn rcpa-btn-secondary" style="margin-left:8px;">
-                        Why-Why Analysis
-                    </button>
+                    <label class="inline-check">
+                        <input type="checkbox" id="rcpa-view-findings-valid">
+                        <span>Findings Valid</span>
+                        <!-- NEW -->
+                        <button type="button" id="rcpa-view-open-why" class="rcpa-btn rcpa-btn-secondary" style="margin-left:8px;">
+                            Why-Why Analysis
+                        </button>
                     </label>
 
 
@@ -981,22 +1029,22 @@
                 <!-- APPROVAL REMARKS (hidden when empty) -->
                 <fieldset class="approve-remarks" id="rcpa-approvals-fieldset" hidden>
                     <legend>Approval Remarks</legend>
-                        <div class="rcpa-card">
-                            <table id="rcpa-approvals-table" class="rcpa-table--compact">
+                    <div class="rcpa-card">
+                        <table id="rcpa-approvals-table" class="rcpa-table--compact">
                             <thead>
                                 <tr>
-                                <th>Type</th>
-                                <th>Date/Time</th>
-                                <th>Action</th>
+                                    <th>Type</th>
+                                    <th>Date/Time</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                <td class="rcpa-empty" colspan="3">No records found</td>
+                                    <td class="rcpa-empty" colspan="3">No records found</td>
                                 </tr>
                             </tbody>
-                            </table>
-                        </div>
+                        </table>
+                    </div>
                 </fieldset>
 
                 <!-- DISAPPROVAL REMARKS -->
@@ -1063,13 +1111,13 @@
             <h3 class="rcpa-title" style="text-transform:none;margin:0 0 12px;">Approval Remarks</h3>
 
             <label class="field">
-            <span>Remarks</span>
-            <textarea id="approve-remarks-text" class="u-area" rows="6" readonly></textarea>
+                <span>Remarks</span>
+                <textarea id="approve-remarks-text" class="u-area" rows="6" readonly></textarea>
             </label>
 
             <div class="attach-wrap" style="margin-top:.75rem;">
-            <div class="desc-title" style="margin-bottom:.25rem;">Attachments</div>
-            <div class="attach-list" id="approve-remarks-files" aria-live="polite"></div>
+                <div class="desc-title" style="margin-bottom:.25rem;">Attachments</div>
+                <div class="attach-list" id="approve-remarks-files" aria-live="polite"></div>
             </div>
         </div>
     </div>
@@ -1082,13 +1130,13 @@
 
             <label for="rcpa-why-view-desc">Description of Findings</label>
             <div class="textarea-wrap" style="position:relative; margin-top:8px; margin-bottom:16px;">
-            <textarea id="rcpa-why-view-desc" readonly style="width:100%; min-height:110px; padding:10px; resize:vertical;"></textarea>
+                <textarea id="rcpa-why-view-desc" readonly style="width:100%; min-height:110px; padding:10px; resize:vertical;"></textarea>
             </div>
 
             <div id="rcpa-why-view-list" style="display:flex; flex-direction:column; gap:12px;"></div>
 
             <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
-            <button type="button" class="rcpa-btn" id="rcpa-why-view-ok">Close</button>
+                <button type="button" class="rcpa-btn" id="rcpa-why-view-ok">Close</button>
             </div>
         </div>
     </div>
@@ -1097,8 +1145,8 @@
     <div id="rcpa-history-modal" class="modal-overlay" aria-hidden="true">
         <div class="modal-content modal-content--history" role="dialog" aria-modal="true" aria-labelledby="rcpa-history-title">
             <header class="rcpa-modal-header">
-            <h3>History for RCPA #<span id="rcpa-history-title"></span></h3>
-            <button id="rcpa-history-close" type="button" class="close-btn" aria-label="Close">&times;</button>
+                <h3>History for RCPA #<span id="rcpa-history-title"></span></h3>
+                <button id="rcpa-history-close" type="button" class="close-btn" aria-label="Close">&times;</button>
             </header>
             <div id="rcpa-history-body" class="rcpa-modal-body"></div>
         </div>
@@ -1117,7 +1165,7 @@
     <!-- BACKEND JS -->
     <script src="../js/rcpa-dashboard.js"></script>
     <script src="../js/rcpa-notif-sub-menu-count.js"></script>
-    
+
     <!-- CDN JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 

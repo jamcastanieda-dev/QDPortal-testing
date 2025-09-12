@@ -1,4 +1,3 @@
-
 (function () {
   const IS_APPROVER = !!window.RCPA_IS_APPROVER;
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
@@ -23,6 +22,9 @@
   let page = 1;
   const pageSize = 10;
   let currentTarget = null;
+
+  // ⚡ SSE handle
+  let es = null;
 
   const norm = (s) => (s ?? '').toString().trim().toLowerCase();
 
@@ -192,9 +194,18 @@
     nextBtn.disabled = page >= lastPage;
   }
 
+  // 🔔 realtime via SSE (mirrors same filter/visibility as the PHP list)
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+    const qs = new URLSearchParams();
+    if (fType.value) qs.set('type', fType.value);
+    es = new EventSource(`../php-backend/rcpa-approval-invalid-sse.php?${qs.toString()}`);
+    es.addEventListener('rcpa', () => { load(); });
+    es.onerror = () => { /* EventSource auto-reconnects */ };
+  }
+
   // after function load() { ... }
   document.addEventListener('rcpa:refresh', () => { load(); });
-
 
   const switchIcon = (el, icon) => {
     if (!el) return;
@@ -284,9 +295,7 @@
     if (currentTarget) positionActionContainer(currentTarget);
   }, { passive: true }));
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') hideActions();
-  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideActions(); });
 
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
@@ -297,10 +306,14 @@
 
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  fType.addEventListener('change', () => { page = 1; load(); });
+  fType.addEventListener('change', () => { page = 1; load(); startSse(true); });
+
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
 
   load();
+  startSse(); // ⚡ realtime
 })();
+
 
 
 (function () {

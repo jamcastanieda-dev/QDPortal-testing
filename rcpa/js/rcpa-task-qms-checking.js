@@ -17,6 +17,10 @@
   const pageSize = 10;
   let currentTarget = null; // the currently-open hamburger button
 
+  // ⚡ SSE tracking
+  let lastSeenId = 0;
+  let es = null;
+
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
     const map = {
@@ -56,14 +60,11 @@
     if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
-
-
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
     if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
-
 
   function badgeForCategory(c) {
     const v = (c || '').toLowerCase();
@@ -76,32 +77,26 @@
   function actionButtonHtml(id) {
     const safeId = escapeHtml(id ?? '');
     if (CAN_ACTIONS) {
-      // QA/QMS: show hamburger that opens the floating action-container
       return `
       <div class="rcpa-actions">
         <button class="rcpa-more" data-id="${safeId}" title="Actions">
           <i class="fa-solid fa-bars" aria-hidden="true"></i>
           <span class="sr-only">Actions</span>
         </button>
-      </div>
-    `;
+      </div>`;
     }
-    // Others: show a direct "View" button (same behavior as view-button in the container)
     return `
     <div class="rcpa-actions">
       <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
-    </div>
-  `;
+    </div>`;
   }
-
 
   function fmtDate(s) {
     if (!s) return '';
     const str = String(s);
-    if (/^0{4}-0{2}-0{2}/.test(str)) return ''; // handle "0000-00-00 ..."
+    if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
@@ -110,7 +105,6 @@
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
-
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
 
@@ -119,7 +113,6 @@
     if (fType.value) params.set('type', fType.value);
 
     hideActions();
-
     tbody.innerHTML = `<tr><td colspan="9" class="rcpa-empty">Loading…</td></tr>`;
 
     let res;
@@ -165,6 +158,10 @@
     pageInfo.textContent = `Page ${data.page} of ${lastPage}`;
     prevBtn.disabled = page <= 1;
     nextBtn.disabled = page >= lastPage;
+
+    // ⚡ update lastSeenId to the max id we just rendered
+    const maxId = rows.reduce((m, r) => Math.max(m, Number(r.id || 0)), lastSeenId);
+    if (maxId > lastSeenId) lastSeenId = maxId;
   }
 
   document.addEventListener('rcpa:refresh', () => { load(); });
@@ -226,7 +223,6 @@
 
   // Open/close hamburger actions + history
   tbody.addEventListener('click', (e) => {
-    // NEW: direct View button for non-QA/QMS
     const viewOnly = e.target.closest('.rcpa-view-only');
     if (viewOnly) {
       const id = viewOnly.getAttribute('data-id');
@@ -234,7 +230,6 @@
       return;
     }
 
-    // (existing) history icon
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist) {
       const id = hist.getAttribute('data-id');
@@ -242,7 +237,6 @@
       return;
     }
 
-    // (existing) hamburger menu for QA/QMS
     const moreBtn = e.target.closest('.rcpa-more');
     if (!moreBtn) return;
 
@@ -254,8 +248,6 @@
     }
   });
 
-
-  // Keyboard support for history icon
   tbody.addEventListener('keydown', (e) => {
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist && (e.key === 'Enter' || e.key === ' ')) {
@@ -271,13 +263,11 @@
     }
   });
 
-  // Top tabs navigation
   document.querySelector('.rcpa-table-toolbar').addEventListener('click', (e) => {
     const tab = e.target.closest('.rcpa-tab[data-href]');
     if (!tab) return;
     window.location.href = tab.dataset.href;
   });
-
 
   ['scroll', 'resize'].forEach(evt => window.addEventListener(evt, () => {
     if (currentTarget) positionActionContainer(currentTarget);
@@ -297,10 +287,40 @@
   // Pagination + single remaining filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  fType.addEventListener('change', () => { page = 1; load(); });
+
+  // ⚡ Rebuild SSE when the Type filter changes
+  fType.addEventListener('change', () => {
+    page = 1;
+    load();
+    startSse(true); // restart stream with new filter
+  });
+
+  // ⚡ SSE: auto-reload when new QMS Checking items appear for this viewer
+  function startSse(restart = false) {
+    if (restart && es) { try { es.close(); } catch {} }
+    const qs = new URLSearchParams({ since: String(lastSeenId) });
+    if (fType.value) qs.set('type', fType.value);
+    es = new EventSource(`../php-backend/rcpa-qms-checking-sse.php?${qs.toString()}`);
+    es.addEventListener('rcpa', (e) => {
+      try {
+        const data = JSON.parse(e.data || '{}');
+        if (data && data.max_id) {
+          lastSeenId = Math.max(lastSeenId, Number(data.max_id));
+          load(); // quiet refresh; no blinking/animation
+        } else {
+          load();
+        }
+      } catch {
+        load();
+      }
+    });
+    es.onerror = () => { /* EventSource auto-reconnects */ };
+  }
 
   load();
+  startSse();
 })();
+
 
 // view modal
 (function () {

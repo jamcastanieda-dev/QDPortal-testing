@@ -22,14 +22,17 @@
   const pageSize = 10;
   let currentTarget = null;
 
+  // 🔔 SSE handle
+  let es = null;
+
   const norm = (s) => (s ?? '').toString().trim().toLowerCase();
 
   // Dept must match; if row has section, it must also match user's section
   const canActOnRow = (rowAssignee, rowSection) => {
     if (norm(rowAssignee) !== CURRENT_DEPT) return false;
     const rs = norm(rowSection);
-    if (!rs) return true;             // no section on row → dept match is enough
-    if (!CURRENT_SECT) return false;  // row has section but user lacks one
+    if (!rs) return true;
+    if (!CURRENT_SECT) return false;
     return rs === CURRENT_SECT;
   };
 
@@ -86,7 +89,7 @@
     return '';
   }
 
-  // ✅ Only show hamburger if approver AND dept/section match
+  // Only show hamburger if approver AND dept/section match
   function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
     if (IS_APPROVER && canActOnRow(assignee, section)) {
@@ -123,7 +126,7 @@
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
 
-  // Manila day math for Close Due
+  // Manila helpers
   const MANILA_TZ = 'Asia/Manila';
   const MANILA_OFFSET = '+08:00';
   function fmtYmd(s) {
@@ -332,9 +335,22 @@
   // Pagination + filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  fType  .addEventListener('change', () => { page = 1; load(); });
+  fType  .addEventListener('change', () => { page = 1; load(); startSse(true); }); // 🔄 restart SSE on filter change
+
+  // 🔔 SSE start/restart
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+    const qs = new URLSearchParams();
+    if (fType.value) qs.set('type', fType.value);
+    es = new EventSource(`../php-backend/rcpa-approval-assignee-corrective-sse.php?${qs.toString()}`);
+    es.addEventListener('rcpa', () => { load(); });
+    es.onerror = () => { /* EventSource auto-reconnects */ };
+  }
+
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
 
   load();
+  startSse(); // ⚡ realtime
 })();
 
 

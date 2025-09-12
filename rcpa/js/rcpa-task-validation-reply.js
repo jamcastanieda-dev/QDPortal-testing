@@ -15,7 +15,10 @@
 
   let page = 1;
   const pageSize = 10;
-  let currentTarget = null; // the currently-open hamburger button
+  let currentTarget = null;
+
+  // ⚡ SSE handle
+  let es = null;
 
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
@@ -56,7 +59,6 @@
     if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
-
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
     if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
@@ -74,32 +76,27 @@
   function actionButtonHtml(id) {
     const safeId = escapeHtml(id ?? '');
     if (CAN_ACTIONS) {
-      // QA/QMS: show hamburger that opens the floating action-container
       return `
       <div class="rcpa-actions">
         <button class="rcpa-more" data-id="${safeId}" title="Actions">
           <i class="fa-solid fa-bars" aria-hidden="true"></i>
           <span class="sr-only">Actions</span>
         </button>
-      </div>
-    `;
+      </div>`;
     }
-    // Others: show a direct "View" button (same behavior as view-button in the container)
     return `
     <div class="rcpa-actions">
       <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
-    </div>
-  `;
+    </div>`;
   }
 
   function fmtDate(s) {
     if (!s) return '';
     const str = String(s);
-    if (/^0{4}-0{2}-0{2}/.test(str)) return ''; // handle "0000-00-00 ..."
+    if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
     const year = d.getFullYear();
@@ -107,68 +104,44 @@
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
-
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
 
-  // Format a YYYY-MM-DD as "Mon DD, YYYY"
+  // Manila helpers for close_due_date
+  const MANILA_TZ = 'Asia/Manila';
+  const MANILA_OFFSET = '+08:00';
   function fmtYmd(s) {
     if (!s) return '';
     const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) return s;
-    const [, Y, M, D] = m;
-    const d = new Date(`${Y}-${M}-${D}T00:00:00`);
+    const d = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`);
     if (isNaN(d)) return s;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
   }
-
-  /* ---------- Closing due date helpers (Manila) ---------- */
-  const MANILA_TZ = 'Asia/Manila';
-  const MANILA_OFFSET = '+08:00'; // no DST
-
-  // Today’s date in Manila (YYYY-MM-DD)
-  function todayYmdManila() {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: MANILA_TZ,
-      year: 'numeric', month: '2-digit', day: '2-digit'
-    }).formatToParts(new Date());
-    const get = t => parts.find(p => p.type === t).value;
-    return `${get('year')}-${get('month')}-${get('day')}`;
+  function dateAtMidnightManila(ymd){ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd)))return null; return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`); }
+  function diffDaysFromTodayManila(ymd){
+    const parts = new Intl.DateTimeFormat('en-CA',{timeZone:MANILA_TZ,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+    const get=t=>parts.find(p=>p.type===t).value;
+    const today=`${get('year')}-${get('month')}-${get('day')}`;
+    const a=dateAtMidnightManila(today), b=dateAtMidnightManila(ymd);
+    if(!a||!b) return null;
+    return Math.trunc((b-a)/(24*60*60*1000));
   }
-
-  // Convert YYYY-MM-DD to Date at Manila midnight
-  function dateAtMidnightManila(ymd) {
-    if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
-    return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`);
-  }
-
-  // Difference in whole days: close_due_date - today (Manila)
-  function diffDaysFromTodayManila(ymd) {
-    const today = dateAtMidnightManila(todayYmdManila());
-    const target = dateAtMidnightManila(ymd);
-    if (!today || !target) return null;
-    const msPerDay = 24 * 60 * 60 * 1000;
-    return Math.trunc((target - today) / msPerDay);
-  }
-
-  // Render "Mon DD, YYYY (N days)"
-  function renderCloseDue(ymd) {
-    if (!ymd) return '';
-    const base = fmtYmd(ymd);
-    const d = diffDaysFromTodayManila(ymd);
-    if (d === null) return base;
-    const plural = Math.abs(d) === 1 ? 'day' : 'days';
+  function renderCloseDue(ymd){
+    if(!ymd) return '';
+    const base=fmtYmd(ymd);
+    const d=diffDaysFromTodayManila(ymd);
+    if(d===null) return base;
+    const plural=Math.abs(d)===1?'day':'days';
     return `${base} (${d} ${plural})`;
   }
-  /* ------------------------------------------------------- */
 
   async function load() {
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (fType.value) params.set('type', fType.value);
 
     hideActions();
-
     tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Loading…</td></tr>`;
 
     let res;
@@ -261,7 +234,6 @@
     actionContainer.dataset.id = id;
     positionActionContainer(target);
     actionContainer.classList.remove('hidden');
-
     const icon = target.querySelector('i.fa-solid');
     switchIcon(icon, 'fa-xmark');
   }
@@ -276,7 +248,6 @@
 
   // Open/close hamburger actions + history
   tbody.addEventListener('click', (e) => {
-    // NEW: direct View button for non-QA/QMS
     const viewOnly = e.target.closest('.rcpa-view-only');
     if (viewOnly) {
       const id = viewOnly.getAttribute('data-id');
@@ -284,7 +255,6 @@
       return;
     }
 
-    // (existing) history icon
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist) {
       const id = hist.getAttribute('data-id');
@@ -292,7 +262,6 @@
       return;
     }
 
-    // (existing) hamburger menu for QA/QMS
     const moreBtn = e.target.closest('.rcpa-more');
     if (!moreBtn) return;
 
@@ -304,7 +273,6 @@
     }
   });
 
-  // Keyboard support for history icon
   tbody.addEventListener('keydown', (e) => {
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist && (e.key === 'Enter' || e.key === ' ')) {
@@ -342,13 +310,27 @@
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
-  // Pagination + single remaining filter
+  // Pagination + filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  fType.addEventListener('change', () => { page = 1; load(); });
+
+  // Restart SSE when filter changes (so server watches the same subset)
+  fType.addEventListener('change', () => { page = 1; load(); startSse(true); });
+
+  // ⚡ SSE: refresh table whenever count/max changes (covers backfilled lower IDs too)
+  function startSse(restart = false) {
+    if (restart && es) { try { es.close(); } catch {} }
+    const qs = new URLSearchParams();
+    if (fType.value) qs.set('type', fType.value);
+    es = new EventSource(`../php-backend/rcpa-validation-reply-sse.php?${qs.toString()}`);
+    es.addEventListener('rcpa', () => { load(); });
+    es.onerror = () => { /* EventSource auto-reconnects */ };
+  }
 
   load();
+  startSse();
 })();
+
 
 (function () {
   // Modal elems

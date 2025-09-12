@@ -27,12 +27,10 @@
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
-  // ⛔️ Do NOT hide the action container globally — visibility is per-row
-  // if (!IS_APPROVER) { actionContainer.classList.add('hidden'); }
-
   let page = 1;
   const pageSize = 10;
   let currentTarget = null; // the currently-open hamburger button
+  let es = null;            // ⚡ SSE handle
 
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
@@ -343,10 +341,27 @@
   // Pagination + filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  fType.addEventListener('change', () => { page = 1; load(); });
+
+  // ⚡ Restart SSE when Type filter changes so the server watches the same subset
+  fType.addEventListener('change', () => { page = 1; load(); startSse(true); });
+
+  // ⚡ SSE: watch the same filtered subset; on any change, reload silently (no blinking)
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+    const qs = new URLSearchParams();
+    if (fType.value) qs.set('type', fType.value);
+    es = new EventSource(`../php-backend/rcpa-assignee-corrective-sse.php?${qs.toString()}`);
+    es.addEventListener('rcpa', () => { load(); });
+    es.onerror = () => { /* EventSource auto-reconnects by itself */ };
+  }
+
+  // Cleanup on unload
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
 
   load();
+  startSse(); // ⚡ start realtime
 })();
+
 
 
 /* ====== VIEW MODAL: fetch, fill, show ====== */

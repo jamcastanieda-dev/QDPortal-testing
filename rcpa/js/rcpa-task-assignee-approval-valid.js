@@ -1,18 +1,17 @@
 (function () {
-  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
-  const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
-  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+  const IS_APPROVER   = !!window.RCPA_IS_APPROVER;
+  const CURRENT_DEPT  = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
+  const CURRENT_SECT  = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
 
-  const tbody = document.querySelector('#rcpa-table tbody');
-  const totalEl = document.getElementById('rcpa-total');
+  const tbody    = document.querySelector('#rcpa-table tbody');
+  const totalEl  = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn = document.getElementById('rcpa-prev');
-  const nextBtn = document.getElementById('rcpa-next');
-  const fType = document.getElementById('rcpa-filter-type');
+  const prevBtn  = document.getElementById('rcpa-prev');
+  const nextBtn  = document.getElementById('rcpa-next');
+  const fType    = document.getElementById('rcpa-filter-type');
 
-  // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn = document.getElementById('view-button');
+  const viewBtn   = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
@@ -21,16 +20,17 @@
 
   let page = 1;
   const pageSize = 10;
-  let currentTarget = null; // the currently-open hamburger button
+  let currentTarget = null;
+  let es = null; // ⚡ SSE handle
 
-  const norm = (s) => (s ?? '').toString().trim().toLowerCase();
+  const norm = s => (s ?? '').toString().trim().toLowerCase();
 
   // Require dept match AND (no row.section) OR (row.section matches user's section)
   const canActOnRow = (rowAssignee, rowSection) => {
     if (norm(rowAssignee) !== CURRENT_DEPT) return false;
     const rs = norm(rowSection);
-    if (!rs) return true;            // no section on row → dept match is enough
-    return rs === CURRENT_SECT;      // otherwise section must match too
+    if (!rs) return true;
+    return rs === CURRENT_SECT;
   };
 
   function labelForType(t) {
@@ -99,7 +99,6 @@
         </div>
       `;
     }
-    // Otherwise, show a simple View button
     return `
       <div class="rcpa-actions">
         <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
@@ -113,7 +112,6 @@
     if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
@@ -122,48 +120,39 @@
     const m = String(d.getMinutes()).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
     h = (h % 12) || 12;
-
     return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
   }
 
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '';
-    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
-    if ([y, m, d].some(Number.isNaN)) return ymd;
-    return `${mnames[m]} ${String(d).padStart(2, '0')}, ${y}`;
+    const y = +ymd.slice(0,4), m = +ymd.slice(5,7)-1, d = +ymd.slice(8,10);
+    if ([y,m,d].some(Number.isNaN)) return ymd;
+    return `${mnames[m]} ${String(d).padStart(2,'0')}, ${y}`;
   }
   function daysDiffFromToday(ymd) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
-    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
-    if ([y, m, d].some(Number.isNaN)) return null;
+    const y = +ymd.slice(0,4), m = +ymd.slice(5,7)-1, d = +ymd.slice(8,10);
+    if ([y,m,d].some(Number.isNaN)) return null;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const due = new Date(y, m, d);
-    const msPerDay = 24 * 60 * 60 * 1000;
+    const due = new Date(y,m,d);
+    const msPerDay = 24*60*60*1000;
     return Math.round((due - today) / msPerDay);
   }
-
   function formatReplyDueCell(ymd) {
     if (!ymd) return '';
     const pretty = formatYmdPretty(ymd);
     const diff = daysDiffFromToday(ymd);
     if (diff === null) return pretty;
-
     const abs = Math.abs(diff);
     const plural = abs === 1 ? 'day' : 'days';
     const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
-
     let className = '';
     if (abs > 5) className = 'badge-cat-obs';
     else if (abs > 2) className = 'badge-cat-minor';
     else className = 'badge-cat-major';
-
-    return `
-      <span class="rcpa-badge ${className}">
-        ${pretty} (${valueText})
-      </span>
-    `;
+    return `<span class="rcpa-badge ${className}">${pretty} (${valueText})</span>`;
   }
 
   async function load() {
@@ -219,6 +208,16 @@
     nextBtn.disabled = page >= lastPage;
   }
 
+  // 🔔 realtime via SSE (mirrors same filter/visibility as the PHP list)
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+    const qs = new URLSearchParams();
+    if (fType.value) qs.set('type', fType.value);
+    es = new EventSource(`../php-backend/rcpa-approval-valid-sse.php?${qs.toString()}`);
+    es.addEventListener('rcpa', () => { load(); });
+    es.onerror = () => { /* EventSource will auto-reconnect */ };
+  }
+
   document.addEventListener('rcpa:refresh', () => { load(); });
 
   const switchIcon = (iconElement, newIcon) => {
@@ -245,14 +244,14 @@
     const vw = document.documentElement.clientWidth;
     const vh = document.documentElement.clientHeight;
 
-    let top = rect.top + (rect.height - popH) / 2;
+    let top  = rect.top + (rect.height - popH) / 2;
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
 
-    top = Math.max(8, Math.min(top, vh - popH - 8));
+    top  = Math.max(8, Math.min(top,  vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
 
-    actionContainer.style.top = `${top}px`;
+    actionContainer.style.top  = `${top}px`;
     actionContainer.style.left = `${left}px`;
 
     if (wasHidden) { actionContainer.classList.add('hidden'); actionContainer.style.visibility = ''; }
@@ -276,36 +275,27 @@
     currentTarget = null;
   }
 
-  // Open/close hamburger actions + history
+  // click handlers
   tbody.addEventListener('click', (e) => {
-    // View-only path
     const viewOnly = e.target.closest('.rcpa-view-only');
     if (viewOnly) {
       const id = viewOnly.getAttribute('data-id');
       if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'view', id } }));
       return;
     }
-
-    // History icon
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist) {
       const id = hist.getAttribute('data-id');
       if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'history', id } }));
       return;
     }
-
     const moreBtn = e.target.closest('.rcpa-more');
     if (!moreBtn) return;
-
     const id = moreBtn.dataset.id;
-    if (currentTarget === moreBtn) {
-      hideActions();
-    } else {
-      showActions(moreBtn, id);
-    }
+    if (currentTarget === moreBtn) hideActions();
+    else showActions(moreBtn, id);
   });
 
-  // Keyboard support for history icon
   tbody.addEventListener('keydown', (e) => {
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist && (e.key === 'Enter' || e.key === ' ')) {
@@ -321,7 +311,6 @@
     }
   });
 
-  // Top tabs navigation
   document.querySelector('.rcpa-table-toolbar')?.addEventListener('click', (e) => {
     const tab = e.target.closest('.rcpa-tab[data-href]');
     if (!tab) return;
@@ -332,23 +321,25 @@
     if (currentTarget) positionActionContainer(currentTarget);
   }, { passive: true }));
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') hideActions();
-  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideActions(); });
 
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
+  viewBtn  .addEventListener('click', () => { dispatchAction('view',   actionContainer.dataset.id); hideActions(); });
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
-  // Pagination + filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  fType.addEventListener('change', () => { page = 1; load(); });
+
+  // When the Type filter changes, reload and restart SSE to mirror the same subset
+  fType.addEventListener('change', () => { page = 1; load(); startSse(true); });
+
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
 
   load();
+  startSse(); // ⚡ go realtime
 })();
 
 

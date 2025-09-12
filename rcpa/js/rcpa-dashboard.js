@@ -765,12 +765,18 @@
 
   const companyFilter = document.getElementById('rcpaListCompanyFilter');
 
+  const typeFilter = document.getElementById('rcpaListTypeFilter');
+  const listSearch = document.getElementById('rcpaListSearch');
 
   // Add near your other helpers
   function companyFromDepartment(dept) {
     return String(dept || '').trim().toUpperCase() === 'SSD' ? 'SSD' : 'RTI';
   }
 
+  // Prefer label then raw type, trimmed
+  function normalizeTypeLabel(r) {
+    return String(r?.rcpa_type_label || r?.rcpa_type || '').trim();
+  }
 
   function openApproveModal(item) {
     if (!apModal) return;
@@ -1056,6 +1062,21 @@
     yearFilter.value = years.includes(thisYear) ? thisYear : 'all';
   }
 
+  function populateTypeFilter(rows) {
+    if (!typeFilter) return;
+    const types = Array
+      .from(new Set(rows
+        .map(normalizeTypeLabel)
+        .filter(t => t.length)))
+      .sort((a, b) => a.localeCompare(b));
+    const current = typeFilter.value || 'all';
+    typeFilter.innerHTML = `<option value="all">All</option>` +
+      types.map(t => `<option value="${t}">${t}</option>`).join('');
+    // Keep user’s previous selection if still present, else default to All
+    typeFilter.value = types.includes(current) ? current : 'all';
+  }
+
+
   /* NEW: update footer info/buttons */
   function updateFooter() {
     const total = filteredRows.length;
@@ -1088,18 +1109,27 @@
   function applyFilter() {
     const y = yearFilter.value;
     const c = (companyFilter?.value || 'all').toUpperCase();
+    const t = (typeof typeFilter === 'undefined' || !typeFilter) ? 'all'
+      : (typeFilter.value || 'all').toLowerCase().trim();
+    const q = (listSearch?.value || '').trim().toLowerCase();
 
     filteredRows = allRows.filter(r => {
       const okYear = (y === 'all') || (deriveYear(r.date_request) === y);
+
       const company = companyFromDepartment(r.originator_department);
       const okCompany = (c === 'ALL') || (company === c);
-      return okYear && okCompany;
+
+      const typeOf = normalizeTypeLabel(r).toLowerCase();
+      const okType = (t === 'all') || (typeOf === t);
+
+      const okSearch = (q === '') || ((r.__search || '').includes(q));
+
+      return okYear && okCompany && okType && okSearch;
     });
 
-    page = 1;      // reset to first page on filter change
-    renderPage();  // render page slice + update footer
+    page = 1;
+    renderPage();
   }
-
 
   function render(rows) {
     if (!rows.length) {
@@ -1163,9 +1193,32 @@
 
     try {
       allRows = await fetchRows();
+      // Build a lowercase search blob per row for fast matching
+      const toText = v => (v == null ? '' : String(v));
+      allRows.forEach(r => {
+        const parts = [
+          r.id,
+          r.rcpa_type_label || r.rcpa_type,
+          r.category || r.category_label,
+          r.originator_name, r.originator_department,
+          r.assignee, r.section, r.status,
+          r.conformance, r.quarter,
+          r.system_applicable_std_violated, r.standard_clause_number,
+          r.remarks,
+          r.date_request, r.reply_received, r.reply_date, r.reply_due_date, r.close_date, r.close_due_date
+        ];
+        r.__search = parts.map(toText).join(' ').toLowerCase();
+      });
+
+      // Reset the search box when opening
+      if (listSearch) listSearch.value = '';
+
+      populateTypeFilter(allRows);
+
 
       // Reset filters (optional)
       if (companyFilter) companyFilter.value = 'all';
+      if (typeFilter) typeFilter.value = 'all';
 
       populateYearFilter(allRows);
       applyFilter(); // will render page 1 and update footer
@@ -1201,6 +1254,22 @@
   });
   companyFilter?.addEventListener('change', applyFilter);
   yearFilter?.addEventListener('change', applyFilter);
+
+  // NEW: small debounce so we don't re-render on every keystroke
+  function debounce(fn, ms = 200) {
+    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+  const onSearchInput = debounce(() => applyFilter(), 200);
+
+  listSearch?.addEventListener('input', onSearchInput);
+
+  // Quick clear with ESC
+  listSearch?.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { listSearch.value = ''; applyFilter(); }
+  });
+
+  typeFilter?.addEventListener('change', applyFilter);
+
 
   /* NEW: pagination events */
   listPrevBtn?.addEventListener('click', () => { if (page > 1) { page--; renderPage(); } });
@@ -2949,7 +3018,6 @@
     });
   }
 })();
-
 
 /* ====== HISTORY MODAL ====== */
 (function () {

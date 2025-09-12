@@ -923,6 +923,10 @@
     const pageSize = 10;
     let total = 0;
 
+    // ⚡ track latest seen id for SSE resume
+    let lastSeenId = 0;
+    let es = null;
+
     // ---- helpers
     const esc = (s) => String(s ?? '').replace(/[&<>"'`=\/]/g, c => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;', '=': '&#61;', '/': '&#47;'
@@ -961,11 +965,9 @@
       if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
       if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
       if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
-
       if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
       if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
       if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
-
       return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
     }
 
@@ -982,8 +984,6 @@
       if (/^0{4}-0{2}-0{2}/.test(String(s))) return '';
       const d = new Date(String(s).replace(' ', 'T'));
       if (isNaN(d)) return esc(String(s));
-
-      // Manual format (no GMT/zone text)
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const month = months[d.getMonth()];
       const day = String(d.getDate()).padStart(2, '0');
@@ -992,7 +992,6 @@
       const m = String(d.getMinutes()).padStart(2, '0');
       const ampm = h >= 12 ? 'PM' : 'AM';
       h = h % 12 || 12;
-
       return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
     }
 
@@ -1028,46 +1027,29 @@
       return Math.trunc((b - a) / (24 * 60 * 60 * 1000));
     }
     function renderCloseDue(ymd) {
-      // if there's no date at all, show a friendly message
       if (!ymd || /^\s*$/.test(String(ymd))) {
         return '<span class="rcpa-muted">No closing due date yet</span>';
       }
-
-      // otherwise, show the formatted date plus relative days
       const base = fmtYmd(ymd);
       const d = diffDaysFromTodayManila(ymd);
       if (d === null) return base;
       return `${base} (${d} ${Math.abs(d) === 1 ? 'day' : 'days'})`;
     }
 
-
-    // Helper: parse "YYYY-MM-DD HH:MM:SS" (MySQL DATETIME) as *local* time.
+    // parse SQL DATETIME as local
     function parseSQLDateTime(s) {
       if (!s) return null;
-      const m = String(s).match(
-        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
-      );
-      if (!m) return new Date(s); // fallback: let Date try to parse
-      return new Date(
-        Number(m[1]),         // year
-        Number(m[2]) - 1,     // month (0-based)
-        Number(m[3]),         // day
-        Number(m[4]),         // hour
-        Number(m[5]),         // minute
-        Number(m[6] || 0)     // second
-      );
+      const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+      if (!m) return new Date(s);
+      return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
     }
-
-    // Helper: "x hours ago" / "in x hours"
     function timeAgo(input) {
       const d = input instanceof Date ? input : parseSQLDateTime(input);
       if (!d || isNaN(d)) return '';
       const now = new Date();
       const diffMs = d.getTime() - now.getTime();
       const absSec = Math.round(Math.abs(diffMs) / 1000);
-
       if (absSec < 30) return 'just now';
-
       const units = [
         { s: 365 * 24 * 60 * 60, n: 'year' },
         { s: 30 * 24 * 60 * 60, n: 'month' },
@@ -1077,13 +1059,9 @@
         { s: 60, n: 'minute' },
         { s: 1, n: 'second' },
       ];
-
       for (const { s, n } of units) {
         const v = Math.floor(absSec / s);
-        if (v >= 1) {
-          const label = v === 1 ? n : n + 's';
-          return diffMs < 0 ? `${v} ${label} ago` : `in ${v} ${label}`;
-        }
+        if (v >= 1) return diffMs < 0 ? `${v} ${n}${v === 1 ? '' : 's'} ago` : `in ${v} ${n}${v === 1 ? '' : 's'}`;
       }
       return '';
     }
@@ -1096,56 +1074,40 @@
       historyModal.setAttribute('aria-hidden', 'false');
       document.body.classList.add('modal-open');
       loadHistory(rcpaId);
-
-      // move focus to the close button for a11y
       setTimeout(() => historyClose?.focus(), 0);
     }
-
     function closeHistoryModal() {
       historyModal.classList.remove('show');
       historyModal.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('modal-open');
     }
-
     async function loadHistory(rcpaId) {
       try {
-        const res = await fetch(`../php-backend/rcpa-history.php?id=${encodeURIComponent(rcpaId)}`, {
-          credentials: 'same-origin'
-        });
+        const res = await fetch(`../php-backend/rcpa-history.php?id=${encodeURIComponent(rcpaId)}`, { credentials: 'same-origin' });
         const data = await res.json();
         if (!res.ok || !data?.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-
         const rows = Array.isArray(data.rows) ? data.rows : [];
-        if (rows.length === 0) {
+        if (!rows.length) {
           historyBody.innerHTML = `<div class="rcpa-empty">No history yet.</div>`;
           return;
         }
-
         historyBody.innerHTML = `
         <table class="rcpa-history-table">
-          <thead>
-            <tr><th>Date & Time</th><th>Name</th><th>Activity</th></tr>
-          </thead>
+          <thead><tr><th>Date & Time</th><th>Name</th><th>Activity</th></tr></thead>
           <tbody>
             ${rows.map(h => `
               <tr>
-                <td>
-                  ${fmtDate(h.date_time)}
-                  ${(() => { const ago = timeAgo(h.date_time); return ago ? `<span class="rcpa-ago">(${ago})</span>` : ''; })()}
-                </td>
+                <td>${fmtDate(h.date_time)}${(() => { const ago = timeAgo(h.date_time); return ago ? `<span class="rcpa-ago">(${ago})</span>` : ''; })()}</td>
                 <td>${esc(h?.name)}</td>
                 <td>${esc(h?.activity)}</td>
-              </tr>
-            `).join('')}
+              </tr>`).join('')}
           </tbody>
-        </table>
-      `;
+        </table>`;
       } catch (err) {
         console.error(err);
         historyBody.innerHTML = `<div class="rcpa-empty">Failed to load history.</div>`;
       }
     }
-
 
     // ---- main list
     async function load() {
@@ -1161,22 +1123,16 @@
       try {
         const res = await fetch(`../php-backend/rcpa-list-request.php?${qs.toString()}`, { credentials: 'same-origin' });
         const data = await res.json();
-
         if (!res.ok || !data?.ok) throw new Error(data?.error || `HTTP ${res.status}`);
 
         total = Number.isFinite(data?.total) ? data.total : 0;
         const rows = Array.isArray(data?.rows) ? data.rows : [];
 
         if (rows.length === 0) {
-          // when rows.length === 0
           tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">No records found.</td></tr>`;
         } else {
-          // row template (removed the Conformance <td>)
-          // inside tbody.innerHTML = rows.map(r => { ... return `...` }).join('')
           tbody.innerHTML = rows.map(r => {
             const id = r?.id ?? '';
-
-            // NEW: decide if this row needs the blinking red border
             const s = String(r?.status || '').toUpperCase();
             const needsBlink = (
               s === 'REPLY CHECKING - ORIGINATOR' ||
@@ -1186,37 +1142,36 @@
             const rowClass = needsBlink ? 'rcpa-row-alert' : '';
 
             return `
-    <tr class="${rowClass}">
-      <td>${esc(id)}</td>
-      <td>${esc(labelForType(r?.rcpa_type))}</td>
-      <td>${badgeForCategory(r?.category)}</td>
-      <td>${fmtDate(r?.date_request)}</td>
-      <td>${renderCloseDue(r?.close_due_date)}</td>
-      <td>${badgeForStatus(r?.status)}</td>
-      <td>${esc(r?.originator_name)}</td>
-      <td>${esc(r?.section ? `${r.assignee} - ${r.section}` : r?.assignee)}</td>
-
-      <td>
-        <button type="button" class="rcpa-btn rcpa-view" data-id="${esc(id)}">View</button>
-      </td>
-      <td>
-        <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
-           data-id="${esc(id)}" role="button" tabindex="0"
-           title="View history"></i>
-      </td>
-    </tr>
-  `;
+<tr class="${rowClass}">
+  <td>${esc(id)}</td>
+  <td>${esc(labelForType(r?.rcpa_type))}</td>
+  <td>${badgeForCategory(r?.category)}</td>
+  <td>${fmtDate(r?.date_request)}</td>
+  <td>${renderCloseDue(r?.close_due_date)}</td>
+  <td>${badgeForStatus(r?.status)}</td>
+  <td>${esc(r?.originator_name)}</td>
+  <td>${esc(r?.section ? `${r.assignee} - ${r.section}` : r?.assignee)}</td>
+  <td><button type="button" class="rcpa-btn rcpa-view" data-id="${esc(id)}">View</button></td>
+  <td>
+    <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
+       data-id="${esc(id)}" role="button" tabindex="0"
+       title="View history"></i>
+  </td>
+</tr>`;
           }).join('');
-
         }
 
         const maxPage = Math.max(1, Math.ceil(total / pageSize));
         page = Math.min(page, maxPage);
         pageInfo.textContent = `Page ${page} of ${maxPage}`;
         totalEl.textContent = `${total} record${total === 1 ? '' : 's'}`;
-
         prevBtn.disabled = page <= 1;
         nextBtn.disabled = page >= maxPage;
+
+        // ⚡ update lastSeenId based on what we rendered
+        const maxId = rows.reduce((m, r) => Math.max(m, Number(r.id || 0)), lastSeenId);
+        if (maxId > lastSeenId) lastSeenId = maxId;
+
       } catch (err) {
         console.error(err);
         tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Failed to load records.</td></tr>`;
@@ -1227,17 +1182,14 @@
       }
     }
 
-
-    // Optional: also listen for a custom event if you prefer dispatching events
+    // Optional custom reload event
     document.addEventListener('rcpa:reload', () => load());
-
 
     prevBtn?.addEventListener('click', () => { if (page > 1) { page--; load(); } });
     nextBtn?.addEventListener('click', () => { page++; load(); });
-
     [fStatus, fType].forEach(el => el?.addEventListener('change', () => { page = 1; load(); }));
 
-    // History icon events (click + keyboard)
+    // History icon events
     tbody.addEventListener('click', (e) => {
       const icon = e.target.closest('.icon-rcpa-history');
       if (icon) {
@@ -1253,23 +1205,43 @@
         if (rcpaId) openHistoryModal(rcpaId);
       }
     });
-
     historyClose?.addEventListener('click', closeHistoryModal);
     historyModal?.addEventListener('click', (e) => {
-      if (e.target === historyModal) closeHistoryModal(); // click outside content
+      if (e.target === historyModal) closeHistoryModal();
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeHistoryModal();
     });
 
-    // ---- make the table reloadable from elsewhere (e.g., WebSocket) ----
+    // expose reload
     window.__rcpaTable = window.__rcpaTable || {};
-    window.__rcpaTable.reload = function () {
-      // keep filters/page as-is; just refresh the data
-      load();
-    };
+    window.__rcpaTable.reload = function () { load(); };
 
+    // ⚡ start SSE to auto-reload when a NEW request appears for this originator
+    function startSse() {
+      if (es) { try { es.close(); } catch { } }
+      es = new EventSource(`../php-backend/rcpa-requests-sse.php?since=${lastSeenId}`);
+      es.addEventListener('rcpa', (e) => {
+        try {
+          const data = JSON.parse(e.data || '{}');
+          if (data && data.max_id) {
+            lastSeenId = Math.max(lastSeenId, Number(data.max_id));
+            load(); // Keep filters/page; just refresh quietly
+          } else {
+            load();
+          }
+        } catch {
+          load();
+        }
+      });
+      es.onerror = () => {
+        // EventSource auto-reconnects; nothing to do
+      };
+    }
+
+    // Initial load then SSE
     load();
+    startSse();
   })();
 
   /* ------------------ VIEW MODAL: open when ".rcpa-view" is clicked ------------------ */
