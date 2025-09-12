@@ -1078,6 +1078,7 @@
 })();
 
 // --- QMS tabs notification badges ---
+// --- QMS tabs notification badges ---
 (function () {
   const ENDPOINT = '../php-backend/rcpa-qms-tab-counters.php';
 
@@ -1120,21 +1121,39 @@
     }
   }
 
-  async function refreshQmsTabBadges() {
+  // Cache tab DOM once
+  let btnQmsChecking, btnValid, btnInvalid, btnEvidence;
+  let bQmsChecking, bValid, bInvalid, bEvidence;
+
+  function ensureAllBadges() {
     const tabsWrap = document.querySelector('.rcpa-tabs');
-    if (!tabsWrap) return;
+    if (!tabsWrap) return false;
 
-    // Buttons in this page:
-    const btnQmsChecking = tabsWrap.querySelector('.rcpa-tab:nth-child(1)');
-    const btnValid = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-validation-reply.php"]');
-    const btnInvalid = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-invalidation-reply.php"]');
-    const btnEvidence = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-qms-corrective.php"]');
+    btnQmsChecking = tabsWrap.querySelector('.rcpa-tab:nth-child(1)');
+    btnValid      = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-validation-reply.php"]');
+    btnInvalid    = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-invalidation-reply.php"]');
+    btnEvidence   = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-qms-corrective.php"]');
 
-    // Ensure badge elements
-    const bQmsChecking = ensureBadge(btnQmsChecking, 'tabBadgeQmsChecking');
-    const bValid = ensureBadge(btnValid, 'tabBadgeValid');
-    const bInvalid = ensureBadge(btnInvalid, 'tabBadgeNotValid');
-    const bEvidence = ensureBadge(btnEvidence, 'tabBadgeEvidence');
+    bQmsChecking = ensureBadge(btnQmsChecking, 'tabBadgeQmsChecking');
+    bValid       = ensureBadge(btnValid, 'tabBadgeValid');
+    bInvalid     = ensureBadge(btnInvalid, 'tabBadgeNotValid');
+    bEvidence    = ensureBadge(btnEvidence, 'tabBadgeEvidence');
+
+    return true;
+  }
+
+  // Apply counts directly (for SSE path)
+  function applyCounts(counts) {
+    if (!counts) return;
+    ensureAllBadges();
+    setBadge(bQmsChecking, counts.qms_checking);
+    setBadge(bValid,       counts.valid);
+    setBadge(bInvalid,     counts.not_valid);
+    setBadge(bEvidence,    counts.evidence_checking);
+  }
+
+  async function refreshQmsTabBadges() {
+    if (!ensureAllBadges()) return;
 
     try {
       const res = await fetch(ENDPOINT, {
@@ -1149,12 +1168,7 @@
       }
 
       // Server already enforces visibility rules (QA/QMS = global, others = assignee-only)
-      const c = data.counts || {};
-      setBadge(bQmsChecking, c.qms_checking);
-      setBadge(bValid, c.valid);
-      setBadge(bInvalid, c.not_valid);
-      setBadge(bEvidence, c.evidence_checking);
-
+      applyCounts(data.counts || {});
     } catch {
       [bQmsChecking, bValid, bInvalid, bEvidence].forEach(b => { if (b) b.hidden = true; });
     }
@@ -1180,10 +1194,34 @@
     };
   }
 
-  // NEW: auto-refresh badges whenever pages fire a generic refresh event
+  // Auto-refresh badges whenever pages fire a generic refresh event
   document.addEventListener('rcpa:refresh', () => {
     if (typeof window.refreshQmsTabBadges === 'function') {
       window.refreshQmsTabBadges();
     }
   });
+
+  /* ---------------- SSE live updates ---------------- */
+  let es;
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+    // For badge counters we don't need query params; visibility is handled server-side
+    es = new EventSource('../php-backend/rcpa-qms-tab-counters-sse.php');
+
+    // Receive counts directly and apply without an extra fetch
+    es.addEventListener('rcpa-tabs', (ev) => {
+      try {
+        const payload = JSON.parse(ev.data || '{}');
+        if (payload && payload.counts) applyCounts(payload.counts);
+      } catch { /* ignore */ }
+    });
+
+    es.onerror = () => { /* EventSource will auto-reconnect */ };
+  }
+
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+
+  // Kick off SSE after DOMContentLoaded (so badges exist)
+  document.addEventListener('DOMContentLoaded', () => startSse());
 })();
+

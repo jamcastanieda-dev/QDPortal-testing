@@ -1457,6 +1457,7 @@
 // rcpa-task-validation-reply.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-qms-tab-counters.php';
+  const SSE_URL  = '../php-backend/rcpa-qms-tab-counters-sse.php';
 
   // Find tab by data-href with safe nth-child fallback (1..4)
   function pickTab(tabsWrap, selector, nth) {
@@ -1495,43 +1496,61 @@
     }
   }
 
-  async function refreshQmsTabBadges() {
+  // --- cache tab & badge nodes once ---
+  let btnQmsChecking, btnValid, btnInvalid, btnEvidence;
+  let bQmsChecking, bValid, bInvalid, bEvidence;
+
+  function ensureAllBadges() {
     const tabsWrap = document.querySelector('.rcpa-tabs');
-    if (!tabsWrap) return;
+    if (!tabsWrap) return false;
 
     // Tabs (order: QMS CHECKING, REPLIED - VALID, REPLIED - INVALID, EVIDENCE CHECKING)
-    const btnQmsChecking = pickTab(tabsWrap, 'rcpa-task-qms-checking.php', 1);
-    const btnValid = pickTab(tabsWrap, 'rcpa-task-validation-reply.php', 2);
-    const btnInvalid = pickTab(tabsWrap, 'rcpa-task-invalidation-reply.php', 3);
-    const btnEvidence = pickTab(tabsWrap, 'rcpa-task-qms-corrective.php', 4);
+    btnQmsChecking = pickTab(tabsWrap, 'rcpa-task-qms-checking.php', 1);
+    btnValid       = pickTab(tabsWrap, 'rcpa-task-validation-reply.php', 2);
+    btnInvalid     = pickTab(tabsWrap, 'rcpa-task-invalidation-reply.php', 3);
+    btnEvidence    = pickTab(tabsWrap, 'rcpa-task-qms-corrective.php', 4);
 
     // Badges
-    const bQmsChecking = ensureBadge(btnQmsChecking, 'tabBadgeQmsChecking');
-    const bValid = ensureBadge(btnValid, 'tabBadgeValid');
-    const bInvalid = ensureBadge(btnInvalid, 'tabBadgeNotValid');
-    const bEvidence = ensureBadge(btnEvidence, 'tabBadgeEvidence');
+    bQmsChecking = ensureBadge(btnQmsChecking, 'tabBadgeQmsChecking');
+    bValid       = ensureBadge(btnValid, 'tabBadgeValid');
+    bInvalid     = ensureBadge(btnInvalid, 'tabBadgeNotValid');
+    bEvidence    = ensureBadge(btnEvidence, 'tabBadgeEvidence');
+
+    return true;
+  }
+
+  // Apply counts from any source (REST/SSE)
+  function applyCounts(c) {
+    if (!c) return;
+    if (!ensureAllBadges()) return;
+
+    // Support old field names as fallback (closing/evidence)
+    const qmsCheckingCount = c.qms_checking ?? 0;
+    const validCount       = c.valid ?? c.closing ?? 0;
+    const invalidCount     = c.not_valid ?? 0;
+    const evidenceCount    = c.evidence_checking ?? c.evidence ?? 0;
+
+    setBadge(bQmsChecking, qmsCheckingCount);
+    setBadge(bValid,       validCount);
+    setBadge(bInvalid,     invalidCount);
+    setBadge(bEvidence,    evidenceCount);
+  }
+
+  async function refreshQmsTabBadges() {
+    if (!ensureAllBadges()) return;
 
     try {
-      const res = await fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+      const res = await fetch(ENDPOINT, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      });
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data || !data.ok) {
         [bQmsChecking, bValid, bInvalid, bEvidence].forEach(b => { if (b) b.hidden = true; });
         return;
       }
-
-      // Use whatever the backend provides; support old field names as fallback
-      const c = data.counts || {};
-      const qmsCheckingCount = c.qms_checking ?? 0;
-      const validCount = c.valid ?? c.closing ?? 0;           // fallback: 'closing'
-      const invalidCount = c.not_valid ?? 0;
-      const evidenceCount = c.evidence_checking ?? c.evidence ?? 0;
-
-      setBadge(bQmsChecking, qmsCheckingCount);
-      setBadge(bValid, validCount);
-      setBadge(bInvalid, invalidCount);
-      setBadge(bEvidence, evidenceCount);
-
+      applyCounts(data.counts || {});
     } catch {
       [bQmsChecking, bValid, bInvalid, bEvidence].forEach(b => { if (b) b.hidden = true; });
     }
@@ -1557,10 +1576,31 @@
     };
   }
 
-  // NEW: auto-refresh badges whenever pages fire a generic refresh event
+  // Auto-refresh badges whenever pages fire a generic refresh event
   document.addEventListener('rcpa:refresh', () => {
     if (typeof window.refreshQmsTabBadges === 'function') {
       window.refreshQmsTabBadges();
     }
   });
+
+  /* --------------- SSE live updates --------------- */
+  let es;
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+
+    es = new EventSource(SSE_URL);
+
+    // Server pushes: event: rcpa-tabs, data: { counts: { ... } }
+    es.addEventListener('rcpa-tabs', (ev) => {
+      try {
+        const payload = JSON.parse(ev.data || '{}');
+        if (payload && payload.counts) applyCounts(payload.counts);
+      } catch { /* ignore parse errors */ }
+    });
+
+    es.onerror = () => { /* EventSource will auto-reconnect by default */ };
+  }
+
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  document.addEventListener('DOMContentLoaded', () => startSse());
 })();

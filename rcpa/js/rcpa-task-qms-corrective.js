@@ -1577,115 +1577,163 @@
 
 // rcpa-task-qms-corrective.js  (EVIDENCE CHECKING page)
 (function () {
-    const ENDPOINT = '../php-backend/rcpa-qms-tab-counters.php';
+  const ENDPOINT = '../php-backend/rcpa-qms-tab-counters.php';
+  const SSE_URL  = '../php-backend/rcpa-qms-tab-counters-sse.php';
 
-    // Helper: find tab by data-href with nth-child fallback
-    function pickTab(tabsWrap, href, nth) {
-        return tabsWrap.querySelector(href ? `.rcpa-tab[data-href="${href}"]` : null)
-            || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
+  // Helper: find tab by data-href with nth-child fallback
+  function pickTab(tabsWrap, href, nth) {
+    return tabsWrap.querySelector(href ? `.rcpa-tab[data-href="${href}"]` : null)
+        || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
+  }
+
+  // Ensure a badge <span> exists inside a tab button; returns the element
+  function ensureBadge(btn, id) {
+    if (!btn) return null;
+    let b = btn.querySelector('.tab-badge');
+    if (!b) {
+      b = document.createElement('span');
+      b.className = 'tab-badge';
+      if (id) b.id = id;
+      b.hidden = true;
+      if (!btn.style.position) btn.style.position = 'relative';
+      btn.appendChild(b);
     }
+    return b;
+  }
 
-    // Ensure a badge <span> exists inside a tab button; returns the element
-    function ensureBadge(btn, id) {
-        if (!btn) return null;
-        let b = btn.querySelector('.tab-badge');
-        if (!b) {
-            b = document.createElement('span');
-            b.className = 'tab-badge';
-            if (id) b.id = id;
-            b.hidden = true;
-            if (!btn.style.position) btn.style.position = 'relative';
-            btn.appendChild(b);
-        }
-        return b;
+  function setBadge(el, count) {
+    if (!el) return;
+    const n = Number(count) || 0;
+    if (n > 0) {
+      el.textContent = n > 99 ? '99+' : String(n);
+      el.hidden = false;
+      el.title = `${n} item${n > 1 ? 's' : ''}`;
+      el.setAttribute('aria-label', el.title);
+    } else {
+      el.hidden = true;
+      el.removeAttribute('title');
+      el.removeAttribute('aria-label');
+      el.textContent = '0';
     }
+  }
 
-    function setBadge(el, count) {
-        if (!el) return;
-        const n = Number(count) || 0;
-        if (n > 0) {
-            el.textContent = n > 99 ? '99+' : String(n);
-            el.hidden = false;
-            el.title = `${n} item${n > 1 ? 's' : ''}`;
-            el.setAttribute('aria-label', el.title);
-        } else {
-            el.hidden = true;
-            el.removeAttribute('title');
-            el.removeAttribute('aria-label');
-            el.textContent = '0';
-        }
+  // Resolve tabs + badges (supports when active tab has no data-href via .is-active)
+  function resolveBadgeNodes() {
+    const tabsWrap = document.querySelector('.rcpa-tabs');
+    if (!tabsWrap) return null;
+
+    // Tabs order: 1) QMS CHECKING  2) REPLIED - VALID  3) REPLIED - INVALID  4) EVIDENCE CHECKING (this page)
+    const btnQmsChecking = pickTab(tabsWrap, 'rcpa-task-qms-checking.php', 1);
+    const btnValid       = pickTab(tabsWrap, 'rcpa-task-validation-reply.php', 2);
+    const btnInvalid     = pickTab(tabsWrap, 'rcpa-task-invalidation-reply.php', 3);
+    const btnEvidence    = tabsWrap.querySelector('.rcpa-tab.is-active')
+                        || pickTab(tabsWrap, 'rcpa-task-qms-corrective.php', 4);
+
+    return {
+      bQmsChecking: ensureBadge(btnQmsChecking, 'tabBadgeQmsChecking'),
+      bValid:       ensureBadge(btnValid,       'tabBadgeValid'),
+      bInvalid:     ensureBadge(btnInvalid,     'tabBadgeNotValid'),
+      bEvidence:    ensureBadge(btnEvidence,    'tabBadgeEvidence')
+    };
+  }
+
+  function applyCounts(c) {
+    const nodes = resolveBadgeNodes();
+    if (!nodes) return;
+
+    // Backend already enforces visibility. Support older field names too.
+    const qmsCheckingCount = c?.qms_checking      ?? 0;
+    const validCount       = c?.valid             ?? c?.closing ?? 0;
+    const invalidCount     = c?.not_valid         ?? 0;
+    const evidenceCount    = c?.evidence_checking ?? c?.evidence ?? 0;
+
+    setBadge(nodes.bQmsChecking, qmsCheckingCount);
+    setBadge(nodes.bValid,       validCount);
+    setBadge(nodes.bInvalid,     invalidCount);
+    setBadge(nodes.bEvidence,    evidenceCount);
+  }
+
+  async function refreshQmsTabBadges() {
+    // Ensure badges exist even if fetch fails
+    resolveBadgeNodes();
+
+    try {
+      const res = await fetch(ENDPOINT, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data || !data.ok) {
+        const n = resolveBadgeNodes();
+        if (n) [n.bQmsChecking, n.bValid, n.bInvalid, n.bEvidence].forEach(b => { if (b) b.hidden = true; });
+        return;
+      }
+      applyCounts(data.counts || {});
+    } catch {
+      const n = resolveBadgeNodes();
+      if (n) [n.bQmsChecking, n.bValid, n.bInvalid, n.bEvidence].forEach(b => { if (b) b.hidden = true; });
     }
+  }
 
-    async function refreshQmsTabBadges() {
-        const tabsWrap = document.querySelector('.rcpa-tabs');
-        if (!tabsWrap) return;
+  // Expose for websocket/manual refresh
+  window.refreshQmsTabBadges = refreshQmsTabBadges;
 
-        // Tabs order: 1) QMS CHECKING  2) REPLIED - VALID  3) REPLIED - INVALID  4) EVIDENCE CHECKING (this page)
-        const btnQmsChecking = pickTab(tabsWrap, 'rcpa-task-qms-checking.php', 1);
-        const btnValid = pickTab(tabsWrap, 'rcpa-task-validation-reply.php', 2);
-        const btnInvalid = pickTab(tabsWrap, 'rcpa-task-invalidation-reply.php', 3);
-        // On this page the active tab may not have data-href, so prefer .is-active
-        const btnEvidence = tabsWrap.querySelector('.rcpa-tab.is-active')
-            || pickTab(tabsWrap, 'rcpa-task-qms-corrective.php', 4);
+  // Initial load
+  document.addEventListener('DOMContentLoaded', refreshQmsTabBadges);
 
-        // Badges
-        const bQmsChecking = ensureBadge(btnQmsChecking, 'tabBadgeQmsChecking');
-        const bValid = ensureBadge(btnValid, 'tabBadgeValid');
-        const bInvalid = ensureBadge(btnInvalid, 'tabBadgeNotValid');
-        const bEvidence = ensureBadge(btnEvidence, 'tabBadgeEvidence');
+  // Optional: refresh via WebSocket broadcast
+  if (window.socket) {
+    const prev = window.socket.onmessage;
+    window.socket.onmessage = function (event) {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg && msg.action === 'rcpa-request') refreshQmsTabBadges();
+      } catch {
+        if (event.data === 'rcpa-request') refreshQmsTabBadges();
+      }
+      if (typeof prev === 'function') prev.call(this, event);
+    };
+  }
 
+  // Auto-refresh badges whenever pages fire a generic refresh event
+  document.addEventListener('rcpa:refresh', () => {
+    if (typeof window.refreshQmsTabBadges === 'function') {
+      window.refreshQmsTabBadges();
+    }
+  });
+
+  /* --------- SSE live updates (non-blocking) --------- */
+  let es;
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+
+    try {
+      es = new EventSource(SSE_URL);
+
+      // Preferred named event
+      es.addEventListener('rcpa-tabs', (ev) => {
         try {
-            const res = await fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
-            const data = await res.json().catch(() => ({}));
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      });
 
-            if (!res.ok || !data || !data.ok) {
-                [bQmsChecking, bValid, bInvalid, bEvidence].forEach(b => { if (b) b.hidden = true; });
-                return;
-            }
+      // Fallback default message
+      es.onmessage = (ev) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      };
 
-            // Backend already enforces visibility:
-            // - QA/QMS see global counts
-            // - Others see only rows where their department = rcpa_request.assignee
-            const c = data.counts || {};
-            const qmsCheckingCount = c.qms_checking ?? 0;
-            const validCount = c.valid ?? c.closing ?? 0;          // fallback if backend still uses 'closing'
-            const invalidCount = c.not_valid ?? 0;
-            const evidenceCount = c.evidence_checking ?? c.evidence ?? 0;
-
-            setBadge(bQmsChecking, qmsCheckingCount);
-            setBadge(bValid, validCount);
-            setBadge(bInvalid, invalidCount);
-            setBadge(bEvidence, evidenceCount);
-
-        } catch {
-            [bQmsChecking, bValid, bInvalid, bEvidence].forEach(b => { if (b) b.hidden = true; });
-        }
+      es.onerror = () => {
+        // EventSource will auto-reconnect; no action required
+      };
+    } catch {
+      // Silently ignore if EventSource unsupported
     }
+  }
 
-    // Expose for websocket/manual refresh
-    window.refreshQmsTabBadges = refreshQmsTabBadges;
-
-    // Initial load
-    document.addEventListener('DOMContentLoaded', refreshQmsTabBadges);
-
-    // Optional: refresh via WebSocket broadcast
-    if (window.socket) {
-        const prev = window.socket.onmessage;
-        window.socket.onmessage = function (event) {
-            try {
-                const msg = JSON.parse(event.data);
-                if (msg && msg.action === 'rcpa-request') refreshQmsTabBadges();
-            } catch {
-                if (event.data === 'rcpa-request') refreshQmsTabBadges();
-            }
-            if (typeof prev === 'function') prev.call(this, event);
-        };
-    }
-
-    // NEW: auto-refresh badges whenever pages fire a generic refresh event
-    document.addEventListener('rcpa:refresh', () => {
-        if (typeof window.refreshQmsTabBadges === 'function') {
-            window.refreshQmsTabBadges();
-        }
-    });
+  document.addEventListener('DOMContentLoaded', () => startSse());
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
 })();

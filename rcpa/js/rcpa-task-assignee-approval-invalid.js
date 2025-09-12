@@ -1064,7 +1064,9 @@
 // rcpa-task-assignee-approval-invalid.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-approval-tab-counters.php';
+  const SSE_URL  = '../php-backend/rcpa-assignee-approval-tab-counters-sse.php';
 
+  // ------- DOM helpers -------
   function pickTab(wrap, href, nth) {
     return wrap.querySelector(`.rcpa-tab[href$="${href}"]`)
       || wrap.querySelector(`.rcpa-tab[data-href="${href}"]`)
@@ -1110,41 +1112,68 @@
     });
   }
 
-  async function refreshAssigneeApprovalBadges() {
+  function resolveBadges() {
     const wrap = document.querySelector('.rcpa-tabs');
-    if (!wrap) return;
+    if (!wrap) return null;
     wireNav(wrap);
 
-    // Tabs: 1) VALID APPROVAL  2) IN-VALID APPROVAL (active here)
-    const tabValid = pickTab(wrap, 'rcpa-task-assignee-approval-valid.php', 1);
+    // Tabs: 1) VALID APPROVAL  2) IN-VALID APPROVAL
+    const tabValid   = pickTab(wrap, 'rcpa-task-assignee-approval-valid.php', 1);
     const tabInvalid = pickTab(wrap, 'rcpa-task-assignee-approval-invalid.php', 2);
 
-    const bValid = ensureBadge(tabValid, 'tabBadgeValidApproval');
-    const bInvalid = ensureBadge(tabInvalid, 'tabBadgeInvalidApproval');
+    return {
+      bValid:   ensureBadge(tabValid,   'tabBadgeValidApproval'),
+      bInvalid: ensureBadge(tabInvalid, 'tabBadgeInvalidApproval'),
+    };
+  }
 
+  // ------- State + efficient updates -------
+  let lastCounts = { valid_approval: undefined, invalid_approval: undefined };
+  let rafToken = null;
+
+  function applyCounts(counts) {
+    // Skip if no change
+    const va = counts?.valid_approval ?? 0;
+    const ia = counts?.invalid_approval ?? 0;
+    if (lastCounts.valid_approval === va && lastCounts.invalid_approval === ia) return;
+
+    lastCounts = { valid_approval: va, invalid_approval: ia };
+
+    if (rafToken) cancelAnimationFrame(rafToken);
+    rafToken = requestAnimationFrame(() => {
+      const nodes = resolveBadges();
+      if (!nodes) return;
+      setBadge(nodes.bValid,   va);
+      setBadge(nodes.bInvalid, ia);
+    });
+  }
+
+  // ------- One-shot fetch refresh -------
+  async function refreshAssigneeApprovalBadges() {
+    resolveBadges(); // ensure elements exist
     try {
-      const res = await fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+      const res  = await fetch(ENDPOINT, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'Cache-Control': 'no-cache' }
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data || !data.ok) {
-        [bValid, bInvalid].forEach(b => { if (b) b.hidden = true; });
+        const n = resolveBadges();
+        if (n) [n.bValid, n.bInvalid].forEach(b => { if (b) b.hidden = true; });
         return;
       }
-
-      const c = data.counts || {};
-      setBadge(bValid, c.valid_approval);
-      setBadge(bInvalid, c.invalid_approval);
-
+      applyCounts(data.counts || {});
     } catch {
-      [bValid, bInvalid].forEach(b => { if (b) b.hidden = true; });
+      const n = resolveBadges();
+      if (n) [n.bValid, n.bInvalid].forEach(b => { if (b) b.hidden = true; });
     }
   }
 
   window.refreshAssigneeApprovalBadges = refreshAssigneeApprovalBadges;
   document.addEventListener('DOMContentLoaded', refreshAssigneeApprovalBadges);
-  // Also refresh when in-page actions broadcast a refresh
-  document.addEventListener('rcpa:refresh', refreshAssigneeApprovalBadges);
+  document.addEventListener('rcpa:refresh',     refreshAssigneeApprovalBadges);
 
-
+  // Optional WebSocket bump
   if (window.socket) {
     const prev = window.socket.onmessage;
     window.socket.onmessage = function (event) {
@@ -1157,4 +1186,80 @@
       if (typeof prev === 'function') prev.call(this, event);
     };
   }
+
+  // ------- SSE live updates (robust) -------
+  let es;
+  let monitorTimer = null;
+
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+
+    // Don’t run SSE in background tabs to save resources
+    if (document.hidden) return;
+
+    try {
+      es = new EventSource(SSE_URL);
+
+      es.addEventListener('rcpa-assignee-approval-tabs', (ev) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      });
+
+      es.onmessage = (ev) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      };
+
+      es.onerror = () => {
+        // EventSource will auto-reconnect; we’ll also refresh via fetch for good measure
+        refreshAssigneeApprovalBadges();
+      };
+
+      // Light monitor to re-open if the stream gets closed by proxies after idle
+      clearInterval(monitorTimer);
+      monitorTimer = setInterval(() => {
+        if (!es) return;
+        // 0 = CONNECTING, 1 = OPEN, 2 = CLOSED
+        if (es.readyState === 2 /* CLOSED */) {
+          startSse(true);
+        }
+      }, 15000);
+    } catch {
+      // No EventSource support — nothing to do
+    }
+  }
+
+  function stopSse() {
+    try { if (es) es.close(); } catch {}
+    es = null;
+    clearInterval(monitorTimer);
+    monitorTimer = null;
+  }
+
+  // Start/stop SSE with page visibility to avoid holding connections in background
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopSse();
+    } else {
+      // On return to foreground, do a quick fetch then re-open SSE
+      refreshAssigneeApprovalBadges();
+      startSse(true);
+    }
+  });
+
+  // Kick things off
+  document.addEventListener('DOMContentLoaded', () => startSse());
+  window.addEventListener('beforeunload', stopSse);
+
+  // If your tabs are re-rendered dynamically, keep badges alive
+  const mo = new MutationObserver(() => resolveBadges());
+  document.addEventListener('DOMContentLoaded', () => {
+    const wrap = document.querySelector('.rcpa-tabs');
+    if (wrap) mo.observe(wrap, { childList: true, subtree: true });
+  });
 })();
+

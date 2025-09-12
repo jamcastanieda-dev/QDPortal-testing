@@ -1562,10 +1562,11 @@
 // rcpa-task-assignee-corrective.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-tab-counters.php';
+  const SSE_URL  = '../php-backend/rcpa-assignee-tab-counters-sse.php';
 
   function pickTab(tabsWrap, href, nth) {
     return tabsWrap.querySelector(`.rcpa-tab[href$="${href}"]`)
-      || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
+        || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
   }
 
   function ensureBadge(el, id) {
@@ -1598,39 +1599,55 @@
     }
   }
 
-  async function refreshAssigneeTabBadges() {
+  // Re-resolve nodes each time in case DOM changes
+  function resolveBadgeNodes() {
     const wrap = document.querySelector('.rcpa-tabs');
-    if (!wrap) return;
+    if (!wrap) return null;
 
     // Tabs: 1) ASSIGNEE PENDING  2) FOR CLOSING (this page active)
     const tabPending = pickTab(wrap, 'rcpa-task-assignee-pending.php', 1);
     const tabClosing = pickTab(wrap, 'rcpa-task-assignee-corrective.php', 2);
 
-    const bPending = ensureBadge(tabPending, 'tabBadgeAssigneePending');
-    const bClosing = ensureBadge(tabClosing, 'tabBadgeAssigneeClosing');
+    return {
+      bPending: ensureBadge(tabPending, 'tabBadgeAssigneePending'),
+      bClosing: ensureBadge(tabClosing, 'tabBadgeAssigneeClosing'),
+    };
+  }
+
+  function applyCounts(counts) {
+    const nodes = resolveBadgeNodes();
+    if (!nodes) return;
+    setBadge(nodes.bPending, counts?.assignee_pending ?? 0);
+    setBadge(nodes.bClosing, counts?.for_closing ?? 0);
+  }
+
+  async function refreshAssigneeTabBadges() {
+    // make sure badges exist even if fetch fails
+    resolveBadgeNodes();
 
     try {
       const res = await fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data || !data.ok) {
-        [bPending, bClosing].forEach(b => { if (b) b.hidden = true; });
+        const n = resolveBadgeNodes();
+        if (n) [n.bPending, n.bClosing].forEach(b => { if (b) b.hidden = true; });
         return;
       }
-
-      const c = data.counts || {};
-      setBadge(bPending, c.assignee_pending);
-      setBadge(bClosing, c.for_closing);
-
+      applyCounts(data.counts || {});
     } catch {
-      [bPending, bClosing].forEach(b => { if (b) b.hidden = true; });
+      const n = resolveBadgeNodes();
+      if (n) [n.bPending, n.bClosing].forEach(b => { if (b) b.hidden = true; });
     }
   }
 
+  // expose for manual refresh
   window.refreshAssigneeTabBadges = refreshAssigneeTabBadges;
 
+  // initial load + generic refresh hook
   document.addEventListener('DOMContentLoaded', refreshAssigneeTabBadges);
   document.addEventListener('rcpa:refresh', refreshAssigneeTabBadges);
 
+  // websocket fallback (if present)
   if (window.socket) {
     const prev = window.socket.onmessage;
     window.socket.onmessage = function (event) {
@@ -1643,4 +1660,39 @@
       if (typeof prev === 'function') prev.call(this, event);
     };
   }
+
+  /* ---------- SSE live updates (non-blocking) ---------- */
+  let es;
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+
+    try {
+      es = new EventSource(SSE_URL);
+
+      // Preferred named event
+      es.addEventListener('rcpa-assignee-tabs', (ev) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      });
+
+      // Fallback default message
+      es.onmessage = (ev) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      };
+
+      es.onerror = () => {
+        // EventSource auto-reconnects by itself; no manual retry needed.
+      };
+    } catch {
+      // Ignore if EventSource unsupported
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => startSse());
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
 })();

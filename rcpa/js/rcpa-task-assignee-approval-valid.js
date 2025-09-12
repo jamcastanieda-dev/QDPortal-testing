@@ -1513,14 +1513,16 @@
 })();
 
 // rcpa-task-assignee-approval-valid.js
+// js/rcpa-assignee-approval-tab-counters.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-approval-tab-counters.php';
+  const SSE_URL  = '../php-backend/rcpa-assignee-approval-tab-counters-sse.php';
 
   // Find a tab by href/data-href with nth-child fallback
   function pickTab(wrap, href, nth) {
     return wrap.querySelector(`.rcpa-tab[href$="${href}"]`)
-      || wrap.querySelector(`.rcpa-tab[data-href="${href}"]`)
-      || wrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
+        || wrap.querySelector(`.rcpa-tab[data-href="${href}"]`)
+        || wrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
   }
 
   // Make badges
@@ -1565,40 +1567,49 @@
     });
   }
 
-  async function refreshAssigneeApprovalBadges() {
+  function resolveBadgeNodes() {
     const wrap = document.querySelector('.rcpa-tabs');
-    if (!wrap) return;
+    if (!wrap) return null;
     wireNav(wrap);
 
     // Tabs: 1) VALID APPROVAL (active here)  2) IN-VALID APPROVAL
-    const tabValid = pickTab(wrap, 'rcpa-task-assignee-approval-valid.php', 1);
+    const tabValid   = pickTab(wrap, 'rcpa-task-assignee-approval-valid.php', 1);
     const tabInvalid = pickTab(wrap, 'rcpa-task-assignee-approval-invalid.php', 2);
 
-    const bValid = ensureBadge(tabValid, 'tabBadgeValidApproval');
-    const bInvalid = ensureBadge(tabInvalid, 'tabBadgeInvalidApproval');
+    return {
+      bValid:   ensureBadge(tabValid,   'tabBadgeValidApproval'),
+      bInvalid: ensureBadge(tabInvalid, 'tabBadgeInvalidApproval'),
+    };
+  }
+
+  function applyCounts(counts) {
+    const nodes = resolveBadgeNodes();
+    if (!nodes) return;
+    setBadge(nodes.bValid,   counts?.valid_approval   ?? 0);
+    setBadge(nodes.bInvalid, counts?.invalid_approval ?? 0);
+  }
+
+  async function refreshAssigneeApprovalBadges() {
+    resolveBadgeNodes(); // ensure badges exist even if fetch fails
 
     try {
-      const res = await fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+      const res  = await fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data || !data.ok) {
-        [bValid, bInvalid].forEach(b => { if (b) b.hidden = true; });
+        const n = resolveBadgeNodes();
+        if (n) [n.bValid, n.bInvalid].forEach(b => { if (b) b.hidden = true; });
         return;
       }
-
-      const c = data.counts || {};
-      setBadge(bValid, c.valid_approval);
-      setBadge(bInvalid, c.invalid_approval);
-
+      applyCounts(data.counts || {});
     } catch {
-      [bValid, bInvalid].forEach(b => { if (b) b.hidden = true; });
+      const n = resolveBadgeNodes();
+      if (n) [n.bValid, n.bInvalid].forEach(b => { if (b) b.hidden = true; });
     }
   }
 
   window.refreshAssigneeApprovalBadges = refreshAssigneeApprovalBadges;
   document.addEventListener('DOMContentLoaded', refreshAssigneeApprovalBadges);
-  // Also refresh counters when in-page actions broadcast a refresh
   document.addEventListener('rcpa:refresh', refreshAssigneeApprovalBadges);
-
 
   // Optional: refresh via WebSocket broadcast
   if (window.socket) {
@@ -1613,4 +1624,39 @@
       if (typeof prev === 'function') prev.call(this, event);
     };
   }
+
+  /* ---------- SSE live updates ---------- */
+  let es;
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+    try {
+      es = new EventSource(SSE_URL);
+
+      // Named event preferred
+      es.addEventListener('rcpa-assignee-approval-tabs', (ev) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      });
+
+      // Fallback default message
+      es.onmessage = (ev) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      };
+
+      es.onerror = () => {
+        // EventSource auto-reconnects; no manual retry here.
+      };
+    } catch {
+      // Ignore if EventSource isn't supported.
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => startSse());
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
 })();
+

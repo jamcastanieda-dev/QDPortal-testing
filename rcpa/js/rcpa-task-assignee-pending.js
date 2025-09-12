@@ -2236,11 +2236,12 @@
 // rcpa-task-assignee-pending.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-tab-counters.php';
+  const SSE_URL  = '../php-backend/rcpa-assignee-tab-counters-sse.php';
 
   // Pick a tab by href with safe nth-child fallback
   function pickTab(tabsWrap, href, nth) {
     return tabsWrap.querySelector(`.rcpa-tab[href$="${href}"]`)
-      || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
+        || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
   }
 
   // Ensure a badge <span> exists inside a tab link; returns the element
@@ -2274,38 +2275,54 @@
     }
   }
 
-  async function refreshAssigneeTabBadges() {
+  function resolveBadgeNodes() {
     const wrap = document.querySelector('.rcpa-tabs');
-    if (!wrap) return;
+    if (!wrap) return null;
 
     // Tabs: 1) ASSIGNEE PENDING (this page active)  2) FOR CLOSING
     const tabPending = pickTab(wrap, 'rcpa-task-assignee-pending.php', 1);
     const tabClosing = pickTab(wrap, 'rcpa-task-assignee-corrective.php', 2);
 
-    const bPending = ensureBadge(tabPending, 'tabBadgeAssigneePending');
-    const bClosing = ensureBadge(tabClosing, 'tabBadgeAssigneeClosing');
+    return {
+      bPending: ensureBadge(tabPending, 'tabBadgeAssigneePending'),
+      bClosing: ensureBadge(tabClosing, 'tabBadgeAssigneeClosing'),
+    };
+  }
+
+  function applyCounts(counts) {
+    const nodes = resolveBadgeNodes();
+    if (!nodes) return;
+
+    const pending = counts?.assignee_pending ?? 0;
+    const closing = counts?.for_closing ?? 0;
+
+    setBadge(nodes.bPending, pending);
+    setBadge(nodes.bClosing, closing);
+  }
+
+  async function refreshAssigneeTabBadges() {
+    // make sure badges exist even if fetch fails
+    resolveBadgeNodes();
 
     try {
       const res = await fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data || !data.ok) {
-        [bPending, bClosing].forEach(b => { if (b) b.hidden = true; });
+        const n = resolveBadgeNodes();
+        if (n) [n.bPending, n.bClosing].forEach(b => { if (b) b.hidden = true; });
         return;
       }
-
-      const c = data.counts || {};
-      setBadge(bPending, c.assignee_pending);
-      setBadge(bClosing, c.for_closing);
-
+      applyCounts(data.counts || {});
     } catch {
-      [bPending, bClosing].forEach(b => { if (b) b.hidden = true; });
+      const n = resolveBadgeNodes();
+      if (n) [n.bPending, n.bClosing].forEach(b => { if (b) b.hidden = true; });
     }
   }
 
   // Expose for websocket/manual refresh
   window.refreshAssigneeTabBadges = refreshAssigneeTabBadges;
 
-  // Initial load
+  // Initial load + generic refresh hook
   document.addEventListener('DOMContentLoaded', refreshAssigneeTabBadges);
   document.addEventListener('rcpa:refresh', refreshAssigneeTabBadges);
 
@@ -2322,4 +2339,39 @@
       if (typeof prev === 'function') prev.call(this, event);
     };
   }
+
+  /* ---------- SSE live updates (non-blocking) ---------- */
+  let es;
+  function startSse(restart = false) {
+    try { if (restart && es) es.close(); } catch {}
+
+    try {
+      es = new EventSource(SSE_URL);
+
+      // Preferred named event
+      es.addEventListener('rcpa-assignee-tabs', (ev) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      });
+
+      // Fallback default message
+      es.onmessage = (ev) => {
+        try {
+          const payload = JSON.parse(ev.data || '{}');
+          if (payload && payload.counts) applyCounts(payload.counts);
+        } catch {}
+      };
+
+      es.onerror = () => {
+        // EventSource auto-reconnects; nothing to do.
+      };
+    } catch {
+      // Ignore if EventSource unsupported
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => startSse());
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
 })();
