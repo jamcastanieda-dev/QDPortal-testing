@@ -4,7 +4,7 @@
   const pageInfo = document.getElementById('rcpa-page-info');
   const prevBtn = document.getElementById('rcpa-prev');
   const nextBtn = document.getElementById('rcpa-next');
-  const fStatus = document.getElementById('rcpa-filter-status');
+  // const fStatus = document.getElementById('rcpa-filter-status');
   const fType = document.getElementById('rcpa-filter-type');
 
   const actionContainer = document.getElementById('action-container');
@@ -120,7 +120,7 @@
   async function load(highlightId) {
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (fType.value) params.set('type', fType.value);
-    if (fStatus.value) params.set('status', fStatus.value);
+    // if (fStatus.value) params.set('status', fStatus.value);
 
     hideActions();
 
@@ -187,7 +187,7 @@
 
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
-  [fType, fStatus].forEach(el => el.addEventListener('change', () => { page = 1; load(); }));
+  [fType].forEach(el => el.addEventListener('change', () => { page = 1; load(); }));
 
   // --- positioning helpers for the floating action container ---
   const switchIcon = (iconElement, newIcon) => {

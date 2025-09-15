@@ -117,12 +117,12 @@
         <section class="rcpa-card">
             <header class="rcpa-table-toolbar">
                 <div class="rcpa-filters">
-                    <select id="rcpa-filter-status" class="u-line">
+                    <!-- <select id="rcpa-filter-status" class="u-line">
                         <option value="">All Status</option>
                         <option value="QMS CHECKING">QMS CHECKING</option>
                         <option value="FOR APPROVAL OF SUPERVISOR">FOR APPROVAL OF SUPERVISOR</option>
                         <option value="FOR APPROVAL OF MANAGER">FOR APPROVAL OF MANAGER</option>
-                    </select>
+                    </select> -->
 
                     <select id="rcpa-filter-type" class="u-line">
                         <option value="">All Types</option>
