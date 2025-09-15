@@ -118,6 +118,25 @@
                     <option value="QMS CHECKING">QMS CHECKING</option>
                     <option value="FOR APPROVAL OF SUPERVISOR">FOR APPROVAL OF SUPERVISOR</option>
                     <option value="FOR APPROVAL OF MANAGER">FOR APPROVAL OF MANAGER</option>
+                    
+                    <option value="REJECTED">REJECTED</option>
+                    <option value="ASSIGNEE PENDING">ASSIGNEE PENDING</option>
+                    <option value="VALID APPROVAL">VALID APPROVAL</option>
+                    <option value="IN-VALID APPROVAL">IN-VALID APPROVAL</option>
+                    <option value="IN-VALIDATION REPLY">IN-VALIDATION REPLY</option>
+                    <option value="VALIDATION REPLY">VALIDATION REPLY</option>
+                    <option value="VALIDATION REPLY APPROVAL">VALIDATION REPLY APPROVAL</option>
+                    <option value="IN-VALIDATION REPLY APPROVAL">IN-VALIDATION REPLY APPROVAL</option>
+                    <option value="FOR CLOSING">FOR CLOSING</option>
+                    <option value="FOR CLOSING APPROVAL">FOR CLOSING APPROVAL</option>
+                    <option value="EVIDENCE CHECKING">EVIDENCE CHECKING</option>
+                    <option value="EVIDENCE CHECKING APPROVAL">EVIDENCE CHECKING APPROVAL</option>
+                    <option value="EVIDENCE APPROVAL">EVIDENCE APPROVAL</option>
+                    <option value="CLOSED (VALID)">CLOSED (VALID)</option>
+                    <option value="CLOSED (IN-VALID)">CLOSED (IN-VALID)</option>
+                    <option value="REPLY CHECKING - ORIGINATOR">REPLY CHECKING - ORIGINATOR</option>
+                    <option value="IN-VALID APPROVAL - ORIGINATOR">IN-VALID APPROVAL - ORIGINATOR</option>
+
                 </select>
 
                 <select id="rcpa-filter-type" class="u-line">
