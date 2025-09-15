@@ -297,7 +297,6 @@
   startSse();
 })();
 
-
 /* ====== VIEW MODAL + ACCEPT / REJECT FLOWS ====== */
 (function () {
   // View Modal elems

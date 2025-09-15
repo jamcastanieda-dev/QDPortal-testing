@@ -9,7 +9,7 @@ try {
         throw new Exception('DB connection not available.');
     }
 
-    // Get distinct department + section (section may be null/empty)
+    // Pull department + section pairs
     $sql = "
         SELECT
             TRIM(department) AS department,
@@ -26,31 +26,34 @@ try {
         throw new Exception('Query failed: ' . $conn->error);
     }
 
-    // Build list:
-    // - include each unique Department once
-    // - include Department - Section for each non-empty section
-    $seen = [];
-    $departments = [];
-
+    // Build a map: dept => { has_section: bool, sections: [..] }
+    $map = [];
     while ($row = $result->fetch_assoc()) {
         $dept = $row['department'] ?? '';
         $sec  = $row['section'] ?? '';
-
         if ($dept === '') continue;
 
-        // Add the pure department once
-        if (!isset($seen[$dept])) {
-            $departments[] = $dept;
-            $seen[$dept] = true;
+        if (!isset($map[$dept])) {
+            $map[$dept] = ['has_section' => false, 'sections' => []];
         }
-
-        // If section exists, add "Department - Section"
         if ($sec !== '') {
-            $label = $dept . ' - ' . $sec;
-            if (!isset($seen[$label])) {
-                $departments[] = $label;
-                $seen[$label] = true;
+            $map[$dept]['has_section'] = true;
+            $map[$dept]['sections'][$sec] = true; // set-like
+        }
+    }
+
+    // Emit: if dept has sections, list only "Dept - Section" items;
+    // otherwise, list just "Dept"
+    $departments = [];
+    foreach ($map as $dept => $info) {
+        if ($info['has_section']) {
+            $secs = array_keys($info['sections']);
+            sort($secs, SORT_NATURAL | SORT_FLAG_CASE);
+            foreach ($secs as $sec) {
+                $departments[] = $dept . ' - ' . $sec;
             }
+        } else {
+            $departments[] = $dept;
         }
     }
 

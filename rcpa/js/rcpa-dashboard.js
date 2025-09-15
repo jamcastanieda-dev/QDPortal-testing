@@ -2234,7 +2234,6 @@
       await tryLoadAny(EXCELJS_SRCS, () => !!window.ExcelJS, 'ExcelJS');
     }
 
-
     function loadScript(src) {
       return new Promise((resolve, reject) => {
         const s = document.createElement('script');
@@ -2271,7 +2270,27 @@
       const res = await fetch(DEPT_API_URL, { credentials: 'same-origin' });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Failed to load departments');
-      gradeDepartments = Array.isArray(data.departments) ? data.departments : [];
+
+      // Start with what backend returns
+      const raw = Array.isArray(data.departments) ? data.departments : [];
+
+      // Hide plain department if it has one or more sections
+      // Build set of departments that have at least one "Dept - Section" label
+      const deptsWithSections = new Set();
+      raw.forEach(lbl => {
+        const ix = lbl.indexOf(' - ');
+        if (ix > -1) deptsWithSections.add(lbl.slice(0, ix).trim());
+      });
+
+      // Keep: all "Dept - Section" labels; and only those plain "Dept" labels whose dept is NOT in deptsWithSections
+      gradeDepartments = raw.filter(lbl => {
+        const ix = lbl.indexOf(' - ');
+        if (ix === -1) {
+          const dept = lbl.trim();
+          return !deptsWithSections.has(dept);
+        }
+        return true;
+      });
     }
 
     async function loadMetrics() {
@@ -2283,7 +2302,16 @@
     }
 
     function deptIsSection(label) { return typeof label === 'string' && label.includes(' - '); }
-    function baseDeptLabels() { return gradeDepartments.filter(l => !deptIsSection(l)); }
+    // Build unique list of top-level department names from whatever columns are displayed.
+    function getBaseDeptNames() {
+      const names = new Set();
+      gradeDepartments.forEach(lbl => {
+        const dept = lbl.split(' - ')[0]?.trim();
+        if (dept) names.add(dept);
+      });
+      return Array.from(names);
+    }
+
     function addCellRef(m, metric, label, tdEl) { cellIndex.set(`${m}|${metric}|${label}`, tdEl); }
     function getCell(m, metric, label) { return cellIndex.get(`${m}|${metric}|${label}`); }
     function percent(n, d) { if (!d) return null; return Math.round((n / d) * 100); }
@@ -2318,7 +2346,6 @@
         </tr>
       </thead>
       `;
-
 
       const replyRows = [
         ['HIT REPLY', 'reply_hit', false],
@@ -2439,7 +2466,7 @@
 
     function populate(metrics) {
       const labels = gradeDepartments.slice();
-      const baseOnly = baseDeptLabels();
+      const baseDeptNames = getBaseDeptNames();
 
       for (let m = 1; m <= 12; m++) {
         labels.forEach(label => {
@@ -2471,19 +2498,19 @@
           let sum = 0, num = 0, den = 0, isPct = metricKey.endsWith('_fill') || metricKey.endsWith('_sl');
           if (isPct) {
             if (metricKey === 'reply_fill') {
-              baseOnly.forEach(label => { const r = (metrics[label] && metrics[label][m]) || { total: 0, reply_total: 0 }; num += r.reply_total; den += r.total; });
+              baseDeptNames.forEach(dept => { const r = (metrics[dept] && metrics[dept][m]) || { total: 0, reply_total: 0 }; num += r.reply_total; den += r.total; });
             } else if (metricKey === 'reply_sl') {
-              baseOnly.forEach(label => { const r = (metrics[label] && metrics[label][m]) || { reply_total: 0, reply_hit: 0 }; num += r.reply_hit; den += r.reply_total; });
+              baseDeptNames.forEach(dept => { const r = (metrics[dept] && metrics[dept][m]) || { reply_total: 0, reply_hit: 0 }; num += r.reply_hit; den += r.reply_total; });
             } else if (metricKey === 'close_fill') {
-              baseOnly.forEach(label => { const r = (metrics[label] && metrics[label][m]) || { total: 0, close_total: 0 }; num += r.close_total; den += r.total; });
+              baseDeptNames.forEach(dept => { const r = (metrics[dept] && metrics[dept][m]) || { total: 0, close_total: 0 }; num += r.close_total; den += r.total; });
             } else if (metricKey === 'close_sl') {
-              baseOnly.forEach(label => { const r = (metrics[label] && metrics[label][m]) || { close_total: 0, close_hit: 0 }; num += r.close_hit; den += r.close_total; });
+              baseDeptNames.forEach(dept => { const r = (metrics[dept] && metrics[dept][m]) || { close_total: 0, close_hit: 0 }; num += r.close_hit; den += r.close_total; });
             }
             const pct = percent(num, den);
             setCellText(tableEl.querySelector(`td.col-total[data-month="${m}"][data-metric="${metricKey}_sum"]`), pct, true);
           } else {
-            baseOnly.forEach(label => {
-              const r = (metrics[label] && metrics[label][m]) || { total: 0, reply_total: 0, reply_hit: 0, close_total: 0, close_hit: 0 };
+            baseDeptNames.forEach(dept => {
+              const r = (metrics[dept] && metrics[dept][m]) || { total: 0, reply_total: 0, reply_hit: 0, close_total: 0, close_hit: 0 };
               if (metricKey === 'total') sum += r.total;
               if (metricKey === 'reply_hit') sum += r.reply_hit;
               if (metricKey === 'reply_missed') sum += Math.max(0, r.reply_total - r.reply_hit);
@@ -2525,19 +2552,20 @@
 
       const ytdSum = (metricKey) => {
         let num = 0, den = 0, sum = 0;
-        const baseOnly = baseDeptLabels();
+        const baseDeptNames = getBaseDeptNames();
         const monthsForYTD = Array.from({ length: (YEAR === now.getFullYear()) ? currentMonth : 12 }, (_, i) => i + 1);
-        if (metricKey === 'total') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].total : 0)));
-        if (metricKey === 'reply_hit') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].reply_hit : 0)));
-        if (metricKey === 'reply_missed') baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { reply_total: 0, reply_hit: 0 }; sum += Math.max(0, r.reply_total - r.reply_hit); }));
-        if (metricKey === 'reply_total') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].reply_total : 0)));
-        if (metricKey === 'close_hit') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].close_hit : 0)));
-        if (metricKey === 'close_missed') baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { close_total: 0, close_hit: 0 }; sum += Math.max(0, r.close_total - r.close_hit); }));
-        if (metricKey === 'close_total') baseOnly.forEach(l => monthsForYTD.forEach(m => sum += ((metrics[l] && metrics[l][m]) ? metrics[l][m].close_total : 0)));
-        if (metricKey === 'reply_fill') { baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { total: 0, reply_total: 0 }; num += r.reply_total; den += r.total; })); return percent(num, den); }
-        if (metricKey === 'reply_sl') { baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { reply_total: 0, reply_hit: 0 }; num += r.reply_hit; den += r.reply_total; })); return percent(num, den); }
-        if (metricKey === 'close_fill') { baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { total: 0, close_total: 0 }; num += r.close_total; den += r.total; })); return percent(num, den); }
-        if (metricKey === 'close_sl') { baseOnly.forEach(l => monthsForYTD.forEach(m => { const r = (metrics[l] && metrics[l][m]) || { close_total: 0, close_hit: 0 }; num += r.close_hit; den += r.close_total; })); return percent(num, den); }
+
+        if (metricKey === 'total') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].total : 0)));
+        if (metricKey === 'reply_hit') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].reply_hit : 0)));
+        if (metricKey === 'reply_missed') baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { reply_total: 0, reply_hit: 0 }; sum += Math.max(0, r.reply_total - r.reply_hit); }));
+        if (metricKey === 'reply_total') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].reply_total : 0)));
+        if (metricKey === 'close_hit') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].close_hit : 0)));
+        if (metricKey === 'close_missed') baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { close_total: 0, close_hit: 0 }; sum += Math.max(0, r.close_total - r.close_hit); }));
+        if (metricKey === 'close_total') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].close_total : 0)));
+        if (metricKey === 'reply_fill') { baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { total: 0, reply_total: 0 }; num += r.reply_total; den += r.total; })); return percent(num, den); }
+        if (metricKey === 'reply_sl') { baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { reply_total: 0, reply_hit: 0 }; num += r.reply_hit; den += r.reply_total; })); return percent(num, den); }
+        if (metricKey === 'close_fill') { baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { total: 0, close_total: 0 }; num += r.close_total; den += r.total; })); return percent(num, den); }
+        if (metricKey === 'close_sl') { baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { close_total: 0, close_hit: 0 }; num += r.close_hit; den += r.close_total; })); return percent(num, den); }
         return sum;
       };
 
@@ -2596,7 +2624,6 @@
       const BORDER_THIN = { style: 'thin', color: { argb: 'FF' + HEX.border } };
       const BORDER_MEDIUM = { style: 'medium', color: { argb: 'FF' + HEX.divider } };
       const allBorders = { top: BORDER_THIN, left: BORDER_THIN, bottom: BORDER_THIN, right: BORDER_THIN };
-
 
       // Build a clean clone (removes spacer row, converts "NO RCPA" spans, etc.)
       const table = getCleanTableClone();
@@ -2752,8 +2779,6 @@
         return s;
       }
 
-
-      // Write EVERY cell up to maxCols so the rightmost "Total" column is never lost
       // Write EVERY cell up to maxCols so the rightmost "Total" column is never lost
       for (let r = 1; r <= rows.length; r++) {
         ws.getRow(r); // ensure row exists
@@ -2802,7 +2827,6 @@
           }
         }
       }
-
 
       // Apply merges after values exist
       merges.forEach(m => ws.mergeCells(m.r1, m.c1, m.r2, m.c2));
@@ -2873,7 +2897,6 @@
           const txtUC = txt.toUpperCase();
 
           // We'll detect these from the header row texts
-          // (deptColIdx / totalColIdx are declared outside in exportToPDF())
           if (data.section === 'head') {
             if (txtUC === 'DEPARTMENT') deptColIdx = data.column.index;
             if (txtUC === 'TOTAL') totalColIdx = data.column.index;
@@ -2881,11 +2904,9 @@
             if (totalColIdx === data.column.index) {
               data.cell.styles.fillColor = totalHeadRGB;
             }
-            // Don't return here — we still want to process classes like 'hdr-dept'
           }
 
           const cellEl = data.cell.raw || data.cell.element || null;
-          const trEl = data.row?.raw || data.row?.element || (cellEl ? cellEl.parentElement : null);
           const classes = (cellEl && cellEl.classList) ? Array.from(cellEl.classList) : [];
           const setFill = (hex) => { data.cell.styles.fillColor = hex2rgb(hex); };
 
@@ -2929,7 +2950,6 @@
           if (data.section === 'head') data.cell.styles.fontStyle = 'bold';
         },
 
-
         // Stronger left divider before the Total column
         didDrawCell: (data) => {
           if (data.section !== 'head' && data.section !== 'body') return;
@@ -2947,7 +2967,6 @@
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
       doc.save(`GRADE_${YEAR}_${stamp}.pdf`);
     }
-
 
     /* --------------------- Modal open/close --------------------- */
     const open = async () => {
@@ -3018,6 +3037,7 @@
     });
   }
 })();
+
 
 /* ====== HISTORY MODAL ====== */
 (function () {
