@@ -81,8 +81,8 @@ try {
     if ($insR) { $insR->bind_param('isss', $id, $type, $remarks, $attachmentsJson); $insR->execute(); $insR->close(); }
   }
 
-  // Update status -> EVIDENCE CHECKING
-  $newStatus = 'EVIDENCE CHECKING';
+  // Update status -> EVIDENCE CHECKING - ORIGINATOR
+  $newStatus = 'EVIDENCE CHECKING - ORIGINATOR';
   $upd = $conn->prepare("UPDATE rcpa_request SET status=? WHERE id=?");
   if (!$upd) throw new Exception('Prepare failed: '.$conn->error);
   $upd->bind_param('si', $newStatus, $id);

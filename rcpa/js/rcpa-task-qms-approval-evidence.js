@@ -1309,91 +1309,40 @@
         renderEvList(evInput.files || []);
     });
 
-    // ===== ACCEPT flow -> open Evidence modal, save it, then close RCPA =====
+    // ACCEPT in EVIDENCE APPROVAL → directly close (no evidence modal here anymore)
     document.addEventListener('rcpa:action', async (e) => {
-        const { action } = e.detail || {};
-        if (action !== 'accept') return;
+        const { action, id } = e.detail || {};
+        if (action !== 'accept' || !id) return;
 
-        const id = getActiveRcpaId(e.detail);
-        if (!id) return;
-
-        // open Evidence modal first
-        openEvidenceModal(id);
-    });
-
-    // Submit Evidence modal -> save to rcpa_evidence_checking_remarks, then confirm/close
-    evForm?.addEventListener('submit', async (ev) => {
-        ev.preventDefault();
-        const id = evCurrentId || getActiveRcpaId({});
-        if (!id) { alert('Missing record id.'); return; }
+        const ok = await confirmProceed(
+            'Close this RCPA?',
+            'This will set the status to CLOSED (VALID).',
+            'Yes, close'
+        );
+        if (!ok) return;
 
         try {
-            evSubmit.disabled = true;
-            evSubmit.textContent = 'Saving…';
-
-            const fd = new FormData();
-            fd.append('id', String(id));
-            fd.append('remarks', evRemarks?.value || '');
-            fd.append('action_done', 'yes'); // always YES
-            if (evInput && evInput.files) {
-                [...evInput.files].forEach(f => fd.append('attachments[]', f, f.name));
-            }
-
-            // 1) Save Evidence Checking (no status change)
-            const saveRes = await fetch('../php-backend/rcpa-save-evidence-checking.php', {
-                method: 'POST',
-                body: fd,
-                credentials: 'same-origin'
-            });
-            const saveData = await saveRes.json().catch(() => ({}));
-            if (!saveRes.ok || !saveData?.ok) throw new Error(saveData?.error || `HTTP ${saveRes.status}`);
-
-            // 2) Ask to close now
-            const ok = await confirmProceed('Close this RCPA?', 'This will set the status to CLOSED (VALID).', 'Yes, close');
-            if (!ok) {
-                closeEvidenceModal();
-                if (window.Swal) Swal.fire({ icon: 'success', title: 'Saved', text: 'Evidence saved.' });
-                else alert('Evidence saved.');
-                return;
-            }
-
-            evSubmit.textContent = 'Closing…';
-
-            // 3) Proceed with final close
-            const closeRes = await fetch('../php-backend/rcpa-accept-evidence-approval.php', {
+            const res = await fetch('../php-backend/rcpa-accept-evidence-approval.php', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id })
             });
-            const closeData = await closeRes.json().catch(() => ({}));
-            if (!closeRes.ok || !closeData.ok) throw new Error(closeData?.error || `HTTP ${closeRes.status}`);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data?.ok) throw new Error(data?.error || `HTTP ${res.status}`);
 
-            // reflect new status in the modal if it’s open
+            // reflect new status in the open view (if visible)
             const st = document.getElementById('rcpa-view-status');
-            if (st) st.value = closeData.status || 'CLOSED (VALID)';
+            if (st) st.value = data.status || 'CLOSED (VALID)';
 
             if (typeof refreshRcpaTable === 'function') { try { await refreshRcpaTable(); } catch { } }
-
-            // Close modals
-            closeEvidenceModal();
-            const view = document.getElementById('rcpa-view-modal');
-            if (view && !view.hidden) {
-                view.classList.remove('show');
-                view.setAttribute('hidden', '');
-                document.body.style.overflow = '';
-            }
-
-            // notify
             document.dispatchEvent(new CustomEvent('rcpa:refresh'));
+
             if (window.Swal) Swal.fire({ icon: 'success', title: 'Closed', text: 'Status updated to CLOSED (VALID).' });
             else alert('Closed. Status updated to CLOSED (VALID).');
         } catch (err) {
-            if (window.Swal) Swal.fire({ icon: 'error', title: 'Save/Close failed', text: err?.message || 'Unexpected error.' });
-            else alert(err?.message || 'Save/Close failed.');
-        } finally {
-            evSubmit.disabled = false;
-            evSubmit.textContent = 'Submit';
+            if (window.Swal) Swal.fire({ icon: 'error', title: 'Close failed', text: err?.message || 'Unexpected error.' });
+            else alert(err?.message || 'Close failed.');
         }
     });
 
@@ -1405,7 +1354,7 @@
         openRejectModal();
     });
 
-    // Submit REJECT from EVIDENCE APPROVAL -> EVIDENCE CHECKING
+    // Submit REJECT from EVIDENCE APPROVAL -> EVIDENCE CHECKING - ORIGINATOR
     rjForm?.addEventListener('submit', async (ev) => {
         ev.preventDefault();
 
@@ -1421,7 +1370,7 @@
 
         const ok = await confirmProceed(
             'Return to Originator for more evidence?',
-            'This will set the status to EVIDENCE CHECKING and record your reason.',
+            'This will set the status to EVIDENCE CHECKING - ORIGINATOR and record your reason.',
             'Yes, submit'
         );
         if (!ok) return;
@@ -1447,7 +1396,7 @@
 
             // reflect status if modal is visible
             const st = document.getElementById('rcpa-view-status');
-            if (st) st.value = data.status || 'EVIDENCE CHECKING';
+            if (st) st.value = data.status || 'EVIDENCE CHECKING - ORIGINATOR';
 
             // close modals + refresh
             const rejectModal = document.getElementById('rcpa-reject-modal');
@@ -1461,8 +1410,8 @@
             // also notify any other listeners
             document.dispatchEvent(new CustomEvent('rcpa:refresh'));
 
-            if (window.Swal) Swal.fire({ icon: 'success', title: 'Returned', text: 'Status updated to EVIDENCE CHECKING.' });
-            else alert('Returned. Status updated to EVIDENCE CHECKING.');
+            if (window.Swal) Swal.fire({ icon: 'success', title: 'Returned', text: 'Status updated to EVIDENCE CHECKING - ORIGINATOR.' });
+            else alert('Returned. Status updated to EVIDENCE CHECKING - ORIGINATOR.');
         } catch (err) {
             if (window.Swal) Swal.fire({ icon: 'error', title: 'Submit failed', text: err?.message || 'Unexpected error.' });
             else alert(err?.message || 'Submit failed.');
@@ -1471,6 +1420,7 @@
             rjSubmit.textContent = 'Submit';
         }
     });
+
 
     // Make sure Why-Why button is present even before first open (harmless if modal not yet filled)
     bindWhyWhyButton();

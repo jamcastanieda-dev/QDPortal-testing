@@ -531,9 +531,8 @@
         </div>
     </div>
 
-    <!-- Evidence Checking modal (standalone; not wired to Accept by default) -->
     <!-- Evidence Checking modal (opens on Accept) -->
-    <div class="modal-overlay" id="rcpa-evidence-modal" hidden>
+    <!-- <div class="modal-overlay" id="rcpa-evidence-modal" hidden>
         <div class="modal-content" id="rcpa-evidence-content">
             <button type="button" class="close-btn" id="rcpa-evidence-close" aria-label="Close">&times;</button>
             <h3>Verification of Implementation on Correction, Corrective Action, Preventive Action</h3>
@@ -558,7 +557,7 @@
                 </div>
             </form>
         </div>
-    </div>
+    </div> -->
 
     <!-- Why-Why Analysis (VIEW) -->
     <div class="modal-overlay" id="rcpa-why-view-modal" hidden aria-modal="true" role="dialog" aria-labelledby="rcpa-why-view-title">
@@ -582,7 +581,7 @@
     <div class="modal-overlay" id="rcpa-reject-modal" hidden>
         <div class="modal-content" id="rcpa-reject-content">
             <button type="button" class="close-btn" id="rcpa-reject-close" aria-label="Close">&times;</button>
-            <h3>Return to QMS Team — Reason</h3>
+            <h3>Return to Assignee — Reason</h3>
 
             <form id="rcpa-reject-form" novalidate enctype="multipart/form-data">
                 <label class="field" style="display:block;margin-top:8px;">

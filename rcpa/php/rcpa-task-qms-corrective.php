@@ -546,42 +546,24 @@
         </div>
     </div>
 
-    <!-- Evidence Checking modal (before Accept)
+    <!-- Evidence Checking modal (opens on Accept) -->
     <div class="modal-overlay" id="rcpa-evidence-modal" hidden>
         <div class="modal-content" id="rcpa-evidence-content">
             <button type="button" class="close-btn" id="rcpa-evidence-close" aria-label="Close">&times;</button>
             <h3>Verification of Implementation on Correction, Corrective Action, Preventive Action</h3>
 
             <form id="rcpa-evidence-form" novalidate enctype="multipart/form-data">
-                <div class="ev-action-row" role="group" aria-labelledby="ev-action-title">
-                    <span id="ev-action-title" class="ev-action-title">Action Done:</span>
-                    <label class="ev-action-opt">
-                        <input type="checkbox" id="rcpa-ev-yes"> <span>yes</span>
-                    </label>
-                    <label class="ev-action-opt">
-                        <input type="checkbox" id="rcpa-ev-no"> <span>no</span>
-                    </label>
-                </div>
-
-               
                 <label class="field" style="display:block;margin-top:8px;">
                     <div class="reject-attach-wrap">
                         <textarea id="rcpa-ev-remarks" class="u-area" rows="6" placeholder="Remarks"></textarea>
-
-                       
                         <button type="button" class="attach-icon reject-attach-icon" id="rcpa-ev-clip" title="Attach files">
                             <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
                         </button>
-
-                        
                         <span class="attach-badge reject-attach-badge" id="rcpa-ev-attach-count" hidden>0</span>
-
-                       
                         <input id="rcpa-ev-files" name="attachments[]" type="file" multiple class="visually-hidden">
                     </div>
                 </label>
 
-             
                 <div class="reject-files-list" id="rcpa-ev-files-list"></div>
 
                 <div class="actions" style="margin-top:12px; display:flex; gap:8px;">
@@ -590,7 +572,7 @@
                 </div>
             </form>
         </div>
-    </div> -->
+    </div>
 
     <!-- Why-Why Analysis (VIEW) -->
     <div class="modal-overlay" id="rcpa-why-view-modal" hidden aria-modal="true" role="dialog" aria-labelledby="rcpa-why-view-title">

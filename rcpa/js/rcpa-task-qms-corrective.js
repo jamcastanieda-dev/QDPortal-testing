@@ -1345,42 +1345,117 @@
   });
 
 
+  // ACCEPT in CORRECTIVE CHECKING → collect evidence first, then move to EVIDENCE CHECKING - ORIGINATOR
   document.addEventListener('rcpa:action', async (e) => {
     const { action, id } = e.detail || {};
     if (action !== 'accept' || !id) return;
 
-    const ok = await confirmProceed(
-      'Accept corrective reply?',
-      'This will move the request to EVIDENCE APPROVAL.',
-      'Yes, accept'
-    );
-    if (!ok) return;
+    // Open the Evidence modal first (we will save, then ask to proceed)
+    // Track which record we’re working on
+    if (typeof openEvidenceModal === 'function') {
+      openEvidenceModal(id);
+    } else {
+      // Fallback if function is scoped differently:
+      // (re-copy the openEvidenceModal from below or ensure it’s in scope)
+      const modal = document.getElementById('rcpa-evidence-modal');
+      if (modal) {
+        // store the id for submit handler
+        window.__rcpa_ev_currentId = id;
+        modal.removeAttribute('hidden');
+        requestAnimationFrame(() => modal.classList.add('show'));
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => document.getElementById('rcpa-ev-remarks')?.focus(), 60);
+      }
+    }
+  });
+
+  // Submit Evidence → save remarks/files, then ask to move to EVIDENCE CHECKING - ORIGINATOR
+  evForm?.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+
+    // Prefer local tracker; fallback to any cached/current id you keep
+    const id = (typeof evCurrentId !== 'undefined' && evCurrentId)
+      ? evCurrentId
+      : (window.__rcpa_ev_currentId || null);
+
+    if (!id) { alert('Missing record id.'); return; }
 
     try {
-      const res = await fetch('../php-backend/rcpa-accept-corrective-checking.php', {
+      evSubmit.disabled = true;
+      evSubmit.textContent = 'Saving…';
+
+      const fd = new FormData();
+      fd.append('id', String(id));
+      fd.append('remarks', document.getElementById('rcpa-ev-remarks')?.value || '');
+      fd.append('action_done', 'yes'); // backend ignores input; kept for clarity
+      if (evInput && evInput.files) {
+        [...evInput.files].forEach(f => fd.append('attachments[]', f, f.name));
+      }
+
+      // 1) Save Evidence Checking (no status change)
+      const saveRes = await fetch('../php-backend/rcpa-save-evidence-checking.php', {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin'
+      });
+      const saveData = await saveRes.json().catch(() => ({}));
+      if (!saveRes.ok || !saveData?.ok) throw new Error(saveData?.error || `HTTP ${saveRes.status}`);
+
+      // 2) Ask to move forward
+      const ok = await (typeof confirmProceed === 'function'
+        ? confirmProceed('Accept corrective reply?', 'This will move the request to EVIDENCE CHECKING - ORIGINATOR.', 'Yes, accept')
+        : Promise.resolve(window.confirm('Accept corrective reply?\n\nThis will move the request to EVIDENCE CHECKING - ORIGINATOR.')));
+
+      if (!ok) {
+        // Close only the evidence modal, keep the view open
+        const evModal = document.getElementById('rcpa-evidence-modal');
+        if (evModal) {
+          evModal.classList.remove('show');
+          evModal.setAttribute('hidden', '');
+          document.body.style.overflow = '';
+        }
+        if (window.Swal) Swal.fire({ icon: 'success', title: 'Saved', text: 'Evidence saved.' });
+        else alert('Evidence saved.');
+        return;
+      }
+
+      evSubmit.textContent = 'Moving…';
+
+      // 3) Move to EVIDENCE CHECKING - ORIGINATOR
+      const moveRes = await fetch('../php-backend/rcpa-accept-corrective-checking.php', {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' }, // use legacy JSON path
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      const moveData = await moveRes.json().catch(() => ({}));
+      if (!moveRes.ok || !moveData?.ok) throw new Error(moveData?.error || `HTTP ${moveRes.status}`);
 
-      // update status in the view
+      // Reflect new status in the view
       const st = document.getElementById('rcpa-view-status');
-      if (st) st.value = data.status || 'EVIDENCE APPROVAL';
+      if (st) st.value = moveData.status || 'EVIDENCE CHECKING - ORIGINATOR';
+
+      // Close Evidence modal
+      const evModal = document.getElementById('rcpa-evidence-modal');
+      if (evModal) {
+        evModal.classList.remove('show');
+        evModal.setAttribute('hidden', '');
+        document.body.style.overflow = '';
+      }
 
       if (typeof refreshRcpaTable === 'function') { try { await refreshRcpaTable(); } catch { } }
       document.dispatchEvent(new CustomEvent('rcpa:refresh'));
 
-      if (window.Swal) Swal.fire({ icon: 'success', title: 'Accepted', text: 'Moved to EVIDENCE APPROVAL.' });
-      else alert('Accepted. Moved to EVIDENCE APPROVAL.');
+      if (window.Swal) Swal.fire({ icon: 'success', title: 'Accepted', text: 'Moved to EVIDENCE CHECKING - ORIGINATOR.' });
+      else alert('Accepted. Moved to EVIDENCE CHECKING - ORIGINATOR.');
     } catch (err) {
-      if (window.Swal) Swal.fire({ icon: 'error', title: 'Accept failed', text: err?.message || 'Unexpected error.' });
-      else alert(err?.message || 'Accept failed.');
+      if (window.Swal) Swal.fire({ icon: 'error', title: 'Save/Accept failed', text: err?.message || 'Unexpected error.' });
+      else alert(err?.message || 'Save/Accept failed.');
+    } finally {
+      evSubmit.disabled = false;
+      evSubmit.textContent = 'Submit';
     }
   });
-
 
 
   // Reject → return to Assignee (status: ASSIGNEE PENDING)

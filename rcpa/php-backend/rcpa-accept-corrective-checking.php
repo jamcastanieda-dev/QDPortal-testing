@@ -50,7 +50,7 @@ try {
   if (!$row) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Record not found']); exit; }
 
   // ▼▼ Updated target status ▼▼
-  $targetStatus = 'EVIDENCE APPROVAL';
+  $targetStatus = 'EVIDENCE CHECKING - ORIGINATOR';
   $already = (trim((string)$row['status']) === $targetStatus);
 
   $conn->begin_transaction();
@@ -126,12 +126,12 @@ try {
 
     // remove now-empty folders
     foreach (array_keys($dirsToMaybeRemove) as $dir) {
-        if (is_dir($dir)) {
-            $scan = @scandir($dir);
-            if ($scan && count($scan) <= 2) { // only . and ..
-                @rmdir($dir);
-            }
+      if (is_dir($dir)) {
+        $scan = @scandir($dir);
+        if ($scan && count($scan) <= 2) { // only . and ..
+          @rmdir($dir);
         }
+      }
     }
 
     // 3) Delete the existing DB rows for this rcpa_no
@@ -171,7 +171,7 @@ try {
 
         $filesMeta[] = [
           'name' => $orig,
-          'url'  => $webBase . rawurlencode($safe),
+          'url'  => $webBase + rawurlencode($safe), // NOTE: if you see a 500 here, replace + with .
           'size' => (int)($sizes[$i] ?? 0),
         ];
       }
@@ -213,7 +213,7 @@ try {
   }
 
   // Insert request history
-  $activity = 'The QMS/QA accepted the corrective reply for evidence approval';
+  $activity = 'The QMS/QA accepted the corrective reply for evidence checking (originator)';
   $insH = $conn->prepare("INSERT INTO rcpa_request_history (rcpa_no, name, activity) VALUES (?, ?, ?)");
   if (!$insH) throw new Exception('Prepare failed: '.$conn->error);
   $rcpa_no = (string)$id;
