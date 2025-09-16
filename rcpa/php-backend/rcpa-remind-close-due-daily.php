@@ -1,17 +1,9 @@
 <?php
 // php-backend/rcpa-remind-close-due-daily.php
-// Runs weekly (every Monday) and emails assignee groups when close_due_date is exactly
-// 28, 21, 14, 7 days, or 0 days (today) away.
-// Now CC's all users where system_users.department = 'QMS'.
+// Runs daily and emails assignee groups when close_due_date is exactly 4, 3, 2, 1 weeks away, or today (28, 21, 14, 7, 0 days).
 
 declare(strict_types=1);
 date_default_timezone_set('Asia/Manila');
-
-// Guard: only run on Monday (1 = Monday per ISO-8601)
-if ((int)date('N') !== 1) {
-  echo "Not Monday; skipping\n";
-  exit(0);
-}
 
 require_once __DIR__ . '/../../connection.php';
 $db = (isset($mysqli) && $mysqli instanceof mysqli) ? $mysqli
@@ -41,8 +33,7 @@ if ($qs = $db->prepare("SELECT email FROM system_users WHERE department = ? AND 
 $qmsEmails = array_values(array_unique(array_filter($qmsEmails)));
 
 /* ---------------------------------------------------
-   Pull all rows due in 28, 21, 14, 7, or 0 day(s) based on `close_due_date`
-   (If you want Tuesday warnings too, add 1 to the list: IN (28,21,14,7,1,0))
+   Pull all rows due weekly (28, 21, 14, 7, or 0 days) based on `close_due_date`
 --------------------------------------------------- */
 $sql = "
   SELECT
@@ -54,7 +45,7 @@ $sql = "
   FROM rcpa_request
   WHERE close_due_date IS NOT NULL
     AND close_date IS NULL
-    AND DATEDIFF(close_due_date, CURDATE()) IN (28, 21, 14, 7, 1, 0)
+    AND DATEDIFF(close_due_date, CURDATE()) IN (28, 21, 14, 7, 0)
     AND status IN ('ASSIGNEE PENDING', 'VALIDATION REPLY', 'IN-VALIDATION REPLY')
   ORDER BY id
 ";
@@ -88,11 +79,16 @@ foreach ($rows as $r) {
   $due       = $r['due'];
   $daysLeft  = (int)$r['days_left'];
 
-  // Build the activity/labels per offset (for idempotency & email copy)
-  $label = ($daysLeft === 0) ? 'today' : (($daysLeft === 1) ? '1 day' : ($daysLeft . ' days'));
-  $activityStr = ($daysLeft === 0)
-    ? 'Reminder: Close due today'
-    : 'Reminder: Close due in ' . $label; // e.g., "Reminder: Close due in 7 days"
+  // Build the label (for email copy) and activity (for idempotency)
+  if ($daysLeft === 0) {
+    $label = 'today';
+    $activityStr = 'Reminder: Close due today';
+  } else {
+    $weeks = intdiv($daysLeft, 7); // safe because we only fetch multiples of 7
+    $label = ($weeks === 1) ? '1 week' : ($weeks . ' weeks');
+    // Keep activity string stable at the "weekly mark" to avoid duplicate sends on the same day
+    $activityStr = 'Reminder: Close due in ' . $label;
+  }
 
   // Avoid resending the SAME reminder today
   $already = false;
