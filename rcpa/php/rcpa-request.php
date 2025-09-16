@@ -135,6 +135,7 @@
                     <option value="CLOSED (VALID)">CLOSED (VALID)</option>
                     <option value="CLOSED (IN-VALID)">CLOSED (IN-VALID)</option>
                     <option value="REPLY CHECKING - ORIGINATOR">REPLY CHECKING - ORIGINATOR</option>
+                    <option value="EVIDENCE CHECKING - ORIGINATOR">EVIDENCE CHECKING - ORIGINATOR</option>
                     <option value="IN-VALID APPROVAL - ORIGINATOR">IN-VALID APPROVAL - ORIGINATOR</option>
 
                 </select>

@@ -767,6 +767,7 @@
 
   const typeFilter = document.getElementById('rcpaListTypeFilter');
   const listSearch = document.getElementById('rcpaListSearch');
+  const statusFilter = document.getElementById('rcpaListStatusFilter');
 
   // Add near your other helpers
   function companyFromDepartment(dept) {
@@ -1111,6 +1112,7 @@
     const c = (companyFilter?.value || 'all').toUpperCase();
     const t = (typeof typeFilter === 'undefined' || !typeFilter) ? 'all'
       : (typeFilter.value || 'all').toLowerCase().trim();
+    const s = (statusFilter?.value || '').toUpperCase().trim(); // <-- NEW
     const q = (listSearch?.value || '').trim().toLowerCase();
 
     filteredRows = allRows.filter(r => {
@@ -1122,9 +1124,12 @@
       const typeOf = normalizeTypeLabel(r).toLowerCase();
       const okType = (t === 'all') || (typeOf === t);
 
+      const statusRaw = String(r.status || '').toUpperCase().trim();
+      const okStatus = (s === '') || (statusRaw === s);          // <-- NEW
+
       const okSearch = (q === '') || ((r.__search || '').includes(q));
 
-      return okYear && okCompany && okType && okSearch;
+      return okYear && okCompany && okType && okStatus && okSearch; // <-- include okStatus
     });
 
     page = 1;
@@ -1219,6 +1224,7 @@
       // Reset filters (optional)
       if (companyFilter) companyFilter.value = 'all';
       if (typeFilter) typeFilter.value = 'all';
+      if (statusFilter) statusFilter.value = ''; // All Status
 
       populateYearFilter(allRows);
       applyFilter(); // will render page 1 and update footer
@@ -1269,6 +1275,8 @@
   });
 
   typeFilter?.addEventListener('change', applyFilter);
+  statusFilter?.addEventListener('change', applyFilter);
+
 
 
   /* NEW: pagination events */

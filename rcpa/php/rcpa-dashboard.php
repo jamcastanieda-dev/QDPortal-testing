@@ -603,6 +603,35 @@
                         style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
                         <option value="all" selected>All</option>
                     </select>
+
+                    <!-- Status filter -->
+                    <label for="rcpaListStatusFilter" style="font-weight:800;color:#334155;">Status</label>
+                    <select id="rcpaListStatusFilter"
+                            style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
+                    <option value="">All Status</option>
+                    <option value="QMS CHECKING">QMS CHECKING</option>
+                    <option value="FOR APPROVAL OF SUPERVISOR">FOR APPROVAL OF SUPERVISOR</option>
+                    <option value="FOR APPROVAL OF MANAGER">FOR APPROVAL OF MANAGER</option>
+                    <option value="REJECTED">REJECTED</option>
+                    <option value="ASSIGNEE PENDING">ASSIGNEE PENDING</option>
+                    <option value="VALID APPROVAL">VALID APPROVAL</option>
+                    <option value="IN-VALID APPROVAL">IN-VALID APPROVAL</option>
+                    <option value="IN-VALIDATION REPLY">IN-VALIDATION REPLY</option>
+                    <option value="VALIDATION REPLY">VALIDATION REPLY</option>
+                    <option value="VALIDATION REPLY APPROVAL">VALIDATION REPLY APPROVAL</option>
+                    <option value="IN-VALIDATION REPLY APPROVAL">IN-VALIDATION REPLY APPROVAL</option>
+                    <option value="FOR CLOSING">FOR CLOSING</option>
+                    <option value="FOR CLOSING APPROVAL">FOR CLOSING APPROVAL</option>
+                    <option value="EVIDENCE CHECKING">EVIDENCE CHECKING</option>
+                    <option value="EVIDENCE CHECKING APPROVAL">EVIDENCE CHECKING APPROVAL</option>
+                    <option value="EVIDENCE APPROVAL">EVIDENCE APPROVAL</option>
+                    <option value="CLOSED (VALID)">CLOSED (VALID)</option>
+                    <option value="CLOSED (IN-VALID)">CLOSED (IN-VALID)</option>
+                    <option value="REPLY CHECKING - ORIGINATOR">REPLY CHECKING - ORIGINATOR</option>
+                    <option value="EVIDENCE CHECKING - ORIGINATOR">EVIDENCE CHECKING - ORIGINATOR</option>
+                    <option value="IN-VALID APPROVAL - ORIGINATOR">IN-VALID APPROVAL - ORIGINATOR</option>
+                    </select>
+
                 </div>
             </div>
 
