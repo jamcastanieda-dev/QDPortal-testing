@@ -1,8 +1,19 @@
 (function () {
   // --- Per-row permission: dept must match; if row has section, it must also match user's section ---
-  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
+  // Robust parse for approver flag — avoids treating "0"/"false" as true
+  const toBoolFlag = (v) => {
+    if (v === true || v === 1) return true;
+    if (v === false || v === 0 || v == null) return false;
+    const s = String(v).trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes' || s === 'on';
+  };
+  const IS_APPROVER = toBoolFlag(window.RCPA_IS_APPROVER);
+
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
   const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+
+  // ✅ only QMS approvers can act across departments
+  const CAN_OVERRIDE_DEPT = IS_APPROVER && CURRENT_DEPT === 'qms';
 
   const norm = s => (s ?? '').toString().trim().toLowerCase();
   // Returns true if user can act on this row based on dept/section
@@ -85,10 +96,11 @@
     return '';
   }
 
-  // Show hamburger if user is an approver OR (dept matches and, if present, section matches)
+  // Show hamburger if user can act
+  // ✅ only QMS approvers can override department; others must match dept/section
   function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
-    if (IS_APPROVER || canActOnRow(assignee, section)) {
+    if (CAN_OVERRIDE_DEPT || canActOnRow(assignee, section)) {
       return `
         <div class="rcpa-actions">
           <button class="rcpa-more" data-id="${safeId}" title="Actions">
@@ -316,7 +328,7 @@
   });
 
   // Top tabs navigation (only if you later add data-href)
-  document.querySelector('.rcpa-table-toolbar').addEventListener('click', (e) => {
+  document.querySelector('.rcpa-table-toolbar')?.addEventListener('click', (e) => {
     const tab = e.target.closest('.rcpa-tab[data-href]');
     if (!tab) return;
     window.location.href = tab.dataset.href;
@@ -361,6 +373,8 @@
   load();
   startSse(); // ⚡ start realtime
 })();
+
+
 
 
 
