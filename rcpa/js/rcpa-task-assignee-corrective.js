@@ -374,10 +374,6 @@
   startSse(); // ⚡ start realtime
 })();
 
-
-
-
-
 /* ====== VIEW MODAL: fetch, fill, show ====== */
 (function () {
   // Modal elems
