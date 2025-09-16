@@ -53,7 +53,11 @@
             </li>
 
             <li class="selected">
-                <a href="#">RCPA <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
+                <a href="#" class="has-badge">
+                    RCPA
+                    <span id="rcpa-parent-badge" class="notif-badge" hidden>0</span>
+                    <i class="fa-solid fa-caret-right submenu-indicator"></i>
+                </a>
                 <ul class="submenu">
                     <li class="not-selected"><a href="rcpa-dashboard.php">Dashboard</a></li>
                     <li class="not-selected">

@@ -1341,7 +1341,7 @@ input[type="checkbox"] {
   justify-content: center;
   height: 1.15em;
   min-width: 1.4em;
-  padding: 0 .55em;
+  padding: .23em .55em;
   margin-left: .5rem;
   border-radius: 999px;
   background: #e11d48;

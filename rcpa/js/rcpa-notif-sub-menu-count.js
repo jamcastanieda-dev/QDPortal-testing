@@ -1,4 +1,35 @@
 (function () {
+  const AGG_ID = 'rcpa-parent-badge';
+  const state = { request: 0, approval: 0, task: 0 };
+
+  function update() {
+    const el = document.getElementById(AGG_ID);
+    if (!el) return; // safe if parent badge isn't on this page
+    const total = (state.request || 0) + (state.approval || 0) + (state.task || 0);
+    if (total > 0) {
+      el.textContent = total > 99 ? '99+' : String(total);
+      el.hidden = false;
+      const title = `${total} RCPA notification${total > 1 ? 's' : ''} (sum of Request, Approval, Tasks)`;
+      el.title = title;
+      el.setAttribute('aria-label', title);
+    } else {
+      el.hidden = true;
+      el.removeAttribute('title');
+      el.removeAttribute('aria-label');
+    }
+  }
+
+  // Expose aggregator hook
+  window.__rcpaUpdate = function (kind, count) {
+    if (!['request', 'approval', 'task'].includes(kind)) return;
+    state[kind] = Number(count) || 0;
+    update();
+  };
+
+  document.addEventListener('DOMContentLoaded', update);
+})();
+
+(function () {
   const BADGE_ID = 'rcpa-task-badge';
   // If your REST endpoint is actually rcpa-task-count.php, change ENDPOINT below.
   const ENDPOINT = '../php-backend/rcpa-notif-tasks-count.php';
@@ -19,6 +50,7 @@
       badge.removeAttribute('title');
       badge.removeAttribute('aria-label');
     }
+    if (typeof window.__rcpaUpdate === 'function') window.__rcpaUpdate('task', n); // report to parent
   }
 
   async function refreshRcpaTaskBadge() {
@@ -67,7 +99,6 @@
   }
 })();
 
-
 (function () {
   const BADGE_ID = 'rcpa-approval-badge';
   const ENDPOINT = '../php-backend/rcpa-notif-approval-count.php';
@@ -88,6 +119,7 @@
       badge.removeAttribute('title');
       badge.removeAttribute('aria-label');
     }
+    if (typeof window.__rcpaUpdate === 'function') window.__rcpaUpdate('approval', n); // report to parent
   }
 
   async function refreshRcpaApprovalBadge() {
@@ -132,7 +164,6 @@
   }
 })();
 
-
 (function () {
   const BADGE_ID = 'rcpa-request-badge';
   const ENDPOINT = '../php-backend/rcpa-notif-request-count.php';
@@ -153,6 +184,7 @@
       badge.removeAttribute('title');
       badge.removeAttribute('aria-label');
     }
+    if (typeof window.__rcpaUpdate === 'function') window.__rcpaUpdate('request', n); // report to parent
   }
 
   async function refreshRcpaRequestBadge() {
