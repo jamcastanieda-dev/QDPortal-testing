@@ -1,9 +1,17 @@
 <?php
 // php-backend/rcpa-remind-close-due-daily.php
-// Runs daily and emails assignee groups when close_due_date is exactly 7 days, 1 day, 14 days, 21 days, or 28 days away.
+// Runs weekly (every Monday) and emails assignee groups when close_due_date is exactly
+// 28, 21, 14, 7 days, or 0 days (today) away.
+// Now CC's all users where system_users.department = 'QMS'.
 
 declare(strict_types=1);
 date_default_timezone_set('Asia/Manila');
+
+// Guard: only run on Monday (1 = Monday per ISO-8601)
+if ((int)date('N') !== 1) {
+  echo "Not Monday; skipping\n";
+  exit(0);
+}
 
 require_once __DIR__ . '/../../connection.php';
 $db = (isset($mysqli) && $mysqli instanceof mysqli) ? $mysqli
@@ -33,7 +41,8 @@ if ($qs = $db->prepare("SELECT email FROM system_users WHERE department = ? AND 
 $qmsEmails = array_values(array_unique(array_filter($qmsEmails)));
 
 /* ---------------------------------------------------
-   Pull all rows due in 7, 1, 14, 21, or 28 days based on `close_due_date`
+   Pull all rows due in 28, 21, 14, 7, or 0 day(s) based on `close_due_date`
+   (If you want Tuesday warnings too, add 1 to the list: IN (28,21,14,7,1,0))
 --------------------------------------------------- */
 $sql = "
   SELECT
@@ -45,11 +54,10 @@ $sql = "
   FROM rcpa_request
   WHERE close_due_date IS NOT NULL
     AND close_date IS NULL
-    AND DATEDIFF(close_due_date, CURDATE()) IN (7, 1, 14, 21, 28)
+    AND DATEDIFF(close_due_date, CURDATE()) IN (28, 21, 14, 7, 1, 0)
     AND status IN ('ASSIGNEE PENDING', 'VALIDATION REPLY', 'IN-VALIDATION REPLY')
   ORDER BY id
 ";
-
 
 $rows = [];
 if (!($st = $db->prepare($sql))) { echo "Prepare failed: ".$db->error."\n"; exit(1); }
@@ -81,8 +89,10 @@ foreach ($rows as $r) {
   $daysLeft  = (int)$r['days_left'];
 
   // Build the activity/labels per offset (for idempotency & email copy)
-  $label = ($daysLeft === 1) ? '1 day' : ($daysLeft . ' days');
-  $activityStr = 'Reminder: Close due in ' . $label; // e.g., "Reminder: Close due in 7 days"
+  $label = ($daysLeft === 0) ? 'today' : (($daysLeft === 1) ? '1 day' : ($daysLeft . ' days'));
+  $activityStr = ($daysLeft === 0)
+    ? 'Reminder: Close due today'
+    : 'Reminder: Close due in ' . $label; // e.g., "Reminder: Close due in 7 days"
 
   // Avoid resending the SAME reminder today
   $already = false;
@@ -135,7 +145,10 @@ foreach ($rows as $r) {
 
   // Compose email
   $deptDisplay  = $dept . ($section !== '' ? ' - ' . $section : '');
-  $subject      = sprintf('RCPA #%d - %s left to close (%s)', (int)$id, $label, $deptDisplay);
+  $subject      = ($daysLeft === 0)
+    ? sprintf('RCPA #%d - Close due today (%s)', (int)$id, $deptDisplay)
+    : sprintf('RCPA #%d - %s left to close (%s)', (int)$id, $label, $deptDisplay);
+
   $portalUrl    = 'http://rti10517/qdportal/login.php';
   $closeDueTxt  = date('F j, Y', strtotime($due));
 
@@ -147,7 +160,9 @@ foreach ($rows as $r) {
 <!doctype html><html lang="en"><head><meta charset="utf-8"></head>
 <body style="font-family:Arial,Helvetica,sans-serif; color:#111827;">
   <p>Good day,</p>
-  <p>This is a friendly reminder that the closing for <strong>RCPA #'.(int)$id.'</strong> is due in <strong>'.$label.'</strong>.</p>
+  <p>This is a friendly reminder that the closing for <strong>RCPA #'.(int)$id.'</strong> is '
+  . ($daysLeft === 0 ? 'due <strong>today</strong>.' : 'due in <strong>'.$label.'</strong>.') .
+'</p>
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse; font-size:14px;">
     <tr><td style="padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb;">Assignee</td><td style="padding:6px 10px; border:1px solid #e5e7eb;"><strong>'.$deptDispSafe.'</strong></td></tr>
     <tr><td style="padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb;">Close Due Date</td><td style="padding:6px 10px; border:1px solid #e5e7eb;">'.$closeDueSafe.'</td></tr>
@@ -160,10 +175,15 @@ foreach ($rows as $r) {
   <p style="color:#6b7280; font-size:12px;">This is an automated reminder from the QD Portal.</p>
 </body></html>';
 
-  $altBody = "Reminder: RCPA #$id close due in $label\n"
-            ."Assignee: $deptDisplay\n"
-            ."Close Due Date: $closeDueTxt\n"
-            ."Open QD Portal: $portalUrl\n";
+  $altBody = ($daysLeft === 0)
+    ? "Reminder: RCPA #$id close is due today\n"
+       ."Assignee: $deptDisplay\n"
+       ."Close Due Date: $closeDueTxt\n"
+       ."Open QD Portal: $portalUrl\n"
+    : "Reminder: RCPA #$id close due in $label\n"
+       ."Assignee: $deptDisplay\n"
+       ."Close Due Date: $closeDueTxt\n"
+       ."Open QD Portal: $portalUrl\n";
 
   // Send with CC to QMS
   sendEmailNotification($to, $subject, $htmlBody, $altBody, $cc);
