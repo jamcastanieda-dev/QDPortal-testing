@@ -75,7 +75,7 @@
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
-    
+    if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
@@ -111,7 +111,7 @@
     if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
     const year = d.getFullYear();
@@ -123,22 +123,22 @@
   }
 
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const m = parseInt(ymd.slice(5,7), 10) - 1;
-    const d = parseInt(ymd.slice(8,10), 10);
-    const y = parseInt(ymd.slice(0,4), 10);
-    if ([m,d,y].some(Number.isNaN)) return ymd;
-    return `${mnames[m]} ${String(d).padStart(2,'0')}, ${y}`;
+    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const m = parseInt(ymd.slice(5, 7), 10) - 1;
+    const d = parseInt(ymd.slice(8, 10), 10);
+    const y = parseInt(ymd.slice(0, 4), 10);
+    if ([m, d, y].some(Number.isNaN)) return ymd;
+    return `${mnames[m]} ${String(d).padStart(2, '0')}, ${y}`;
   }
   function daysDiffFromToday(ymd) {
-    const y = parseInt(ymd.slice(0,4), 10);
-    const m = parseInt(ymd.slice(5,7), 10) - 1;
-    const d = parseInt(ymd.slice(8,10), 10);
-    if ([y,m,d].some(Number.isNaN)) return null;
+    const y = parseInt(ymd.slice(0, 4), 10);
+    const m = parseInt(ymd.slice(5, 7), 10) - 1;
+    const d = parseInt(ymd.slice(8, 10), 10);
+    if ([y, m, d].some(Number.isNaN)) return null;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const due = new Date(y,m,d);
-    const msPerDay = 24*60*60*1000;
+    const due = new Date(y, m, d);
+    const msPerDay = 24 * 60 * 60 * 1000;
     return Math.round((due - today) / msPerDay);
   }
   function formatReplyDueCell(ymd) {
@@ -326,7 +326,7 @@
 
   // ⚡ SSE: refresh whenever count/max changes for this viewer
   function startSse(restart = false) {
-    if (restart && es) { try { es.close(); } catch {} }
+    if (restart && es) { try { es.close(); } catch { } }
     const qs = new URLSearchParams();
     if (fType?.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-assignee-pending-sse.php?${qs.toString()}`);
@@ -2236,12 +2236,12 @@
 // rcpa-task-assignee-pending.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-tab-counters.php';
-  const SSE_URL  = '../php-backend/rcpa-assignee-tab-counters-sse.php';
+  const SSE_URL = '../php-backend/rcpa-assignee-tab-counters-sse.php';
 
   // Pick a tab by href with safe nth-child fallback
   function pickTab(tabsWrap, href, nth) {
     return tabsWrap.querySelector(`.rcpa-tab[href$="${href}"]`)
-        || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
+      || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
   }
 
   // Ensure a badge <span> exists inside a tab link; returns the element
@@ -2343,7 +2343,7 @@
   /* ---------- SSE live updates (non-blocking) ---------- */
   let es;
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
 
     try {
       es = new EventSource(SSE_URL);
@@ -2353,7 +2353,7 @@
         try {
           const payload = JSON.parse(ev.data || '{}');
           if (payload && payload.counts) applyCounts(payload.counts);
-        } catch {}
+        } catch { }
       });
 
       // Fallback default message
@@ -2361,7 +2361,7 @@
         try {
           const payload = JSON.parse(ev.data || '{}');
           if (payload && payload.counts) applyCounts(payload.counts);
-        } catch {}
+        } catch { }
       };
 
       es.onerror = () => {
@@ -2373,5 +2373,5 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => startSse());
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 })();

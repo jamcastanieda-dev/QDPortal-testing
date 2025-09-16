@@ -75,7 +75,7 @@
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
-    
+    if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
@@ -196,7 +196,7 @@
 
   // 🔔 realtime via SSE (mirrors same filter/visibility as the PHP list)
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
     const qs = new URLSearchParams();
     if (fType.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-approval-invalid-sse.php?${qs.toString()}`);
@@ -308,7 +308,7 @@
   nextBtn.addEventListener('click', () => { page++; load(); });
   fType.addEventListener('change', () => { page = 1; load(); startSse(true); });
 
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 
   load();
   startSse(); // ⚡ realtime
@@ -1064,7 +1064,7 @@
 // rcpa-task-assignee-approval-invalid.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-approval-tab-counters.php';
-  const SSE_URL  = '../php-backend/rcpa-assignee-approval-tab-counters-sse.php';
+  const SSE_URL = '../php-backend/rcpa-assignee-approval-tab-counters-sse.php';
 
   // ------- DOM helpers -------
   function pickTab(wrap, href, nth) {
@@ -1118,11 +1118,11 @@
     wireNav(wrap);
 
     // Tabs: 1) VALID APPROVAL  2) IN-VALID APPROVAL
-    const tabValid   = pickTab(wrap, 'rcpa-task-assignee-approval-valid.php', 1);
+    const tabValid = pickTab(wrap, 'rcpa-task-assignee-approval-valid.php', 1);
     const tabInvalid = pickTab(wrap, 'rcpa-task-assignee-approval-invalid.php', 2);
 
     return {
-      bValid:   ensureBadge(tabValid,   'tabBadgeValidApproval'),
+      bValid: ensureBadge(tabValid, 'tabBadgeValidApproval'),
       bInvalid: ensureBadge(tabInvalid, 'tabBadgeInvalidApproval'),
     };
   }
@@ -1143,7 +1143,7 @@
     rafToken = requestAnimationFrame(() => {
       const nodes = resolveBadges();
       if (!nodes) return;
-      setBadge(nodes.bValid,   va);
+      setBadge(nodes.bValid, va);
       setBadge(nodes.bInvalid, ia);
     });
   }
@@ -1152,7 +1152,7 @@
   async function refreshAssigneeApprovalBadges() {
     resolveBadges(); // ensure elements exist
     try {
-      const res  = await fetch(ENDPOINT, {
+      const res = await fetch(ENDPOINT, {
         credentials: 'same-origin',
         headers: { 'Accept': 'application/json', 'Cache-Control': 'no-cache' }
       });
@@ -1171,7 +1171,7 @@
 
   window.refreshAssigneeApprovalBadges = refreshAssigneeApprovalBadges;
   document.addEventListener('DOMContentLoaded', refreshAssigneeApprovalBadges);
-  document.addEventListener('rcpa:refresh',     refreshAssigneeApprovalBadges);
+  document.addEventListener('rcpa:refresh', refreshAssigneeApprovalBadges);
 
   // Optional WebSocket bump
   if (window.socket) {
@@ -1192,7 +1192,7 @@
   let monitorTimer = null;
 
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
 
     // Don’t run SSE in background tabs to save resources
     if (document.hidden) return;
@@ -1204,14 +1204,14 @@
         try {
           const payload = JSON.parse(ev.data || '{}');
           if (payload && payload.counts) applyCounts(payload.counts);
-        } catch {}
+        } catch { }
       });
 
       es.onmessage = (ev) => {
         try {
           const payload = JSON.parse(ev.data || '{}');
           if (payload && payload.counts) applyCounts(payload.counts);
-        } catch {}
+        } catch { }
       };
 
       es.onerror = () => {
@@ -1234,7 +1234,7 @@
   }
 
   function stopSse() {
-    try { if (es) es.close(); } catch {}
+    try { if (es) es.close(); } catch { }
     es = null;
     clearInterval(monitorTimer);
     monitorTimer = null;

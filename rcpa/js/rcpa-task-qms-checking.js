@@ -61,7 +61,7 @@
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
-    
+    if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
@@ -297,7 +297,7 @@
 
   // ⚡ SSE: auto-reload when new QMS Checking items appear for this viewer
   function startSse(restart = false) {
-    if (restart && es) { try { es.close(); } catch {} }
+    if (restart && es) { try { es.close(); } catch { } }
     const qs = new URLSearchParams({ since: String(lastSeenId) });
     if (fType.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-qms-checking-sse.php?${qs.toString()}`);
@@ -1130,14 +1130,14 @@
     if (!tabsWrap) return false;
 
     btnQmsChecking = tabsWrap.querySelector('.rcpa-tab:nth-child(1)');
-    btnValid      = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-validation-reply.php"]');
-    btnInvalid    = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-invalidation-reply.php"]');
-    btnEvidence   = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-qms-corrective.php"]');
+    btnValid = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-validation-reply.php"]');
+    btnInvalid = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-invalidation-reply.php"]');
+    btnEvidence = tabsWrap.querySelector('.rcpa-tab[data-href="rcpa-task-qms-corrective.php"]');
 
     bQmsChecking = ensureBadge(btnQmsChecking, 'tabBadgeQmsChecking');
-    bValid       = ensureBadge(btnValid, 'tabBadgeValid');
-    bInvalid     = ensureBadge(btnInvalid, 'tabBadgeNotValid');
-    bEvidence    = ensureBadge(btnEvidence, 'tabBadgeEvidence');
+    bValid = ensureBadge(btnValid, 'tabBadgeValid');
+    bInvalid = ensureBadge(btnInvalid, 'tabBadgeNotValid');
+    bEvidence = ensureBadge(btnEvidence, 'tabBadgeEvidence');
 
     return true;
   }
@@ -1147,9 +1147,9 @@
     if (!counts) return;
     ensureAllBadges();
     setBadge(bQmsChecking, counts.qms_checking);
-    setBadge(bValid,       counts.valid);
-    setBadge(bInvalid,     counts.not_valid);
-    setBadge(bEvidence,    counts.evidence_checking);
+    setBadge(bValid, counts.valid);
+    setBadge(bInvalid, counts.not_valid);
+    setBadge(bEvidence, counts.evidence_checking);
   }
 
   async function refreshQmsTabBadges() {
@@ -1204,7 +1204,7 @@
   /* ---------------- SSE live updates ---------------- */
   let es;
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
     // For badge counters we don't need query params; visibility is handled server-side
     es = new EventSource('../php-backend/rcpa-qms-tab-counters-sse.php');
 
@@ -1219,7 +1219,7 @@
     es.onerror = () => { /* EventSource will auto-reconnect */ };
   }
 
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 
   // Kick off SSE after DOMContentLoaded (so badges exist)
   document.addEventListener('DOMContentLoaded', () => startSse());

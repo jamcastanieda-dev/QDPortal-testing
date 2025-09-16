@@ -1,99 +1,99 @@
 (function () {
-  const IS_APPROVER  = !!window.RCPA_IS_APPROVER;
-  const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
-  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+    const IS_APPROVER = !!window.RCPA_IS_APPROVER;
+    const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
+    const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
 
-  const tbody    = document.querySelector('#rcpa-table tbody');
-  const totalEl  = document.getElementById('rcpa-total');
-  const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn  = document.getElementById('rcpa-prev');
-  const nextBtn  = document.getElementById('rcpa-next');
-  const fType    = document.getElementById('rcpa-filter-type');
+    const tbody = document.querySelector('#rcpa-table tbody');
+    const totalEl = document.getElementById('rcpa-total');
+    const pageInfo = document.getElementById('rcpa-page-info');
+    const prevBtn = document.getElementById('rcpa-prev');
+    const nextBtn = document.getElementById('rcpa-next');
+    const fType = document.getElementById('rcpa-filter-type');
 
-  // Floating action container elements
-  const actionContainer = document.getElementById('action-container');
-  const viewBtn   = document.getElementById('view-button');
-  const acceptBtn = document.getElementById('accept-button');
-  const rejectBtn = document.getElementById('reject-button');
+    // Floating action container elements
+    const actionContainer = document.getElementById('action-container');
+    const viewBtn = document.getElementById('view-button');
+    const acceptBtn = document.getElementById('accept-button');
+    const rejectBtn = document.getElementById('reject-button');
 
-  if (!IS_APPROVER) actionContainer.classList.add('hidden');
+    if (!IS_APPROVER) actionContainer.classList.add('hidden');
 
-  let page = 1;
-  const pageSize = 10;
-  let currentTarget = null;
+    let page = 1;
+    const pageSize = 10;
+    let currentTarget = null;
 
-  // 🔔 SSE handle
-  let es = null;
+    // 🔔 SSE handle
+    let es = null;
 
-  const norm = (s) => (s ?? '').toString().trim().toLowerCase();
+    const norm = (s) => (s ?? '').toString().trim().toLowerCase();
 
-  // Dept must match; if row has section, it must also match user's section
-  const canActOnRow = (rowAssignee, rowSection) => {
-    if (norm(rowAssignee) !== CURRENT_DEPT) return false;
-    const rs = norm(rowSection);
-    if (!rs) return true;
-    if (!CURRENT_SECT) return false;
-    return rs === CURRENT_SECT;
-  };
-
-  function labelForType(t) {
-    const key = (t || '').toLowerCase().trim();
-    const map = {
-      external: 'External QMS Audit',
-      internal: 'Internal Quality Audit',
-      unattain: 'Un-attainment of delivery target of Project',
-      online: 'On-Line',
-      '5s': '5S Audit / Health & Safety Concerns',
-      mgmt: 'Management Objective'
+    // Dept must match; if row has section, it must also match user's section
+    const canActOnRow = (rowAssignee, rowSection) => {
+        if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+        const rs = norm(rowSection);
+        if (!rs) return true;
+        if (!CURRENT_SECT) return false;
+        return rs === CURRENT_SECT;
     };
-    return map[key] ?? (t || '');
-  }
 
-  function escapeHtml(s) {
-    return ('' + (s ?? '')).replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
-  }
+    function labelForType(t) {
+        const key = (t || '').toLowerCase().trim();
+        const map = {
+            external: 'External QMS Audit',
+            internal: 'Internal Quality Audit',
+            unattain: 'Un-attainment of delivery target of Project',
+            online: 'On-Line',
+            '5s': '5S Audit / Health & Safety Concerns',
+            mgmt: 'Management Objective'
+        };
+        return map[key] ?? (t || '');
+    }
 
-  function badgeForStatus(s) {
-    const t = (s || '').toUpperCase();
-    if (t === 'QMS CHECKING') return `<span class="rcpa-badge badge-qms-checking">QMS CHECKING</span>`;
-    if (t === 'FOR APPROVAL OF SUPERVISOR') return `<span class="rcpa-badge badge-approval-supervisor">FOR APPROVAL OF SUPERVISOR</span>`;
-    if (t === 'FOR APPROVAL OF MANAGER') return `<span class="rcpa-badge badge-approval-manager">FOR APPROVAL OF MANAGER</span>`;
-    if (t === 'REJECTED') return `<span class="rcpa-badge badge-rejected">REJECTED</span>`;
-    if (t === 'ASSIGNEE PENDING') return `<span class="rcpa-badge badge-assignee-pending">ASSIGNEE PENDING</span>`;
-    if (t === 'VALID APPROVAL') return `<span class="rcpa-badge badge-valid-approval">VALID APPROVAL</span>`;
-    if (t === 'IN-VALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">IN-VALID APPROVAL</span>`;
-    if (t === 'IN-VALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">IN-VALIDATION REPLY</span>`;
-    if (t === 'VALIDATION REPLY') return `<span class="rcpa-badge badge-validation-reply">VALIDATION REPLY</span>`;
-    if (t === 'VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-validation-reply-approval">VALIDATION REPLY APPROVAL</span>`;
-    if (t === 'IN-VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">IN-VALIDATION REPLY APPROVAL</span>`;
-    if (t === 'FOR CLOSING') return `<span class="rcpa-badge badge-assignee-corrective">FOR CLOSING</span>`;
-    if (t === 'FOR CLOSING APPROVAL') return `<span class="rcpa-badge badge-assignee-corrective-approval">FOR CLOSING APPROVAL</span>`;
-    if (t === 'EVIDENCE CHECKING') return `<span class="rcpa-badge badge-corrective-checking">EVIDENCE CHECKING</span>`;
-    if (t === 'EVIDENCE CHECKING APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE CHECKING APPROVAL</span>`;
-    if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
-    if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
-    if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
-    if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
-    
-    if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
-    return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
-  }
+    function escapeHtml(s) {
+        return ('' + (s ?? '')).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
 
-  function badgeForCategory(c) {
-    const v = (c || '').toLowerCase();
-    if (v === 'major') return `<span class="rcpa-badge badge-cat-major">Major</span>`;
-    if (v === 'minor') return `<span class="rcpa-badge badge-cat-minor">Minor</span>`;
-    if (v === 'observation') return `<span class="rcpa-badge badge-cat-obs">Observation</span>`;
-    return '';
-  }
+    function badgeForStatus(s) {
+        const t = (s || '').toUpperCase();
+        if (t === 'QMS CHECKING') return `<span class="rcpa-badge badge-qms-checking">QMS CHECKING</span>`;
+        if (t === 'FOR APPROVAL OF SUPERVISOR') return `<span class="rcpa-badge badge-approval-supervisor">FOR APPROVAL OF SUPERVISOR</span>`;
+        if (t === 'FOR APPROVAL OF MANAGER') return `<span class="rcpa-badge badge-approval-manager">FOR APPROVAL OF MANAGER</span>`;
+        if (t === 'REJECTED') return `<span class="rcpa-badge badge-rejected">REJECTED</span>`;
+        if (t === 'ASSIGNEE PENDING') return `<span class="rcpa-badge badge-assignee-pending">ASSIGNEE PENDING</span>`;
+        if (t === 'VALID APPROVAL') return `<span class="rcpa-badge badge-valid-approval">VALID APPROVAL</span>`;
+        if (t === 'IN-VALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">IN-VALID APPROVAL</span>`;
+        if (t === 'IN-VALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">IN-VALIDATION REPLY</span>`;
+        if (t === 'VALIDATION REPLY') return `<span class="rcpa-badge badge-validation-reply">VALIDATION REPLY</span>`;
+        if (t === 'VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-validation-reply-approval">VALIDATION REPLY APPROVAL</span>`;
+        if (t === 'IN-VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">IN-VALIDATION REPLY APPROVAL</span>`;
+        if (t === 'FOR CLOSING') return `<span class="rcpa-badge badge-assignee-corrective">FOR CLOSING</span>`;
+        if (t === 'FOR CLOSING APPROVAL') return `<span class="rcpa-badge badge-assignee-corrective-approval">FOR CLOSING APPROVAL</span>`;
+        if (t === 'EVIDENCE CHECKING') return `<span class="rcpa-badge badge-corrective-checking">EVIDENCE CHECKING</span>`;
+        if (t === 'EVIDENCE CHECKING APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE CHECKING APPROVAL</span>`;
+        if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
+        if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
+        if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
+        if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
+        if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
+        if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
+        return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
+    }
 
-  // Only show hamburger if approver AND dept/section match
-  function actionButtonHtml(id, assignee, section) {
-    const safeId = escapeHtml(id ?? '');
-    if (IS_APPROVER && canActOnRow(assignee, section)) {
-      return `
+    function badgeForCategory(c) {
+        const v = (c || '').toLowerCase();
+        if (v === 'major') return `<span class="rcpa-badge badge-cat-major">Major</span>`;
+        if (v === 'minor') return `<span class="rcpa-badge badge-cat-minor">Minor</span>`;
+        if (v === 'observation') return `<span class="rcpa-badge badge-cat-obs">Observation</span>`;
+        return '';
+    }
+
+    // Only show hamburger if approver AND dept/section match
+    function actionButtonHtml(id, assignee, section) {
+        const safeId = escapeHtml(id ?? '');
+        if (IS_APPROVER && canActOnRow(assignee, section)) {
+            return `
         <div class="rcpa-actions">
           <button class="rcpa-more" data-id="${safeId}" title="Actions">
             <i class="fa-solid fa-bars" aria-hidden="true"></i>
@@ -101,94 +101,94 @@
           </button>
         </div>
       `;
-    }
-    return `
+        }
+        return `
       <div class="rcpa-actions">
         <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
       </div>
     `;
-  }
-
-  function fmtDate(s) {
-    if (!s) return '';
-    const str = String(s);
-    if (/^0{4}-0{2}-0{2}/.test(str)) return '';
-    const d = new Date(str.replace(' ', 'T'));
-    if (isNaN(d)) return str;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const month = months[d.getMonth()];
-    const day   = String(d.getDate()).padStart(2, '0');
-    const year  = d.getFullYear();
-    let h = d.getHours();
-    const m = String(d.getMinutes()).padStart(2, '0');
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
-  }
-
-  // Manila helpers
-  const MANILA_TZ = 'Asia/Manila';
-  const MANILA_OFFSET = '+08:00';
-  function fmtYmd(s) {
-    if (!s) return '';
-    const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!m) return s;
-    const d = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`);
-    if (isNaN(d)) return s;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
-  }
-  function dateAtMidnightManila(ymd) {
-    if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
-    return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`);
-  }
-  function todayYmdManila() {
-    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: MANILA_TZ, year:'numeric', month:'2-digit', day:'2-digit' })
-      .formatToParts(new Date());
-    const get = t => parts.find(p => p.type === t).value;
-    return `${get('year')}-${get('month')}-${get('day')}`;
-  }
-  function diffDaysFromTodayManila(ymd) {
-    const today = dateAtMidnightManila(todayYmdManila());
-    const target = dateAtMidnightManila(ymd);
-    if (!today || !target) return null;
-    return Math.trunc((target - today) / 86400000);
-  }
-  function renderCloseDue(ymd) {
-    if (!ymd) return '';
-    const base = fmtYmd(ymd);
-    const d = diffDaysFromTodayManila(ymd);
-    if (d === null) return base;
-    const plural = Math.abs(d) === 1 ? 'day' : 'days';
-    return `${base} (${d} ${plural})`;
-  }
-
-  async function load() {
-    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-    if (fType.value) params.set('type', fType.value);
-
-    hideActions();
-    tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Loading…</td></tr>`;
-
-    let res;
-    try {
-      res = await fetch('../php-backend/rcpa-list-approval-assignee-corrective.php?' + params.toString(), { credentials: 'same-origin' });
-    } catch {
-      tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Network error.</td></tr>`;
-      return;
-    }
-    if (!res.ok) {
-      tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Failed to load (${res.status}).</td></tr>`;
-      return;
     }
 
-    const data = await res.json();
-    const rows = Array.isArray(data.rows) ? data.rows : [];
+    function fmtDate(s) {
+        if (!s) return '';
+        const str = String(s);
+        if (/^0{4}-0{2}-0{2}/.test(str)) return '';
+        const d = new Date(str.replace(' ', 'T'));
+        if (isNaN(d)) return str;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = months[d.getMonth()];
+        const day = String(d.getDate()).padStart(2, '0');
+        const year = d.getFullYear();
+        let h = d.getHours();
+        const m = String(d.getMinutes()).padStart(2, '0');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        return `${month} ${day}, ${year}, ${h}:${m} ${ampm}`;
+    }
 
-    if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">No records.</td></tr>`;
-    } else {
-      tbody.innerHTML = rows.map(r => `
+    // Manila helpers
+    const MANILA_TZ = 'Asia/Manila';
+    const MANILA_OFFSET = '+08:00';
+    function fmtYmd(s) {
+        if (!s) return '';
+        const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return s;
+        const d = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`);
+        if (isNaN(d)) return s;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
+    }
+    function dateAtMidnightManila(ymd) {
+        if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
+        return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`);
+    }
+    function todayYmdManila() {
+        const parts = new Intl.DateTimeFormat('en-CA', { timeZone: MANILA_TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+            .formatToParts(new Date());
+        const get = t => parts.find(p => p.type === t).value;
+        return `${get('year')}-${get('month')}-${get('day')}`;
+    }
+    function diffDaysFromTodayManila(ymd) {
+        const today = dateAtMidnightManila(todayYmdManila());
+        const target = dateAtMidnightManila(ymd);
+        if (!today || !target) return null;
+        return Math.trunc((target - today) / 86400000);
+    }
+    function renderCloseDue(ymd) {
+        if (!ymd) return '';
+        const base = fmtYmd(ymd);
+        const d = diffDaysFromTodayManila(ymd);
+        if (d === null) return base;
+        const plural = Math.abs(d) === 1 ? 'day' : 'days';
+        return `${base} (${d} ${plural})`;
+    }
+
+    async function load() {
+        const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+        if (fType.value) params.set('type', fType.value);
+
+        hideActions();
+        tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Loading…</td></tr>`;
+
+        let res;
+        try {
+            res = await fetch('../php-backend/rcpa-list-approval-assignee-corrective.php?' + params.toString(), { credentials: 'same-origin' });
+        } catch {
+            tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Network error.</td></tr>`;
+            return;
+        }
+        if (!res.ok) {
+            tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Failed to load (${res.status}).</td></tr>`;
+            return;
+        }
+
+        const data = await res.json();
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+
+        if (!rows.length) {
+            tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">No records.</td></tr>`;
+        } else {
+            tbody.innerHTML = rows.map(r => `
         <tr>
           <td>${r.id ?? ''}</td>
           <td>${labelForType(r.rcpa_type)}</td>
@@ -206,151 +206,151 @@
           </td>
         </tr>
       `).join('');
+        }
+
+        const total = Number(data.total || 0);
+        const lastPage = Math.max(1, Math.ceil(total / pageSize));
+        totalEl.textContent = `${total} record${total === 1 ? '' : 's'}`;
+        pageInfo.textContent = `Page ${data.page} of ${lastPage}`;
+        prevBtn.disabled = page <= 1;
+        nextBtn.disabled = page >= lastPage;
     }
 
-    const total = Number(data.total || 0);
-    const lastPage = Math.max(1, Math.ceil(total / pageSize));
-    totalEl.textContent = `${total} record${total === 1 ? '' : 's'}`;
-    pageInfo.textContent = `Page ${data.page} of ${lastPage}`;
-    prevBtn.disabled = page <= 1;
-    nextBtn.disabled = page >= lastPage;
-  }
+    const switchIcon = (iconElement, newIcon) => {
+        if (!iconElement) return;
+        iconElement.classList.add('icon-fade-out');
+        iconElement.addEventListener('transitionend', function onFadeOut() {
+            iconElement.removeEventListener('transitionend', onFadeOut);
+            iconElement.classList.remove('fa-bars', 'fa-xmark');
+            iconElement.classList.add(newIcon);
+            iconElement.classList.remove('icon-fade-out');
+            iconElement.classList.add('icon-fade-in');
+            setTimeout(() => iconElement.classList.remove('icon-fade-in'), 300);
+        });
+    };
 
-  const switchIcon = (iconElement, newIcon) => {
-    if (!iconElement) return;
-    iconElement.classList.add('icon-fade-out');
-    iconElement.addEventListener('transitionend', function onFadeOut() {
-      iconElement.removeEventListener('transitionend', onFadeOut);
-      iconElement.classList.remove('fa-bars', 'fa-xmark');
-      iconElement.classList.add(newIcon);
-      iconElement.classList.remove('icon-fade-out');
-      iconElement.classList.add('icon-fade-in');
-      setTimeout(() => iconElement.classList.remove('icon-fade-in'), 300);
+    function positionActionContainer(target) {
+        const wasHidden = actionContainer.classList.contains('hidden');
+        if (wasHidden) { actionContainer.style.visibility = 'hidden'; actionContainer.classList.remove('hidden'); }
+
+        const rect = target.getBoundingClientRect();
+        const gap = 8;
+        const popW = actionContainer.offsetWidth;
+        const popH = actionContainer.offsetHeight;
+        const vw = document.documentElement.clientWidth;
+        const vh = document.documentElement.clientHeight;
+
+        let top = rect.top + (rect.height - popH) / 2;
+        let left = rect.left - popW - gap;
+        if (left < 8) left = rect.right + gap;
+
+        top = Math.max(8, Math.min(top, vh - popH - 8));
+        left = Math.max(8, Math.min(left, vw - popW - 8));
+
+        actionContainer.style.top = `${top}px`;
+        actionContainer.style.left = `${left}px`;
+
+        if (wasHidden) { actionContainer.classList.add('hidden'); actionContainer.style.visibility = ''; }
+    }
+
+    function showActions(target, id) {
+        currentTarget = target;
+        actionContainer.dataset.id = id;
+        positionActionContainer(target);
+        actionContainer.classList.remove('hidden');
+        const icon = target.querySelector('i.fa-solid');
+        switchIcon(icon, 'fa-xmark');
+    }
+
+    function hideActions() {
+        if (!currentTarget) return;
+        const icon = currentTarget.querySelector('i.fa-solid');
+        switchIcon(icon, 'fa-bars');
+        actionContainer.classList.add('hidden');
+        currentTarget = null;
+    }
+
+    // Open/close hamburger actions + history
+    tbody.addEventListener('click', (e) => {
+        const viewOnly = e.target.closest('.rcpa-view-only');
+        if (viewOnly) {
+            const id = viewOnly.getAttribute('data-id');
+            if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'view', id } }));
+            return;
+        }
+
+        const hist = e.target.closest('.icon-rcpa-history');
+        if (hist) {
+            const id = hist.getAttribute('data-id');
+            if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'history', id } }));
+            return;
+        }
+
+        const moreBtn = e.target.closest('.rcpa-more');
+        if (!moreBtn) return;
+
+        const id = moreBtn.dataset.id;
+        if (currentTarget === moreBtn) hideActions();
+        else showActions(moreBtn, id);
     });
-  };
 
-  function positionActionContainer(target) {
-    const wasHidden = actionContainer.classList.contains('hidden');
-    if (wasHidden) { actionContainer.style.visibility = 'hidden'; actionContainer.classList.remove('hidden'); }
+    // Keyboard support for history icon
+    tbody.addEventListener('keydown', (e) => {
+        const hist = e.target.closest('.icon-rcpa-history');
+        if (hist && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            const id = hist.getAttribute('data-id');
+            if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'history', id } }));
+        }
+    });
 
-    const rect = target.getBoundingClientRect();
-    const gap = 8;
-    const popW = actionContainer.offsetWidth;
-    const popH = actionContainer.offsetHeight;
-    const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
+    document.addEventListener('click', (e) => {
+        if (currentTarget && !e.target.closest('.rcpa-actions') && !actionContainer.contains(e.target)) {
+            hideActions();
+        }
+    });
 
-    let top = rect.top + (rect.height - popH) / 2;
-    let left = rect.left - popW - gap;
-    if (left < 8) left = rect.right + gap;
+    // Top tabs navigation
+    document.querySelector('.rcpa-table-toolbar').addEventListener('click', (e) => {
+        const tab = e.target.closest('.rcpa-tab[data-href]');
+        if (!tab) return;
+        window.location.href = tab.dataset.href;
+    });
 
-    top  = Math.max(8, Math.min(top,  vh - popH - 8));
-    left = Math.max(8, Math.min(left, vw - popW - 8));
+    ['scroll', 'resize'].forEach(evt => window.addEventListener(evt, () => {
+        if (currentTarget) positionActionContainer(currentTarget);
+    }, { passive: true }));
 
-    actionContainer.style.top = `${top}px`;
-    actionContainer.style.left = `${left}px`;
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') hideActions();
+    });
 
-    if (wasHidden) { actionContainer.classList.add('hidden'); actionContainer.style.visibility = ''; }
-  }
+    function dispatchAction(action, id) {
+        document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
+    }
+    viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
+    acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
+    rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
-  function showActions(target, id) {
-    currentTarget = target;
-    actionContainer.dataset.id = id;
-    positionActionContainer(target);
-    actionContainer.classList.remove('hidden');
-    const icon = target.querySelector('i.fa-solid');
-    switchIcon(icon, 'fa-xmark');
-  }
+    // Pagination + filter
+    prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
+    nextBtn.addEventListener('click', () => { page++; load(); });
+    fType.addEventListener('change', () => { page = 1; load(); startSse(true); }); // 🔄 restart SSE on filter change
 
-  function hideActions() {
-    if (!currentTarget) return;
-    const icon = currentTarget.querySelector('i.fa-solid');
-    switchIcon(icon, 'fa-bars');
-    actionContainer.classList.add('hidden');
-    currentTarget = null;
-  }
-
-  // Open/close hamburger actions + history
-  tbody.addEventListener('click', (e) => {
-    const viewOnly = e.target.closest('.rcpa-view-only');
-    if (viewOnly) {
-      const id = viewOnly.getAttribute('data-id');
-      if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'view', id } }));
-      return;
+    // 🔔 SSE start/restart
+    function startSse(restart = false) {
+        try { if (restart && es) es.close(); } catch { }
+        const qs = new URLSearchParams();
+        if (fType.value) qs.set('type', fType.value);
+        es = new EventSource(`../php-backend/rcpa-approval-assignee-corrective-sse.php?${qs.toString()}`);
+        es.addEventListener('rcpa', () => { load(); });
+        es.onerror = () => { /* EventSource auto-reconnects */ };
     }
 
-    const hist = e.target.closest('.icon-rcpa-history');
-    if (hist) {
-      const id = hist.getAttribute('data-id');
-      if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'history', id } }));
-      return;
-    }
+    window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 
-    const moreBtn = e.target.closest('.rcpa-more');
-    if (!moreBtn) return;
-
-    const id = moreBtn.dataset.id;
-    if (currentTarget === moreBtn) hideActions();
-    else showActions(moreBtn, id);
-  });
-
-  // Keyboard support for history icon
-  tbody.addEventListener('keydown', (e) => {
-    const hist = e.target.closest('.icon-rcpa-history');
-    if (hist && (e.key === 'Enter' || e.key === ' ')) {
-      e.preventDefault();
-      const id = hist.getAttribute('data-id');
-      if (id) document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action: 'history', id } }));
-    }
-  });
-
-  document.addEventListener('click', (e) => {
-    if (currentTarget && !e.target.closest('.rcpa-actions') && !actionContainer.contains(e.target)) {
-      hideActions();
-    }
-  });
-
-  // Top tabs navigation
-  document.querySelector('.rcpa-table-toolbar').addEventListener('click', (e) => {
-    const tab = e.target.closest('.rcpa-tab[data-href]');
-    if (!tab) return;
-    window.location.href = tab.dataset.href;
-  });
-
-  ['scroll', 'resize'].forEach(evt => window.addEventListener(evt, () => {
-    if (currentTarget) positionActionContainer(currentTarget);
-  }, { passive: true }));
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') hideActions();
-  });
-
-  function dispatchAction(action, id) {
-    document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
-  }
-  viewBtn  .addEventListener('click', () => { dispatchAction('view',   actionContainer.dataset.id); hideActions(); });
-  acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
-  rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
-
-  // Pagination + filter
-  prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
-  nextBtn.addEventListener('click', () => { page++; load(); });
-  fType  .addEventListener('change', () => { page = 1; load(); startSse(true); }); // 🔄 restart SSE on filter change
-
-  // 🔔 SSE start/restart
-  function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
-    const qs = new URLSearchParams();
-    if (fType.value) qs.set('type', fType.value);
-    es = new EventSource(`../php-backend/rcpa-approval-assignee-corrective-sse.php?${qs.toString()}`);
-    es.addEventListener('rcpa', () => { load(); });
-    es.onerror = () => { /* EventSource auto-reconnects */ };
-  }
-
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
-
-  load();
-  startSse(); // ⚡ realtime
+    load();
+    startSse(); // ⚡ realtime
 })();
 
 

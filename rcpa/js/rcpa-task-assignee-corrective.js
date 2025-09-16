@@ -72,7 +72,7 @@
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
-    
+    if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
@@ -347,7 +347,7 @@
 
   // ⚡ SSE: watch the same filtered subset; on any change, reload silently (no blinking)
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
     const qs = new URLSearchParams();
     if (fType.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-assignee-corrective-sse.php?${qs.toString()}`);
@@ -356,7 +356,7 @@
   }
 
   // Cleanup on unload
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 
   load();
   startSse(); // ⚡ start realtime
@@ -1562,11 +1562,11 @@
 // rcpa-task-assignee-corrective.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-tab-counters.php';
-  const SSE_URL  = '../php-backend/rcpa-assignee-tab-counters-sse.php';
+  const SSE_URL = '../php-backend/rcpa-assignee-tab-counters-sse.php';
 
   function pickTab(tabsWrap, href, nth) {
     return tabsWrap.querySelector(`.rcpa-tab[href$="${href}"]`)
-        || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
+      || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
   }
 
   function ensureBadge(el, id) {
@@ -1664,7 +1664,7 @@
   /* ---------- SSE live updates (non-blocking) ---------- */
   let es;
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
 
     try {
       es = new EventSource(SSE_URL);
@@ -1674,7 +1674,7 @@
         try {
           const payload = JSON.parse(ev.data || '{}');
           if (payload && payload.counts) applyCounts(payload.counts);
-        } catch {}
+        } catch { }
       });
 
       // Fallback default message
@@ -1682,7 +1682,7 @@
         try {
           const payload = JSON.parse(ev.data || '{}');
           if (payload && payload.counts) applyCounts(payload.counts);
-        } catch {}
+        } catch { }
       };
 
       es.onerror = () => {
@@ -1694,5 +1694,5 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => startSse());
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 })();

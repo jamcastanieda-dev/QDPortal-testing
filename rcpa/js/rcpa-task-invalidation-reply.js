@@ -48,14 +48,14 @@
     if (t === 'IN-VALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">IN-VALIDATION REPLY</span>`;
     if (t === 'VALIDATION REPLY') return `<span class="rcpa-badge badge-validation-reply">VALIDATION REPLY</span>`;
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
-    if (t === 'IN-VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">IN-VALIDATION REPLY APPROVAL</span>`;
+    if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`; if (t === 'IN-VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">IN-VALIDATION REPLY APPROVAL</span>`;
     if (t === 'FOR CLOSING') return `<span class="rcpa-badge badge-assignee-corrective">FOR CLOSING</span>`;
     if (t === 'FOR CLOSING APPROVAL') return `<span class="rcpa-badge badge-assignee-corrective-approval">FOR CLOSING APPROVAL</span>`;
     if (t === 'EVIDENCE CHECKING') return `<span class="rcpa-badge badge-corrective-checking">EVIDENCE CHECKING</span>`;
     if (t === 'EVIDENCE CHECKING APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE CHECKING APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
-    
+
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
@@ -91,7 +91,7 @@
     if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
     const year = d.getFullYear();
@@ -110,29 +110,29 @@
     const [, Y, M, D] = m;
     const d = new Date(`${Y}-${M}-${D}T00:00:00`);
     if (isNaN(d)) return s;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
   }
   const MANILA_TZ = 'Asia/Manila';
   const MANILA_OFFSET = '+08:00';
   function todayYmdManila() {
-    const parts = new Intl.DateTimeFormat('en-CA',{timeZone:MANILA_TZ,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
-    const get=t=>parts.find(p=>p.type===t).value;
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: MANILA_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const get = t => parts.find(p => p.type === t).value;
     return `${get('year')}-${get('month')}-${get('day')}`;
   }
-  function dateAtMidnightManila(ymd){ if(!ymd||!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd)))return null; return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`); }
-  function diffDaysFromTodayManila(ymd){
-    const today=dateAtMidnightManila(todayYmdManila());
-    const target=dateAtMidnightManila(ymd);
-    if(!today||!target) return null;
-    return Math.trunc((target-today)/(24*60*60*1000));
+  function dateAtMidnightManila(ymd) { if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null; return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`); }
+  function diffDaysFromTodayManila(ymd) {
+    const today = dateAtMidnightManila(todayYmdManila());
+    const target = dateAtMidnightManila(ymd);
+    if (!today || !target) return null;
+    return Math.trunc((target - today) / (24 * 60 * 60 * 1000));
   }
-  function renderCloseDue(ymd){
-    if(!ymd) return '';
-    const base=fmtYmd(ymd);
-    const d=diffDaysFromTodayManila(ymd);
-    if(d===null) return base;
-    const plural=Math.abs(d)===1?'day':'days';
+  function renderCloseDue(ymd) {
+    if (!ymd) return '';
+    const base = fmtYmd(ymd);
+    const d = diffDaysFromTodayManila(ymd);
+    if (d === null) return base;
+    const plural = Math.abs(d) === 1 ? 'day' : 'days';
     return `${base} (${d} ${plural})`;
   }
   // --- end helpers ---
@@ -287,7 +287,7 @@
     window.location.href = tab.dataset.href;
   });
 
-  ['scroll','resize'].forEach(evt => window.addEventListener(evt, () => {
+  ['scroll', 'resize'].forEach(evt => window.addEventListener(evt, () => {
     if (currentTarget) positionActionContainer(currentTarget);
   }, { passive: true }));
 
@@ -308,7 +308,7 @@
 
   // ---- SSE ----
   function startSse(restart = false) {
-    if (restart && es) { try { es.close(); } catch {} }
+    if (restart && es) { try { es.close(); } catch { } }
     const qs = new URLSearchParams();
     if (fType.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-invalidation-reply-sse.php?${qs.toString()}`);
@@ -1220,12 +1220,12 @@
 // rcpa-task-invalidation-reply.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-qms-tab-counters.php';
-  const SSE_URL  = '../php-backend/rcpa-qms-tab-counters-sse.php';
+  const SSE_URL = '../php-backend/rcpa-qms-tab-counters-sse.php';
 
   // Find tab by data-href with safe nth-child fallback (1..4)
   function pickTab(tabsWrap, href, nth) {
     return tabsWrap.querySelector(href ? `.rcpa-tab[data-href="${href}"]` : null)
-        || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
+      || tabsWrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
   }
 
   // Ensure a badge <span> exists inside a tab button; returns the element
@@ -1269,14 +1269,14 @@
 
     // Tabs order: 1) QMS CHECKING  2) REPLIED - VALID  3) REPLIED - INVALID  4) EVIDENCE CHECKING
     btnQmsChecking = pickTab(tabsWrap, 'rcpa-task-qms-checking.php', 1);
-    btnValid       = pickTab(tabsWrap, 'rcpa-task-validation-reply.php', 2);
-    btnInvalid     = pickTab(tabsWrap, 'rcpa-task-invalidation-reply.php', 3);
-    btnEvidence    = pickTab(tabsWrap, 'rcpa-task-qms-corrective.php', 4);
+    btnValid = pickTab(tabsWrap, 'rcpa-task-validation-reply.php', 2);
+    btnInvalid = pickTab(tabsWrap, 'rcpa-task-invalidation-reply.php', 3);
+    btnEvidence = pickTab(tabsWrap, 'rcpa-task-qms-corrective.php', 4);
 
     bQmsChecking = ensureBadge(btnQmsChecking, 'tabBadgeQmsChecking');
-    bValid       = ensureBadge(btnValid, 'tabBadgeValid');
-    bInvalid     = ensureBadge(btnInvalid, 'tabBadgeNotValid');
-    bEvidence    = ensureBadge(btnEvidence, 'tabBadgeEvidence');
+    bValid = ensureBadge(btnValid, 'tabBadgeValid');
+    bInvalid = ensureBadge(btnInvalid, 'tabBadgeNotValid');
+    bEvidence = ensureBadge(btnEvidence, 'tabBadgeEvidence');
 
     return true;
   }
@@ -1287,14 +1287,14 @@
 
     // Support older field names as fallback
     const qmsCheckingCount = c.qms_checking ?? 0;
-    const validCount       = c.valid ?? c.closing ?? 0;
-    const invalidCount     = c.not_valid ?? 0;
-    const evidenceCount    = c.evidence_checking ?? c.evidence ?? 0;
+    const validCount = c.valid ?? c.closing ?? 0;
+    const invalidCount = c.not_valid ?? 0;
+    const evidenceCount = c.evidence_checking ?? c.evidence ?? 0;
 
     setBadge(bQmsChecking, qmsCheckingCount);
-    setBadge(bValid,       validCount);
-    setBadge(bInvalid,     invalidCount);
-    setBadge(bEvidence,    evidenceCount);
+    setBadge(bValid, validCount);
+    setBadge(bInvalid, invalidCount);
+    setBadge(bEvidence, evidenceCount);
   }
 
   async function refreshQmsTabBadges() {
@@ -1347,7 +1347,7 @@
   /* --------- SSE live updates --------- */
   let es;
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
 
     es = new EventSource(SSE_URL);
 
@@ -1356,7 +1356,7 @@
       try {
         const payload = JSON.parse(ev.data || '{}');
         if (payload && payload.counts) applyCounts(payload.counts);
-      } catch {}
+      } catch { }
     });
 
     // Fallback: default message event with same payload
@@ -1364,7 +1364,7 @@
       try {
         const payload = JSON.parse(ev.data || '{}');
         if (payload && payload.counts) applyCounts(payload.counts);
-      } catch {}
+      } catch { }
     };
 
     es.onerror = () => {
@@ -1373,6 +1373,6 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => startSse());
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 })();
 

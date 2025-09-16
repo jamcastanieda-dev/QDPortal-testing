@@ -60,7 +60,7 @@
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
-    
+    if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
@@ -96,7 +96,7 @@
     if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
     const year = d.getFullYear();
@@ -116,24 +116,24 @@
     if (!m) return s;
     const d = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`);
     if (isNaN(d)) return s;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
   }
-  function dateAtMidnightManila(ymd){ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd)))return null; return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`); }
-  function diffDaysFromTodayManila(ymd){
-    const parts = new Intl.DateTimeFormat('en-CA',{timeZone:MANILA_TZ,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
-    const get=t=>parts.find(p=>p.type===t).value;
-    const today=`${get('year')}-${get('month')}-${get('day')}`;
-    const a=dateAtMidnightManila(today), b=dateAtMidnightManila(ymd);
-    if(!a||!b) return null;
-    return Math.trunc((b-a)/(24*60*60*1000));
+  function dateAtMidnightManila(ymd) { if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null; return new Date(`${ymd}T00:00:00${MANILA_OFFSET}`); }
+  function diffDaysFromTodayManila(ymd) {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: MANILA_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const get = t => parts.find(p => p.type === t).value;
+    const today = `${get('year')}-${get('month')}-${get('day')}`;
+    const a = dateAtMidnightManila(today), b = dateAtMidnightManila(ymd);
+    if (!a || !b) return null;
+    return Math.trunc((b - a) / (24 * 60 * 60 * 1000));
   }
-  function renderCloseDue(ymd){
-    if(!ymd) return '';
-    const base=fmtYmd(ymd);
-    const d=diffDaysFromTodayManila(ymd);
-    if(d===null) return base;
-    const plural=Math.abs(d)===1?'day':'days';
+  function renderCloseDue(ymd) {
+    if (!ymd) return '';
+    const base = fmtYmd(ymd);
+    const d = diffDaysFromTodayManila(ymd);
+    if (d === null) return base;
+    const plural = Math.abs(d) === 1 ? 'day' : 'days';
     return `${base} (${d} ${plural})`;
   }
 
@@ -319,7 +319,7 @@
 
   // ⚡ SSE: refresh table whenever count/max changes (covers backfilled lower IDs too)
   function startSse(restart = false) {
-    if (restart && es) { try { es.close(); } catch {} }
+    if (restart && es) { try { es.close(); } catch { } }
     const qs = new URLSearchParams();
     if (fType.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-validation-reply-sse.php?${qs.toString()}`);
@@ -1457,7 +1457,7 @@
 // rcpa-task-validation-reply.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-qms-tab-counters.php';
-  const SSE_URL  = '../php-backend/rcpa-qms-tab-counters-sse.php';
+  const SSE_URL = '../php-backend/rcpa-qms-tab-counters-sse.php';
 
   // Find tab by data-href with safe nth-child fallback (1..4)
   function pickTab(tabsWrap, selector, nth) {
@@ -1506,15 +1506,15 @@
 
     // Tabs (order: QMS CHECKING, REPLIED - VALID, REPLIED - INVALID, EVIDENCE CHECKING)
     btnQmsChecking = pickTab(tabsWrap, 'rcpa-task-qms-checking.php', 1);
-    btnValid       = pickTab(tabsWrap, 'rcpa-task-validation-reply.php', 2);
-    btnInvalid     = pickTab(tabsWrap, 'rcpa-task-invalidation-reply.php', 3);
-    btnEvidence    = pickTab(tabsWrap, 'rcpa-task-qms-corrective.php', 4);
+    btnValid = pickTab(tabsWrap, 'rcpa-task-validation-reply.php', 2);
+    btnInvalid = pickTab(tabsWrap, 'rcpa-task-invalidation-reply.php', 3);
+    btnEvidence = pickTab(tabsWrap, 'rcpa-task-qms-corrective.php', 4);
 
     // Badges
     bQmsChecking = ensureBadge(btnQmsChecking, 'tabBadgeQmsChecking');
-    bValid       = ensureBadge(btnValid, 'tabBadgeValid');
-    bInvalid     = ensureBadge(btnInvalid, 'tabBadgeNotValid');
-    bEvidence    = ensureBadge(btnEvidence, 'tabBadgeEvidence');
+    bValid = ensureBadge(btnValid, 'tabBadgeValid');
+    bInvalid = ensureBadge(btnInvalid, 'tabBadgeNotValid');
+    bEvidence = ensureBadge(btnEvidence, 'tabBadgeEvidence');
 
     return true;
   }
@@ -1526,14 +1526,14 @@
 
     // Support old field names as fallback (closing/evidence)
     const qmsCheckingCount = c.qms_checking ?? 0;
-    const validCount       = c.valid ?? c.closing ?? 0;
-    const invalidCount     = c.not_valid ?? 0;
-    const evidenceCount    = c.evidence_checking ?? c.evidence ?? 0;
+    const validCount = c.valid ?? c.closing ?? 0;
+    const invalidCount = c.not_valid ?? 0;
+    const evidenceCount = c.evidence_checking ?? c.evidence ?? 0;
 
     setBadge(bQmsChecking, qmsCheckingCount);
-    setBadge(bValid,       validCount);
-    setBadge(bInvalid,     invalidCount);
-    setBadge(bEvidence,    evidenceCount);
+    setBadge(bValid, validCount);
+    setBadge(bInvalid, invalidCount);
+    setBadge(bEvidence, evidenceCount);
   }
 
   async function refreshQmsTabBadges() {
@@ -1586,7 +1586,7 @@
   /* --------------- SSE live updates --------------- */
   let es;
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
 
     es = new EventSource(SSE_URL);
 
@@ -1601,6 +1601,6 @@
     es.onerror = () => { /* EventSource will auto-reconnect by default */ };
   }
 
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
   document.addEventListener('DOMContentLoaded', () => startSse());
 })();

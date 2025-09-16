@@ -1,17 +1,17 @@
 (function () {
-  const IS_APPROVER   = !!window.RCPA_IS_APPROVER;
-  const CURRENT_DEPT  = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
-  const CURRENT_SECT  = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
+  const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
+  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
 
-  const tbody    = document.querySelector('#rcpa-table tbody');
-  const totalEl  = document.getElementById('rcpa-total');
+  const tbody = document.querySelector('#rcpa-table tbody');
+  const totalEl = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn  = document.getElementById('rcpa-prev');
-  const nextBtn  = document.getElementById('rcpa-next');
-  const fType    = document.getElementById('rcpa-filter-type');
+  const prevBtn = document.getElementById('rcpa-prev');
+  const nextBtn = document.getElementById('rcpa-next');
+  const fType = document.getElementById('rcpa-filter-type');
 
   const actionContainer = document.getElementById('action-container');
-  const viewBtn   = document.getElementById('view-button');
+  const viewBtn = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
@@ -73,7 +73,7 @@
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
-    
+    if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
     if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
@@ -124,20 +124,20 @@
   }
 
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd || '';
-    const y = +ymd.slice(0,4), m = +ymd.slice(5,7)-1, d = +ymd.slice(8,10);
-    if ([y,m,d].some(Number.isNaN)) return ymd;
-    return `${mnames[m]} ${String(d).padStart(2,'0')}, ${y}`;
+    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
+    if ([y, m, d].some(Number.isNaN)) return ymd;
+    return `${mnames[m]} ${String(d).padStart(2, '0')}, ${y}`;
   }
   function daysDiffFromToday(ymd) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
-    const y = +ymd.slice(0,4), m = +ymd.slice(5,7)-1, d = +ymd.slice(8,10);
-    if ([y,m,d].some(Number.isNaN)) return null;
+    const y = +ymd.slice(0, 4), m = +ymd.slice(5, 7) - 1, d = +ymd.slice(8, 10);
+    if ([y, m, d].some(Number.isNaN)) return null;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const due = new Date(y,m,d);
-    const msPerDay = 24*60*60*1000;
+    const due = new Date(y, m, d);
+    const msPerDay = 24 * 60 * 60 * 1000;
     return Math.round((due - today) / msPerDay);
   }
   function formatReplyDueCell(ymd) {
@@ -210,7 +210,7 @@
 
   // 🔔 realtime via SSE (mirrors same filter/visibility as the PHP list)
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
     const qs = new URLSearchParams();
     if (fType.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-approval-valid-sse.php?${qs.toString()}`);
@@ -244,14 +244,14 @@
     const vw = document.documentElement.clientWidth;
     const vh = document.documentElement.clientHeight;
 
-    let top  = rect.top + (rect.height - popH) / 2;
+    let top = rect.top + (rect.height - popH) / 2;
     let left = rect.left - popW - gap;
     if (left < 8) left = rect.right + gap;
 
-    top  = Math.max(8, Math.min(top,  vh - popH - 8));
+    top = Math.max(8, Math.min(top, vh - popH - 8));
     left = Math.max(8, Math.min(left, vw - popW - 8));
 
-    actionContainer.style.top  = `${top}px`;
+    actionContainer.style.top = `${top}px`;
     actionContainer.style.left = `${left}px`;
 
     if (wasHidden) { actionContainer.classList.add('hidden'); actionContainer.style.visibility = ''; }
@@ -326,7 +326,7 @@
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
-  viewBtn  .addEventListener('click', () => { dispatchAction('view',   actionContainer.dataset.id); hideActions(); });
+  viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
@@ -336,7 +336,7 @@
   // When the Type filter changes, reload and restart SSE to mirror the same subset
   fType.addEventListener('change', () => { page = 1; load(); startSse(true); });
 
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 
   load();
   startSse(); // ⚡ go realtime
@@ -1516,13 +1516,13 @@
 // js/rcpa-assignee-approval-tab-counters.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-approval-tab-counters.php';
-  const SSE_URL  = '../php-backend/rcpa-assignee-approval-tab-counters-sse.php';
+  const SSE_URL = '../php-backend/rcpa-assignee-approval-tab-counters-sse.php';
 
   // Find a tab by href/data-href with nth-child fallback
   function pickTab(wrap, href, nth) {
     return wrap.querySelector(`.rcpa-tab[href$="${href}"]`)
-        || wrap.querySelector(`.rcpa-tab[data-href="${href}"]`)
-        || wrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
+      || wrap.querySelector(`.rcpa-tab[data-href="${href}"]`)
+      || wrap.querySelector(`.rcpa-tab:nth-child(${nth})`);
   }
 
   // Make badges
@@ -1573,11 +1573,11 @@
     wireNav(wrap);
 
     // Tabs: 1) VALID APPROVAL (active here)  2) IN-VALID APPROVAL
-    const tabValid   = pickTab(wrap, 'rcpa-task-assignee-approval-valid.php', 1);
+    const tabValid = pickTab(wrap, 'rcpa-task-assignee-approval-valid.php', 1);
     const tabInvalid = pickTab(wrap, 'rcpa-task-assignee-approval-invalid.php', 2);
 
     return {
-      bValid:   ensureBadge(tabValid,   'tabBadgeValidApproval'),
+      bValid: ensureBadge(tabValid, 'tabBadgeValidApproval'),
       bInvalid: ensureBadge(tabInvalid, 'tabBadgeInvalidApproval'),
     };
   }
@@ -1585,7 +1585,7 @@
   function applyCounts(counts) {
     const nodes = resolveBadgeNodes();
     if (!nodes) return;
-    setBadge(nodes.bValid,   counts?.valid_approval   ?? 0);
+    setBadge(nodes.bValid, counts?.valid_approval ?? 0);
     setBadge(nodes.bInvalid, counts?.invalid_approval ?? 0);
   }
 
@@ -1593,7 +1593,7 @@
     resolveBadgeNodes(); // ensure badges exist even if fetch fails
 
     try {
-      const res  = await fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+      const res = await fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data || !data.ok) {
         const n = resolveBadgeNodes();
@@ -1628,7 +1628,7 @@
   /* ---------- SSE live updates ---------- */
   let es;
   function startSse(restart = false) {
-    try { if (restart && es) es.close(); } catch {}
+    try { if (restart && es) es.close(); } catch { }
     try {
       es = new EventSource(SSE_URL);
 
@@ -1637,7 +1637,7 @@
         try {
           const payload = JSON.parse(ev.data || '{}');
           if (payload && payload.counts) applyCounts(payload.counts);
-        } catch {}
+        } catch { }
       });
 
       // Fallback default message
@@ -1645,7 +1645,7 @@
         try {
           const payload = JSON.parse(ev.data || '{}');
           if (payload && payload.counts) applyCounts(payload.counts);
-        } catch {}
+        } catch { }
       };
 
       es.onerror = () => {
@@ -1657,6 +1657,6 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => startSse());
-  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch {} });
+  window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 })();
 
