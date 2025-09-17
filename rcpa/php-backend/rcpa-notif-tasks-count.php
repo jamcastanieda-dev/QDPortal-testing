@@ -1,5 +1,5 @@
 <?php
-// php-backend/rcpa-task-count.php
+// rcpa-notif-tasks-count.php
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
@@ -27,37 +27,43 @@ try {
     // DB handle
     require '../../connection.php';
     if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
-        if (isset($conn) && $conn instanceof mysqli) {
-            $mysqli = $conn;
-        } elseif (isset($link) && $link instanceof mysqli) {
-            $mysqli = $link;
-        } else {
-            $mysqli = @new mysqli('localhost', 'DB_USER', 'DB_PASS', 'DB_NAME');
-        }
+        if (isset($conn) && $conn instanceof mysqli)      $mysqli = $conn;
+        elseif (isset($link) && $link instanceof mysqli)  $mysqli = $link;
+        else                                              $mysqli = @new mysqli('localhost', 'DB_USER', 'DB_PASS', 'DB_NAME');
     }
     if (!$mysqli || $mysqli->connect_errno) {
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => 'DB unavailable']);
         exit;
     }
+    $mysqli->set_charset('utf8mb4');
 
-    // Look up department from system_users using cookie name
+    // Look up department + role from system_users using cookie name
     $department = '';
-    $sql = "SELECT department
+    $role       = '';
+    $sql = "SELECT department, role
               FROM system_users
              WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
              LIMIT 1";
     if ($stmt = $mysqli->prepare($sql)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department);
-        if ($stmt->fetch()) $department = (string)$db_department;
+        $stmt->bind_result($db_department, $db_role);
+        if ($stmt->fetch()) {
+            $department = (string)$db_department;
+            $role       = (string)$db_role;
+        }
         $stmt->close();
     }
 
-    // Treat QA and QMS the same
     $dept_norm = strtolower(trim($department));
-    $is_qms = in_array($dept_norm, ['qms', 'qa'], true);
+    $role_norm = strtolower(trim($role));
+
+    // QMS-wide visibility rule:
+    //  - QMS department, OR
+    //  - QA department WITH role == manager or supervisor
+    $can_qms_view = ($dept_norm === 'qms') ||
+                    ($dept_norm === 'qa' && in_array($role_norm, ['manager','supervisor'], true));
 
     // FULL status set (with FOR CLOSING APPROVAL included)
     $status_list = "(
@@ -78,8 +84,8 @@ try {
 
     $count = 0;
 
-    if ($is_qms) {
-        // QA/QMS: global count
+    if ($can_qms_view) {
+        // QMS or QA managers/supervisors: global count
         $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $status_list";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
@@ -88,7 +94,7 @@ try {
             $stmt->close();
         }
     } else {
-        // Non-QA/QMS: scope by assignee = user's department
+        // Everyone else: scope by assignee = user's department (if available)
         if ($department === '') {
             echo json_encode(['ok' => true, 'count' => 0]);
             exit;

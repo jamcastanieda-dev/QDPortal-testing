@@ -1,4 +1,5 @@
 <?php
+// rcpa-notif-tasks-count-sse.php
 ignore_user_abort(true);
 set_time_limit(0);
 
@@ -32,14 +33,22 @@ try {
   if (!$mysqli || $mysqli->connect_errno) { http_response_code(500); send_evt('rcpa-notif-tasks-count', ['ok'=>false,'error'=>'DB unavailable']); exit; }
   $mysqli->set_charset('utf8mb4');
 
-  // Resolve department
+  // Resolve department + role
   $department = '';
+  $role = '';
   if ($user_name !== '') {
-    if ($stmt=$mysqli->prepare("SELECT department FROM system_users WHERE LOWER(TRIM(employee_name))=LOWER(TRIM(?)) LIMIT 1")){
-      $stmt->bind_param('s',$user_name); $stmt->execute(); $stmt->bind_result($dep); if($stmt->fetch()) $department=(string)$dep; $stmt->close();
+    if ($stmt=$mysqli->prepare("SELECT department, role FROM system_users WHERE LOWER(TRIM(employee_name))=LOWER(TRIM(?)) LIMIT 1")){
+      $stmt->bind_param('s',$user_name);
+      $stmt->execute();
+      $stmt->bind_result($dep, $r);
+      if($stmt->fetch()) { $department=(string)$dep; $role=(string)$r; }
+      $stmt->close();
     }
   }
-  $is_qms = in_array(strtolower(trim($department)), ['qms','qa'], true);
+  $dept_norm = strtolower(trim($department));
+  $role_norm = strtolower(trim($role));
+  $can_qms_view = ($dept_norm === 'qms') ||
+                  ($dept_norm === 'qa' && in_array($role_norm, ['manager','supervisor'], true));
 
   $status_list = "(
     'QMS CHECKING','VALIDATION REPLY','IN-VALIDATION REPLY','EVIDENCE CHECKING',
@@ -49,9 +58,9 @@ try {
     'CLOSED (VALID)','CLOSED (IN-VALID)'
   )";
 
-  $getCount = function() use($mysqli,$is_qms,$department,$status_list){
+  $getCount = function() use($mysqli,$can_qms_view,$department,$status_list){
     $count = 0;
-    if ($is_qms) {
+    if ($can_qms_view) {
       $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $status_list";
       if ($stmt=$mysqli->prepare($sql)) { $stmt->execute(); $stmt->bind_result($cnt); if($stmt->fetch()) $count=(int)$cnt; $stmt->close(); }
     } elseif ($department !== '') {
