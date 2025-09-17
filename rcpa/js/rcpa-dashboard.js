@@ -56,8 +56,9 @@
 
     /* ------- UTILS ------- */
     const int = v => String(Math.round(Number(v)));
+    // show labels only when tick is an exact integer (prevents 2.5 → 3 rounding)
+    const intOnly = v => (Number.isInteger(Number(v)) ? String(v) : '');
 
-    // Backend: assignee counts per department (optionally by year)
     // Backend: assignee counts per department (by year AND site)
     async function fetchAssigneeByDept(year, site) {
       const q = new URLSearchParams();
@@ -66,9 +67,8 @@
       const url = `../php-backend/rcpa-assignee-by-dept.php?${q.toString()}`;
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error(`Assignee-by-dept HTTP ${res.status}`);
-      return res.json(); // { labels, data:[{x,y}], total, max, year, site }
+      return res.json(); // { labels, data_closed:[{x,y}], data_open:[{x,y}], total, max, year, site }
     }
-
 
     // Backend: monthly data (now site-aware)
     async function fetchMonthly(year, site) {
@@ -153,8 +153,17 @@
     function createCharts() {
       // ASSIGNEE (dynamic: departments from system_users vs rcpa_request.assignee)
       charts.assignee = new ApexCharts(els.chartAssignee, {
-        chart: { type: 'bar', height: 260, toolbar: { show: false }, animations: CHART_ANIMS },
-        series: [{ name: 'RCPA', data: [] }], // filled by loadAssignee(...)
+        chart: {
+          type: 'bar',
+          height: 260,
+          stacked: true,                // stacked bars
+          toolbar: { show: false },
+          animations: CHART_ANIMS
+        },
+        series: [
+          { name: 'Closed', data: [] },     // filled by loadAssignee(...)
+          { name: 'Not closed', data: [] }
+        ],
         plotOptions: { bar: { horizontal: true, borderRadius: 6, barHeight: '60%' } },
         yaxis: { labels: { style: { colors: TOKENS.MUTED, fontWeight: 600 } } },
         xaxis: {
@@ -162,14 +171,15 @@
           tickAmount: 2,
           decimalsInFloat: 0,
           title: { text: 'Count', style: { color: TOKENS.MUTED, fontWeight: 700 } },
-          labels: { style: { colors: TOKENS.MUTED }, formatter: int }
+          labels: { style: { colors: TOKENS.MUTED }, formatter: intOnly } // <-- integer-only ticks
         },
         grid: { borderColor: TOKENS.RING },
         dataLabels: { enabled: true, style: { fontWeight: 800 }, formatter: int },
-        colors: [TOKENS.ACCENT],
+        colors: [TOKENS.ACCENT, TOKENS.MUTED],   // TOKENS.MUTED is rgb(100,116,139)
         fill: { opacity: .95 },
         states: { active: { filter: { type: 'none' } } },
-        tooltip: { theme: 'light', y: { formatter: int } }
+        tooltip: { theme: 'light', y: { formatter: int } },
+        legend: { show: true, position: 'bottom', labels: { colors: TOKENS.MUTED } }
       });
       charts.assignee.render().then(() => loadAssignee(state.year, state.site));
 
@@ -284,7 +294,8 @@
 
     function loadAssignee(year, site) {
       fetchAssigneeByDept(year, site).then(payload => {
-        const seriesData = Array.isArray(payload.data) ? payload.data : [];
+        const seriesClosed = Array.isArray(payload.data_closed) ? payload.data_closed : [];
+        const seriesOpen = Array.isArray(payload.data_open) ? payload.data_open : [];
         const maxVal = Math.max(0, payload.max || 0);
 
         const STEP = 5;
@@ -299,21 +310,27 @@
             min: 0, max: xMax, tickAmount,
             decimalsInFloat: 0,
             title: { text: 'Count', style: { color: TOKENS.MUTED, fontWeight: 700 } },
-            labels: { style: { colors: TOKENS.MUTED }, formatter: int }
+            labels: { style: { colors: TOKENS.MUTED }, formatter: intOnly } // <-- integer-only ticks
           },
           yaxis: { labels: { style: { colors: TOKENS.MUTED, fontWeight: 600 } } }
         }, false, true);
 
-        charts.assignee.updateSeries([{ name: 'RCPA', data: seriesData }], true);
+        charts.assignee.updateSeries([
+          { name: 'Closed', data: seriesClosed },   // [{x:'SSD - DESIGN', y:1}, ...]
+          { name: 'Not closed', data: seriesOpen }
+        ], true);
       }).catch(err => {
         console.error('Failed to load assignee-by-dept:', err);
         if (charts.assignee) {
-          charts.assignee.updateSeries([{ name: 'RCPA', data: [] }], true);
+          charts.assignee.updateSeries([
+            { name: 'Closed', data: [] },
+            { name: 'Not closed', data: [] }
+          ], true);
         }
       });
     }
 
-    // --- site-aware fetchers ---
+    // --- site-aware fetchers (duplicates kept intentionally for parity with your current file) ---
     async function fetchMonthly(year, site) {
       const q = new URLSearchParams();
       if (year) q.set('year', year);
@@ -404,7 +421,6 @@
       loadAssignee(state.year, state.site);
     }
 
-
     /* ------- TOOLBAR BINDING ------- */
     if (els.siteSelect) {
       els.siteSelect.addEventListener('change', () => {
@@ -422,6 +438,7 @@
     });
   }
 })();
+
 
 /* =========================================================
  * CALENDAR MODAL (modal + calendar) — IIFE #2

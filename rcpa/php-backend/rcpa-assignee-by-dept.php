@@ -1,7 +1,5 @@
 <?php
-// ../php-backend/rcpa-assignee-by-dept.php
 header('Content-Type: application/json; charset=utf-8');
-
 require_once __DIR__ . '/../../connection.php';
 
 /* Locate mysqli connection */
@@ -27,16 +25,12 @@ if ($year !== null && ($year < 1970 || $year > 2100)) {
 }
 
 /**
- * SQL:
- *  - DISTINCT (department, section) from system_users
- *  - label = "Department - Section" or "Department" if section empty
- *  - LEFT JOIN rcpa_request using department + section columns:
- *        rr.assignee = su.department
- *    AND COALESCE(rr.section, '') = COALESCE(su.section, '')
- *    (year filter stays in the JOIN to keep zero-count labels)
- *  - SITE filter applied on su:
- *        SSD => ONLY department = 'SSD'
- *        RTI => department <> 'SSD'
+ * Build result with 2 buckets per department:
+ *  - closed:   status IN ('CLOSED (VALID)', 'CLOSED (IN-VALID)')
+ *  - notclosed: everything else (including null)
+ *
+ * Keep LEFT JOIN + year filter in the join so zero-count labels stay visible.
+ * Apply site filter on the 'su' side so those zero-count rows still appear.
  */
 $sql = "
   WITH su AS (
@@ -58,7 +52,21 @@ $sql = "
   )
   SELECT
     su.label AS dept,
-    COUNT(rr.id) AS cnt
+    COUNT(rr.id) AS total,
+    SUM(
+      CASE
+        WHEN rr.id IS NOT NULL
+         AND UPPER(TRIM(rr.status)) IN ('CLOSED (VALID)', 'CLOSED (IN-VALID)')
+        THEN 1 ELSE 0
+      END
+    ) AS closed,
+    SUM(
+      CASE
+        WHEN rr.id IS NOT NULL
+         AND UPPER(TRIM(rr.status)) NOT IN ('CLOSED (VALID)', 'CLOSED (IN-VALID)')
+        THEN 1 ELSE 0
+      END
+    ) AS not_closed
   FROM su
   LEFT JOIN rcpa_request rr
     ON TRIM(rr.assignee) = su.department
@@ -69,13 +77,12 @@ $params = [];
 $types  = '';
 
 if ($year !== null) {
-  // keep year restriction in the JOIN to preserve zero-count labels
   $sql .= " AND rr.date_request IS NOT NULL AND YEAR(DATE(rr.date_request)) = ? ";
   $types .= 'i';
   $params[] = $year;
 }
 
-/* Apply SITE filter on the 'su' side so zero counts remain visible */
+/* SITE filter on 'su' to keep zero-counts */
 if ($site === 'SSD') {
   $sql .= " WHERE UPPER(su.department) = 'SSD' ";
 } elseif ($site === 'RTI') {
@@ -84,7 +91,7 @@ if ($site === 'SSD') {
 
 $sql .= "
   GROUP BY su.label
-  ORDER BY cnt DESC, dept ASC
+  ORDER BY total DESC, dept ASC
 ";
 
 $stmt = $db->prepare($sql);
@@ -93,9 +100,7 @@ if (!$stmt) {
   echo json_encode(['error' => 'Failed to prepare statement.']);
   exit;
 }
-
 if ($types) $stmt->bind_param($types, ...$params);
-
 if (!$stmt->execute()) {
   http_response_code(500);
   echo json_encode(['error' => 'Failed to execute query.']);
@@ -103,26 +108,34 @@ if (!$stmt->execute()) {
 }
 
 $res = $stmt->get_result();
-$data = [];
+
 $labels = [];
+$data_closed = [];
+$data_open   = [];
 $total = 0;
 $max = 0;
 
 while ($row = $res->fetch_assoc()) {
-  $dept = (string)$row['dept'];  // e.g., "SSD - DESIGN" or "R&D"
-  $cnt  = (int)$row['cnt'];
-  $labels[] = $dept;
-  $data[] = ['x' => $dept, 'y' => $cnt];
-  $total += $cnt;
-  if ($cnt > $max) $max = $cnt;
+  $dept   = (string)$row['dept'];
+  $closed = (int)$row['closed'];
+  $open   = (int)$row['not_closed'];
+
+  $labels[]      = $dept;
+  $data_closed[] = ['x' => $dept, 'y' => $closed];
+  $data_open[]   = ['x' => $dept, 'y' => $open];
+
+  $rowTotal = $closed + $open;
+  $total   += $rowTotal;
+  if ($rowTotal > $max) $max = $rowTotal;
 }
 $stmt->close();
 
 echo json_encode([
-  'year'   => $year,
-  'site'   => $site,
-  'labels' => $labels,
-  'data'   => $data,
-  'total'  => $total,
-  'max'    => $max
+  'year'        => $year,
+  'site'        => $site,
+  'labels'      => $labels,
+  'data_closed' => $data_closed,
+  'data_open'   => $data_open,
+  'total'       => $total,
+  'max'         => $max
 ], JSON_UNESCAPED_UNICODE);
