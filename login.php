@@ -1,5 +1,5 @@
 <?php
-
+//login.php
 require_once 'connection.php';
 
 // Get all departments for the select dropdown
@@ -75,6 +75,42 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
+<style>
+    .input-with-icon {
+        position: relative;
+    }
+
+    .input-with-icon input[type="password"],
+    .input-with-icon input[type="text"] {
+        padding-right: 44px;
+    }
+
+    .input-with-icon .toggle-visibility {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: 0;
+        background: transparent;
+        padding: 6px;
+        cursor: pointer;
+        color: #555;
+    }
+
+    .input-with-icon .toggle-visibility:focus {
+        outline: 2px solid #6aa9ff;
+        border-radius: 6px;
+    }
+
+    /* --- Allow page to scroll when content overflows --- */
+    html,
+    body {
+        /* let the page grow and scroll vertically */
+        min-height: 90vh;
+        overflow-y: auto;
+    }
+</style>
+
 <body>
     <div class="page-layout">
         <div class="login-container">
@@ -95,12 +131,45 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
             </div>
             <div class="input-group">
                 <label for="password">Password:</label>
-                <input type="password" id="password" name="password" autocomplete="off">
+                <div class="input-with-icon">
+                    <input type="password" id="password" name="password" autocomplete="off">
+                    <button type="button" class="toggle-visibility" data-target="password" aria-label="Show password">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="input-group" id="confirm-group" style="display:none;">
+                <label for="confirm-password">Confirm Password:</label>
+                <div class="input-with-icon">
+                    <input type="password" id="confirm-password" name="confirm-password" autocomplete="off">
+                    <button type="button" class="toggle-visibility" data-target="confirm-password" aria-label="Show password">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <div class="input-group" id="fullname-group" style="display: none;">
                 <label for="full-name">Full Name:</label>
                 <input type="text" id="full-name" name="full-name" placeholder="Juan Dela Cruz" autocomplete="off" required>
+            </div>
+
+            <!-- Email (only visible in Register mode) -->
+            <div class="input-group" id="email-group" style="display: none;">
+                <label for="email">Email:</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="name@company.com"
+                    autocomplete="email"
+                    required>
             </div>
 
             <div class="input-group" id="department-group" style="display: none;">
@@ -112,6 +181,27 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
                             <?php echo htmlspecialchars($dept); ?>
                         </option>
                     <?php endforeach; ?>
+                </select>
+            </div>
+
+            <!-- Section (shown when department has sections; options injected by JS) -->
+            <div class="input-group" id="section-group" style="display:none;">
+                <label for="section">Section:</label>
+                <select name="section" id="section">
+                    <option value="">— Select section —</option>
+                    <!-- options injected by JS -->
+                </select>
+            </div>
+
+            <!-- Role (always visible in Register mode) -->
+            <div class="input-group" id="role-group" style="display:none;">
+                <label for="role">Role:</label>
+                <select name="role" id="role">
+                    <option value="">— Select role —</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Probi">Probi</option>
                 </select>
             </div>
 
@@ -139,6 +229,7 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
             </div>
         </div>
     </div>
-    <script src="login-data-retrieve.js" type="text/javascript"></script>
+    <script src="login-data-retrieve.js?v=1.4" type="text/javascript"></script>
 </body>
+
 </html>

@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../connection.php';
 
 /* Locate mysqli connection */
 $db = null;
-if (isset($conn) && $conn instanceof mysqli)       $db = $conn;
+if (isset($conn) && $conn instanceof mysqli)         $db = $conn;
 elseif (isset($mysqli) && $mysqli instanceof mysqli) $db = $mysqli;
 elseif (isset($db) && $db instanceof mysqli)         $db = $db;
 
@@ -25,30 +25,50 @@ if ($year !== null && ($year < 1970 || $year > 2100)) {
 }
 
 /**
- * Build result with 2 buckets per department:
- *  - closed:   status IN ('CLOSED (VALID)', 'CLOSED (IN-VALID)')
- *  - notclosed: everything else (including null)
+ * We keep all (department, section) pairs from system_users,
+ * BUT we drop the "plain department" row when that department
+ * has at least one non-empty section.
  *
- * Keep LEFT JOIN + year filter in the join so zero-count labels stay visible.
- * Apply site filter on the 'su' side so those zero-count rows still appear.
+ * Examples:
+ *   Dept A + sections X,Y  => show "Dept A - X", "Dept A - Y" (hide "Dept A")
+ *   Dept B with no section => show "Dept B"
+ *
+ * Still LEFT JOIN to rcpa_request so zero counts are kept.
+ * Site filter is applied on the 'su' side so zero-count rows stay visible.
  */
 $sql = "
-  WITH su AS (
+  WITH su_base AS (
     SELECT DISTINCT
       TRIM(department) AS department,
-      TRIM(section)    AS section,
+      TRIM(section)    AS section
+    FROM system_users
+    WHERE department IS NOT NULL AND TRIM(department) <> ''
+  ),
+  su AS (
+    /* Remove plain department when any non-empty section exists for that department */
+    SELECT
+      b.department,
+      b.section,
       TRIM(
         CONCAT(
-          TRIM(department),
+          b.department,
           CASE
-            WHEN section IS NOT NULL AND TRIM(section) <> ''
-            THEN CONCAT(' - ', TRIM(section))
+            WHEN b.section IS NOT NULL AND TRIM(b.section) <> ''
+              THEN CONCAT(' - ', TRIM(b.section))
             ELSE ''
           END
         )
       ) AS label
-    FROM system_users
-    WHERE department IS NOT NULL AND TRIM(department) <> ''
+    FROM su_base b
+    WHERE NOT (
+      (b.section IS NULL OR TRIM(b.section) = '')
+      AND EXISTS (
+        SELECT 1
+        FROM su_base b2
+        WHERE b2.department = b.department
+          AND b2.section IS NOT NULL AND TRIM(b2.section) <> ''
+      )
+    )
   )
   SELECT
     su.label AS dept,
@@ -77,12 +97,13 @@ $params = [];
 $types  = '';
 
 if ($year !== null) {
+  // keep year filter in JOIN side (preserve zero-count labels)
   $sql .= " AND rr.date_request IS NOT NULL AND YEAR(DATE(rr.date_request)) = ? ";
   $types .= 'i';
   $params[] = $year;
 }
 
-/* SITE filter on 'su' to keep zero-counts */
+/* SITE filter on 'su' side to keep zero-count items */
 if ($site === 'SSD') {
   $sql .= " WHERE UPPER(su.department) = 'SSD' ";
 } elseif ($site === 'RTI') {
