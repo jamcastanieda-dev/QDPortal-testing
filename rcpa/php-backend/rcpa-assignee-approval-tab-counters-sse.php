@@ -1,7 +1,6 @@
 <?php
 // php-backend/rcpa-assignee-approval-tab-counters-sse.php
 // Streams badge counts via Server-Sent Events.
-// Keep your JSON endpoint (rcpa-assignee-approval-tab-counters.php) unchanged.
 
 @ini_set('output_buffering', 'off');
 @ini_set('zlib.output_compression', '0');
@@ -20,29 +19,32 @@ function sse_send($event, $dataArr) {
 }
 
 function get_counts(mysqli $mysqli, string $user_name): array {
-    // Resolve user's department + section
+    // Resolve user's department + section + role
     $department = '';
     $section    = '';
+    $role       = '';
 
     if ($user_name !== '') {
-        $sql = "SELECT department, section
+        $sql = "SELECT department, section, role
                   FROM system_users
                  WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                  LIMIT 1";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->bind_param('s', $user_name);
             $stmt->execute();
-            $stmt->bind_result($db_department, $db_section);
+            $stmt->bind_result($db_department, $db_section, $db_role);
             if ($stmt->fetch()) {
                 $department = (string)$db_department;
                 $section    = (string)$db_section;
+                $role       = (string)$db_role;
             }
             $stmt->close();
         }
     }
 
-    $dept_norm = strtolower(trim($department));
-    $is_qms = in_array($dept_norm, ['qms', 'qa'], true);
+    $dept_norm  = strtolower(trim($department));
+    $is_qms     = in_array($dept_norm, ['qms', 'qa'], true);
+    $is_manager = (strcasecmp(trim($role), 'manager') === 0);
 
     $valid_approval   = 0; // 'VALID APPROVAL'
     $invalid_approval = 0; // 'IN-VALID APPROVAL'
@@ -63,22 +65,43 @@ function get_counts(mysqli $mysqli, string $user_name): array {
             $stmt->close();
         }
     } elseif ($department !== '') {
-        $sql = "SELECT
-                    SUM(CASE WHEN status = 'VALID APPROVAL'    THEN 1 ELSE 0 END) AS valid_approval,
-                    SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
-                FROM rcpa_request
-                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL')
-                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                  AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
-        if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('ss', $department, $section);
-            $stmt->execute();
-            $stmt->bind_result($v, $nv);
-            if ($stmt->fetch()) {
-                $valid_approval   = (int)($v  ?? 0);
-                $invalid_approval = (int)($nv ?? 0);
+        if ($is_manager) {
+            // Manager: ignore section; department match only
+            $sql = "SELECT
+                        SUM(CASE WHEN status = 'VALID APPROVAL'    THEN 1 ELSE 0 END) AS valid_approval,
+                        SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
+                    FROM rcpa_request
+                    WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL')
+                      AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('s', $department);
+                $stmt->execute();
+                $stmt->bind_result($v, $nv);
+                if ($stmt->fetch()) {
+                    $valid_approval   = (int)($v  ?? 0);
+                    $invalid_approval = (int)($nv ?? 0);
+                }
+                $stmt->close();
             }
-            $stmt->close();
+        } else {
+            // Non-manager: dept + (blank OR matching) section
+            $sql = "SELECT
+                        SUM(CASE WHEN status = 'VALID APPROVAL'    THEN 1 ELSE 0 END) AS valid_approval,
+                        SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
+                    FROM rcpa_request
+                    WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL')
+                      AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                      AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('ss', $department, $section);
+                $stmt->execute();
+                $stmt->bind_result($v, $nv);
+                if ($stmt->fetch()) {
+                    $valid_approval   = (int)($v  ?? 0);
+                    $invalid_approval = (int)($nv ?? 0);
+                }
+                $stmt->close();
+            }
         }
     }
 
@@ -121,8 +144,8 @@ try {
     $mysqli->set_charset('utf8mb4');
 
     // Stream for ~5 minutes, emit on change (or at least once immediately)
-    $lastHash = null;
-    $iterations = 60;         // 60 * 5s = 5 minutes
+    $lastHash   = null;
+    $iterations = 60;   // 60 * 5s = 5 minutes
     $sleepSec   = 5;
 
     for ($i = 0; $i < $iterations; $i++) {

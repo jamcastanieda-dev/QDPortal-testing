@@ -39,23 +39,26 @@ if (!$mysqli || $mysqli->connect_errno) { http_response_code(500); exit; }
 $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
-   Resolve user's department + section
+   Resolve user's department + section + role
    (same visibility as rcpa-list-approval-valid.php)
 --------------------------- */
 $dept = '';
 $user_section = '';
-if ($stmt0 = $mysqli->prepare("SELECT department, section FROM system_users WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?)) LIMIT 1")) {
+$user_role = '';
+if ($stmt0 = $mysqli->prepare("SELECT department, section, role FROM system_users WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?)) LIMIT 1")) {
   $stmt0->bind_param('s', $user_name);
   if ($stmt0->execute()) {
-    $stmt0->bind_result($db_department, $db_section);
+    $stmt0->bind_result($db_department, $db_section, $db_role);
     if ($stmt0->fetch()) {
       $dept = (string)$db_department;
       $user_section = (string)$db_section;
+      $user_role = (string)$db_role;
     }
   }
   $stmt0->close();
 }
-$isQaqms = in_array(strtoupper(trim($dept)), ['QA','QMS'], true);
+$isQaqms   = in_array(strtoupper(trim($dept)), ['QA','QMS'], true);
+$isManager = (strcasecmp(trim($user_role), 'manager') === 0);
 
 /* ---------------------------
    Inputs (keep in sync with list)
@@ -80,21 +83,34 @@ if ($type !== '') {
 $where[] = '(' . implode(' OR ', array_fill(0, count($allowed_statuses), 'status = ?')) . ')';
 foreach ($allowed_statuses as $st) { $params[] = $st; $types .= 's'; }
 
+/* Visibility restriction (role-aware) */
 if (!$isQaqms) {
   if ($dept !== '') {
-    $where[] = "(
-      assignee = ?
-      AND (
-        section IS NULL
-        OR TRIM(section) = ''
-        OR LOWER(TRIM(section)) = LOWER(TRIM(?))
-      )
-      OR originator_name = ?
-    )";
-    $params[] = $dept;
-    $params[] = $user_section;
-    $params[] = $user_name;
-    $types   .= 'sss';
+    if ($isManager) {
+      // Managers: department-wide (ignore section) OR own originated rows
+      $where[] = "(
+        assignee = ?
+        OR originator_name = ?
+      )";
+      $params[] = $dept;
+      $params[] = $user_name;
+      $types   .= 'ss';
+    } else {
+      // Non-managers: dept + (section empty or matches) OR own originated rows
+      $where[] = "(
+        assignee = ?
+        AND (
+          section IS NULL
+          OR TRIM(section) = ''
+          OR LOWER(TRIM(section)) = LOWER(TRIM(?))
+        )
+        OR originator_name = ?
+      )";
+      $params[] = $dept;
+      $params[] = $user_section;
+      $params[] = $user_name;
+      $types   .= 'sss';
+    }
   } else {
     $where[]  = "originator_name = ?";
     $params[] = $user_name;

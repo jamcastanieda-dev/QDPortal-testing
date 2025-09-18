@@ -33,21 +33,23 @@ try {
     }
     $mysqli->set_charset('utf8mb4');
 
-    // Look up user's department + section
+    // Look up user's department + section + role
     $department = '';
     $section    = '';
+    $role       = '';
     if ($user_name !== '') {
-        $sql = "SELECT department, section
+        $sql = "SELECT department, section, role
                   FROM system_users
                  WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                  LIMIT 1";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->bind_param('s', $user_name);
             $stmt->execute();
-            $stmt->bind_result($db_department, $db_section);
+            $stmt->bind_result($db_department, $db_section, $db_role);
             if ($stmt->fetch()) {
                 $department = (string)$db_department;
                 $section    = (string)$db_section;
+                $role       = (string)$db_role;
             }
             $stmt->close();
         }
@@ -55,7 +57,8 @@ try {
 
     // Treat QMS and QA the same for badge visibility
     $dept_norm = strtolower(trim($department));
-    $is_qms = in_array($dept_norm, ['qms', 'qa'], true);
+    $is_qms    = in_array($dept_norm, ['qms', 'qa'], true);
+    $is_mgr    = (strcasecmp(trim($role), 'manager') === 0);
 
     // ---------- COUNTS ----------
 
@@ -74,15 +77,7 @@ try {
         }
     }
 
-    // Helper snippet used in several queries for non-QMS users:
-    // scope to user's department AND (row has no section OR row.section matches user's section)
-    // SQL fragment:
-    //   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-    //   AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
-    //
-    // Bind order for the pair is: [$department, $section]
-
-    // 2) ASSIGNEE TASKS
+    // 2) ASSIGNEE TASKS (ASSIGNEE PENDING + FOR CLOSING)
     $assignee_pending = 0;
     if ($is_qms) {
         // Global for QA/QMS
@@ -97,25 +92,42 @@ try {
             $stmt->close();
         }
     } elseif ($department !== '') {
-        $sql = "
-            SELECT COUNT(*)
-            FROM rcpa_request
-            WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
-              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-              AND (
-                    section IS NULL OR section = '' OR
-                    LOWER(TRIM(section)) = LOWER(TRIM(?))
-                  )";
-        if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('ss', $department, $section);
-            $stmt->execute();
-            $stmt->bind_result($cnt);
-            if ($stmt->fetch()) $assignee_pending = (int)$cnt;
-            $stmt->close();
+        if ($is_mgr) {
+            // Manager: department-wide, ignore section
+            $sql = "
+                SELECT COUNT(*)
+                FROM rcpa_request
+                WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
+                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('s', $department);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $assignee_pending = (int)$cnt;
+                $stmt->close();
+            }
+        } else {
+            // Non-manager: dept + (section empty OR matches user's section)
+            $sql = "
+                SELECT COUNT(*)
+                FROM rcpa_request
+                WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
+                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                  AND (
+                        section IS NULL OR section = '' OR
+                        LOWER(TRIM(section)) = LOWER(TRIM(?))
+                      )";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('ss', $department, $section);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $assignee_pending = (int)$cnt;
+                $stmt->close();
+            }
         }
     }
 
-    // 3) ASSIGNEE APPROVAL (VALID/IN-VALID/FOR CLOSING APPROVAL)
+    // 3) ASSIGNEE APPROVAL (VALID / IN-VALID / FOR CLOSING APPROVAL)
     $valid_approval = 0;
     $not_valid_approval = 0;
     $for_closing_approval = 0;
@@ -140,28 +152,52 @@ try {
             $stmt->close();
         }
     } elseif ($department !== '') {
-        $sql = "
-            SELECT
-                SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END) AS valid_approval,
-                SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END) AS not_valid_approval,
-                SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END) AS for_closing_approval
-            FROM rcpa_request
-            WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
-              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-              AND (
-                    section IS NULL OR section = '' OR
-                    LOWER(TRIM(section)) = LOWER(TRIM(?))
-                  )";
-        if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('ss', $department, $section);
-            $stmt->execute();
-            $stmt->bind_result($v1, $v2, $v3);
-            if ($stmt->fetch()) {
-                $valid_approval        = (int)($v1 ?? 0);
-                $not_valid_approval    = (int)($v2 ?? 0);
-                $for_closing_approval  = (int)($v3 ?? 0);
+        if ($is_mgr) {
+            // Manager: department-wide, ignore section
+            $sql = "
+                SELECT
+                    SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END)
+                FROM rcpa_request
+                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
+                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('s', $department);
+                $stmt->execute();
+                $stmt->bind_result($v1, $v2, $v3);
+                if ($stmt->fetch()) {
+                    $valid_approval        = (int)($v1 ?? 0);
+                    $not_valid_approval    = (int)($v2 ?? 0);
+                    $for_closing_approval  = (int)($v3 ?? 0);
+                }
+                $stmt->close();
             }
-            $stmt->close();
+        } else {
+            // Non-manager: dept + (section empty/match)
+            $sql = "
+                SELECT
+                    SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END)
+                FROM rcpa_request
+                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
+                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                  AND (
+                        section IS NULL OR section = '' OR
+                        LOWER(TRIM(section)) = LOWER(TRIM(?))
+                      )";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('ss', $department, $section);
+                $stmt->execute();
+                $stmt->bind_result($v1, $v2, $v3);
+                if ($stmt->fetch()) {
+                    $valid_approval        = (int)($v1 ?? 0);
+                    $not_valid_approval    = (int)($v2 ?? 0);
+                    $for_closing_approval  = (int)($v3 ?? 0);
+                }
+                $stmt->close();
+            }
         }
     }
     $approval_total = $valid_approval + $not_valid_approval + $for_closing_approval;
@@ -202,21 +238,38 @@ try {
             $stmt->close();
         }
     } elseif ($department !== '') {
-        $sql = "
-            SELECT COUNT(*)
-            FROM rcpa_request
-            WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
-              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-              AND (
-                    section IS NULL OR section = '' OR
-                    LOWER(TRIM(section)) = LOWER(TRIM(?))
-                  )";
-        if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('ss', $department, $section);
-            $stmt->execute();
-            $stmt->bind_result($cnt);
-            if ($stmt->fetch()) $closed = (int)$cnt;
-            $stmt->close();
+        if ($is_mgr) {
+            // Manager: department-wide, ignore section
+            $sql = "
+                SELECT COUNT(*)
+                FROM rcpa_request
+                WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
+                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('s', $department);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $closed = (int)$cnt;
+                $stmt->close();
+            }
+        } else {
+            // Non-manager: dept + (section empty/match)
+            $sql = "
+                SELECT COUNT(*)
+                FROM rcpa_request
+                WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
+                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                  AND (
+                        section IS NULL OR section = '' OR
+                        LOWER(TRIM(section)) = LOWER(TRIM(?))
+                      )";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('ss', $department, $section);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $closed = (int)$cnt;
+                $stmt->close();
+            }
         }
     }
 

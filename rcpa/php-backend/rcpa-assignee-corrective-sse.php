@@ -33,18 +33,20 @@ if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
 if (!$mysqli || $mysqli->connect_errno) { http_response_code(500); exit; }
 $mysqli->set_charset('utf8mb4');
 
-/* -------- Resolve user's dept/section + QA/QMS flag -------- */
+/* -------- Resolve user's dept/section/role + QA/QMS flag -------- */
 $user_dept = '';
 $user_sect = '';
-if ($stmt0 = $mysqli->prepare("SELECT department, section FROM system_users WHERE employee_name = ? LIMIT 1")) {
+$user_role = '';
+if ($stmt0 = $mysqli->prepare("SELECT department, section, role FROM system_users WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?)) LIMIT 1")) {
   $stmt0->bind_param('s', $user_name);
   if ($stmt0->execute()) {
-    $stmt0->bind_result($d, $s);
-    if ($stmt0->fetch()) { $user_dept = (string)$d; $user_sect = (string)$s; }
+    $stmt0->bind_result($d, $s, $r);
+    if ($stmt0->fetch()) { $user_dept = (string)$d; $user_sect = (string)$s; $user_role = (string)$r; }
   }
   $stmt0->close();
 }
-$is_qaqms = in_array(strtoupper(trim($user_dept)), ['QA','QMS'], true);
+$is_qaqms   = in_array(strtoupper(trim($user_dept)), ['QA','QMS'], true);
+$is_manager = (strcasecmp(trim($user_role), 'manager') === 0);
 
 /* -------- Inputs (keep in sync with list) -------- */
 $type = trim((string)($_GET['type'] ?? ''));
@@ -63,12 +65,26 @@ foreach ($allowed_statuses as $st) { $params[] = $st; $types .= 's'; }
 
 if (!$is_qaqms) {
   if ($user_dept !== '') {
-    $where[]  = "(
-      (assignee = ? AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
-      OR originator_name = ?
-    )";
-    array_push($params, $user_dept, $user_sect, $user_name);
-    $types .= 'sss';
+    if ($is_manager) {
+      // Managers: department-wide (ignore section) OR own originated rows
+      $where[] = "(
+        assignee = ?
+        OR originator_name = ?
+      )";
+      $params[] = $user_dept;
+      $params[] = $user_name;
+      $types   .= 'ss';
+    } else {
+      // Non-managers: dept + (section empty or matches) OR own originated rows
+      $where[] = "(
+        (assignee = ? AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
+        OR originator_name = ?
+      )";
+      $params[] = $user_dept;
+      $params[] = $user_sect;
+      $params[] = $user_name;
+      $types   .= 'sss';
+    }
   } else {
     $where[]  = "originator_name = ?";
     $params[] = $user_name;

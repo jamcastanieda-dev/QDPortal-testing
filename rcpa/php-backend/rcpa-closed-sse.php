@@ -30,31 +30,34 @@ if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
 if (!$mysqli || $mysqli->connect_errno) { http_response_code(500); exit; }
 $mysqli->set_charset('utf8mb4');
 
-/* -------- Resolve user's dept/section (visibility) -------- */
+/* -------- Resolve user's dept/section/role (visibility) -------- */
 $dept = '';
 $section = '';
-if ($stmt0 = $mysqli->prepare("SELECT department, section FROM system_users WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?)) LIMIT 1")) {
+$role = '';
+if ($stmt0 = $mysqli->prepare("SELECT department, section, role FROM system_users WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?)) LIMIT 1")) {
   $stmt0->bind_param('s', $user_name);
   if ($stmt0->execute()) {
-    $stmt0->bind_result($db_department, $db_section);
+    $stmt0->bind_result($db_department, $db_section, $db_role);
     if ($stmt0->fetch()) {
       $dept    = (string)$db_department;
       $section = (string)$db_section;
+      $role    = (string)$db_role;
     }
   }
   $stmt0->close();
 }
-$isQaqms = in_array(strtoupper(trim($dept)), ['QA','QMS'], true);
+$isQaqms   = in_array(strtoupper(trim($dept)), ['QA','QMS'], true);
+$isManager = (strcasecmp(trim($role), 'manager') === 0);
 
 /* -------- Inputs (must mirror list endpoint) -------- */
-$type   = trim((string)($_GET['type'] ?? ''));
+$type      = trim((string)($_GET['type'] ?? ''));
 $statusRaw = trim((string)($_GET['status'] ?? ''));
 $statusNorm = '';
 if ($statusRaw !== '') {
   $up = strtoupper($statusRaw);
-  if ($up === 'VALID' || $up === 'CLOSED (VALID)')          $statusNorm = 'CLOSED (VALID)';
+  if ($up === 'VALID' || $up === 'CLOSED (VALID)')                               $statusNorm = 'CLOSED (VALID)';
   elseif ($up === 'INVALID' || $up === 'IN-VALID' || $up === 'CLOSED (IN-VALID)') $statusNorm = 'CLOSED (IN-VALID)';
-  elseif ($up === 'ALL')                                     $statusNorm = '';
+  elseif ($up === 'ALL')                                                          $statusNorm = '';
 }
 
 /* -------- WHERE (mirror rcpa-list-closed.php) -------- */
@@ -81,16 +84,29 @@ if ($statusNorm !== '' && in_array($statusNorm, $allowed_statuses, true)) {
 
 if (!$isQaqms) {
   if ($dept !== '') {
-    $where[]  = "(
-      (LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-        AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
-      )
-      OR originator_name = ?
-    )";
-    $params[] = $dept;
-    $params[] = $section;
-    $params[] = $user_name;
-    $types   .= 'sss';
+    if ($isManager) {
+      // Manager: dept-wide regardless of section OR own originated rows
+      $where[]  = "(
+        LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+        OR originator_name = ?
+      )";
+      $params[] = $dept;
+      $params[] = $user_name;
+      $types   .= 'ss';
+    } else {
+      // Non-manager: dept + (section empty/match) OR own originated rows
+      $where[]  = "(
+        (
+          LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+          AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
+        )
+        OR originator_name = ?
+      )";
+      $params[] = $dept;
+      $params[] = $section;
+      $params[] = $user_name;
+      $types   .= 'sss';
+    }
   } else {
     $where[]  = "originator_name = ?";
     $params[] = $user_name;

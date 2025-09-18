@@ -2,6 +2,7 @@
 (function () {
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
   const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+  const CURRENT_ROLE = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 add this
 
   const tbody = document.querySelector('#rcpa-table tbody');
   const totalEl = document.getElementById('rcpa-total');
@@ -21,11 +22,14 @@
   // Dept must match AND if row has a section, that must match user's section too
   const canActOnRow = (rowAssignee, rowSection) => {
     if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+    // Managers can act for their department regardless of section
+    if (CURRENT_ROLE === 'manager') return true; // 👈 add this
     const rs = norm(rowSection);
     if (!rs) return true;                 // no section on row → dept match is enough
     if (!CURRENT_SECT) return false;      // user has no section but row does → cannot act
     return rs === CURRENT_SECT;           // both must match
   };
+
 
   let page = 1;
   const pageSize = 10;
@@ -341,7 +345,6 @@
   load();
   startSse();
 })();
-
 
 // view modal
 (function () {

@@ -1,6 +1,5 @@
 (function () {
-  // --- Per-row permission: dept must match; if row has section, it must also match user's section ---
-  // Robust parse for approver flag — avoids treating "0"/"false" as true
+  // --- Per-row permission & role flags ---
   const toBoolFlag = (v) => {
     if (v === true || v === 1) return true;
     if (v === false || v === 0 || v == null) return false;
@@ -11,14 +10,19 @@
 
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
   const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+  const CURRENT_ROLE = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 role from server
 
   // ✅ only QMS approvers can act across departments
   const CAN_OVERRIDE_DEPT = IS_APPROVER && CURRENT_DEPT === 'qms';
 
   const norm = s => (s ?? '').toString().trim().toLowerCase();
+
   // Returns true if user can act on this row based on dept/section
+  // 🔁 Managers can act for their department regardless of section
   const canActOnRow = (rowAssignee, rowSection) => {
     if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+    if (CURRENT_ROLE === 'manager') return true; // 👈 dept matched; ignore section if manager
+
     const rs = norm(rowSection);
     if (!rs) return true;             // no section on row → dept match is enough
     if (!CURRENT_SECT) return false;  // row has section but user lacks one
@@ -97,7 +101,7 @@
   }
 
   // Show hamburger if user can act
-  // ✅ only QMS approvers can override department; others must match dept/section
+  // ✅ only QMS approvers can override department; others must match dept/section (or manager rule)
   function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
     if (CAN_OVERRIDE_DEPT || canActOnRow(assignee, section)) {
@@ -373,6 +377,7 @@
   load();
   startSse(); // ⚡ start realtime
 })();
+
 
 /* ====== VIEW MODAL: fetch, fill, show ====== */
 (function () {

@@ -1,7 +1,16 @@
 (function () {
-  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
+  // Robust parse for approver flag
+  const toBoolFlag = (v) => {
+    if (v === true || v === 1) return true;
+    if (v === false || v === 0 || v == null) return false;
+    const s = String(v).trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes' || s === 'on';
+  };
+
+  const IS_APPROVER = toBoolFlag(window.RCPA_IS_APPROVER);
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
   const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+  const CURRENT_ROLE = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 added
 
   const tbody = document.querySelector('#rcpa-table tbody');
   const totalEl = document.getElementById('rcpa-total');
@@ -25,9 +34,11 @@
 
   const norm = s => (s ?? '').toString().trim().toLowerCase();
 
-  // Require dept match AND (no row.section) OR (row.section matches user's section)
+  // Dept must match AND (no row.section) OR (row.section matches user's section)
+  // ➕ Managers can act for their department regardless of section
   const canActOnRow = (rowAssignee, rowSection) => {
     if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+    if (CURRENT_ROLE === 'manager') return true; // 👈 manager override on section
     const rs = norm(rowSection);
     if (!rs) return true;
     return rs === CURRENT_SECT;
@@ -86,7 +97,7 @@
     return '';
   }
 
-  // Show hamburger ONLY if user is approver AND this row is assigned to their department/section
+  // Show hamburger ONLY if user is approver AND this row is assigned to their department/section (manager ignores section)
   function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
     if (IS_APPROVER && canActOnRow(assignee, section)) {
@@ -341,6 +352,7 @@
   load();
   startSse(); // ⚡ go realtime
 })();
+
 
 
 /* ====== VIEW MODAL: fetch, fill, show ====== */

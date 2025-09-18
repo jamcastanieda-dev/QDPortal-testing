@@ -2,6 +2,7 @@
     const IS_APPROVER = !!window.RCPA_IS_APPROVER;
     const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
     const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+    const CURRENT_ROLE = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 use role
 
     const tbody = document.querySelector('#rcpa-table tbody');
     const totalEl = document.getElementById('rcpa-total');
@@ -28,8 +29,10 @@
     const norm = (s) => (s ?? '').toString().trim().toLowerCase();
 
     // Dept must match; if row has section, it must also match user's section
+    // BUT if current user is a MANAGER, ignore the section requirement.
     const canActOnRow = (rowAssignee, rowSection) => {
         if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+        if (CURRENT_ROLE === 'manager') return true; // 👈 manager: department-wide regardless of section
         const rs = norm(rowSection);
         if (!rs) return true;
         if (!CURRENT_SECT) return false;
@@ -89,7 +92,7 @@
         return '';
     }
 
-    // Only show hamburger if approver AND dept/section match
+    // Only show hamburger if approver AND dept/section match (managers ignore section)
     function actionButtonHtml(id, assignee, section) {
         const safeId = escapeHtml(id ?? '');
         if (IS_APPROVER && canActOnRow(assignee, section)) {
@@ -290,7 +293,7 @@
         if (!moreBtn) return;
 
         const id = moreBtn.dataset.id;
-        if (currentTarget === moreBtn) hideActions();
+               if (currentTarget === moreBtn) hideActions();
         else showActions(moreBtn, id);
     });
 
@@ -352,6 +355,7 @@
     load();
     startSse(); // ⚡ realtime
 })();
+
 
 
 /* ====== VIEW MODAL: fetch, fill, show ====== */

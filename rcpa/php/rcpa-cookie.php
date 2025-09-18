@@ -1,6 +1,7 @@
 <?php
 // --- COOKIE-ONLY LOGIN: No session needed ---
 // rcpa-cookie.php
+
 // Prevent caching
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
@@ -64,7 +65,6 @@ if ($user_name !== '') {
 }
 
 // 4) Compute visibility flags
-// 4) Compute visibility flags
 $can_see_rcpa_approval = in_array(strtolower($role), ['manager', 'supervisor'], true);
 
 // ---- Who can use the action-container? (QA/QMS only — keep this for other pages) ----
@@ -72,22 +72,19 @@ $dept_norm = strtolower(trim($department));
 $rcpa_can_actions = in_array($dept_norm, ['qms', 'qa'], true);
 
 // Decide if the user may see QMS-related buttons
-$dept_norm = strtolower(trim($department));
 $rcpa_show_qms = ($dept_norm === 'qms') || ($dept_norm === 'qa' && $can_see_rcpa_approval);
 
-
-// Expose to JS before any page scripts run
-// Expose to JS before any page scripts run
+// 5) Expose to JS before any page scripts run
 echo '<script>
   window.RCPA_CAN_ACTIONS = ' . ($rcpa_can_actions ? 'true' : 'false') . ';
   window.RCPA_IS_APPROVER = ' . ($can_see_rcpa_approval ? 'true' : 'false') . ';
   window.RCPA_DEPARTMENT = ' . json_encode($department, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) . ';
   window.RCPA_SECTION = ' . json_encode($section, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) . ';
   window.RCPA_SHOW_QMS = ' . ($rcpa_show_qms ? 'true' : 'false') . ';
+  window.RCPA_ROLE = ' . json_encode($role, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) . ';
 </script>';
 
-
 include "../../navigation-bar.html";
-include '../../inspection-table.html';
-date_default_timezone_set('Asia/Manila');
+include "../../inspection-table.html";
+date_default_timezone_set("Asia/Manila");
 ?>

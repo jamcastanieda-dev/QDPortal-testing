@@ -39,30 +39,33 @@ if (!$mysqli || $mysqli->connect_errno) {
 $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
-   Resolve user's department
+   Resolve user's department/section/role
 --------------------------- */
 $dept = '';
 $user_section = '';
+$user_role = '';
 if ($user_name !== '') {
-    $sqlDept = "SELECT department, section
+    $sqlDept = "SELECT department, section, role
                 FROM system_users
                 WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                 LIMIT 1";
     if ($stmt = $mysqli->prepare($sqlDept)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department, $db_section);
+        $stmt->bind_result($db_department, $db_section, $db_role);
         if ($stmt->fetch()) {
             $dept = (string)$db_department;
             $user_section = (string)$db_section;
+            $user_role = (string)$db_role;
         }
         $stmt->close();
     }
 }
 
-/* Determine if QA/QMS (see all) */
+/* Determine if QA/QMS (see all) + Manager (dept-wide regardless of section) */
 $dept_norm = strtoupper(trim($dept));
 $isQaqms   = in_array($dept_norm, ['QA', 'QMS'], true);
+$isManager = (strcasecmp(trim($user_role), 'manager') === 0);
 
 /* ---------------------------
    Inputs (filters + paging)
@@ -79,8 +82,10 @@ $q      = trim((string)($_GET['q'] ?? ''));       // free-text query (project/wb
    WHERE builder
    Visibility:
      - QA/QMS: see all
-     - Others: (assignee = user's dept) OR (originator_name = user's name)
-       - If no department found: only originator_name = user's name
+     - Others:
+         * MANAGER: (assignee = user's dept) OR (originator_name = user's name)
+         * NON-MANAGER: (assignee = user's dept AND (row.section IS NULL/'' OR row.section = user.section))
+                        OR originator_name = user
 --------------------------- */
 $allowed_statuses = ['ASSIGNEE PENDING'];
 
@@ -106,7 +111,6 @@ if ($q !== '') {
     $types   .= 'sssss';
 }
 
-
 if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     $where[]  = "status = ?";
     $params[] = $status;
@@ -120,27 +124,34 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     }
 }
 
-/* Visibility restriction
-   - QA/QMS: see all
-   - Others:
-       (assignee = user's dept AND (row.section IS NULL/'' OR row.section = user.section))
-       OR originator_name = user
-*/
+/* Visibility restriction (role-aware) */
 if (!$isQaqms) {
     if ($dept !== '') {
-        $where[]  = "(
-            assignee = ?
-            AND (
-                section IS NULL
-                OR TRIM(section) = ''
-                OR LOWER(TRIM(section)) = LOWER(TRIM(?))
-            )
-            OR originator_name = ?
-        )";
-        $params[] = $dept;
-        $params[] = $user_section;   // empty means they only see rows with empty section
-        $params[] = $user_name;
-        $types   .= 'sss';
+        if ($isManager) {
+            // Managers: department-wide (ignore section) OR own originated rows
+            $where[]  = "(
+                assignee = ?
+                OR originator_name = ?
+            )";
+            $params[] = $dept;
+            $params[] = $user_name;
+            $types   .= 'ss';
+        } else {
+            // Non-managers: dept + (section empty or matches) OR own originated rows
+            $where[]  = "(
+                assignee = ?
+                AND (
+                    section IS NULL
+                    OR TRIM(section) = ''
+                    OR LOWER(TRIM(section)) = LOWER(TRIM(?))
+                )
+                OR originator_name = ?
+            )";
+            $params[] = $dept;
+            $params[] = $user_section;   // empty means they only see rows with empty section
+            $params[] = $user_name;
+            $types   .= 'sss';
+        }
     } else {
         if ($user_name !== '') {
             $where[]  = "originator_name = ?";
@@ -151,7 +162,6 @@ if (!$isQaqms) {
         }
     }
 }
-
 
 $where_sql = $where ? implode(' AND ', $where) : '1=1';
 
@@ -182,7 +192,7 @@ $sql = "SELECT
             conformance,
             originator_name,
             assignee,
-            section,          -- 👈 add this
+            section,          -- includes section for UI gating
             project_name,
             wbs_number,
             reply_due_date
@@ -190,7 +200,6 @@ $sql = "SELECT
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
         LIMIT ? OFFSET ?";
-
 
 if (!($stmt = $mysqli->prepare($sql))) {
     http_response_code(500);
@@ -216,7 +225,7 @@ while ($r = $res->fetch_assoc()) {
         'status'           => (string)($r['status'] ?? ''),
         'originator_name'  => (string)($r['originator_name'] ?? ''),
         'assignee'         => (string)($r['assignee'] ?? ''),
-        'section'          => (string)($r['section'] ?? ''),   // 👈 add this
+        'section'          => (string)($r['section'] ?? ''),
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'reply_due_date'   => $r['reply_due_date'] ? date('Y-m-d', strtotime($r['reply_due_date'])) : null,

@@ -34,32 +34,35 @@ if (!$mysqli || $mysqli->connect_errno) {
 $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
-   Resolve current user's department & section
+   Resolve current user's department, section, role
    Visibility rules:
      - QA or QMS  => can see ALL rows
-     - Others     => can see rows where:
-         (assignee = user_dept AND (section IS NULL/'' OR section = user_section))
-         OR originator_name = user_name
+     - MANAGER    => can see all rows for their department (ignore section) OR own originated rows
+     - Others     => (assignee = user_dept AND (section IS NULL/'' OR section = user_section))
+                     OR originator_name = user_name
 --------------------------- */
 $user_dept = '';
 $user_sect = '';
+$user_role = '';
 if ($user_name !== '') {
-    $sqlDept = "SELECT department, section
+    $sqlDept = "SELECT department, section, role
                 FROM system_users
                 WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                 LIMIT 1";
     if ($stmt = $mysqli->prepare($sqlDept)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department, $db_section);
+        $stmt->bind_result($db_department, $db_section, $db_role);
         if ($stmt->fetch()) {
             $user_dept = (string)$db_department;
             $user_sect = (string)$db_section;
+            $user_role = (string)$db_role;
         }
         $stmt->close();
     }
 }
-$is_qaqms = in_array(strtoupper(trim($user_dept)), ['QA', 'QMS'], true);
+$is_qaqms   = in_array(strtoupper(trim($user_dept)), ['QA', 'QMS'], true);
+$is_manager = (strcasecmp(trim($user_role), 'manager') === 0);
 
 /* ---------------------------
    Inputs (filters + paging)
@@ -112,22 +115,29 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     }
 }
 
-/* Visibility restriction:
-   - QA/QMS: no extra restriction (see all)
-   - Else:
-       * (assignee = user_dept AND (section IS NULL/'' OR LOWER(TRIM(section)) = LOWER(TRIM(user_sect))))
-         OR originator_name = user_name
-*/
+/* Visibility restriction (role-aware) */
 if (!$is_qaqms) {
     if ($user_dept !== '') {
-        $where[]  = "(
-            (assignee = ? AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
-            OR originator_name = ?
-        )";
-        $params[] = $user_dept;
-        $params[] = $user_sect;
-        $params[] = $user_name;
-        $types   .= 'sss';
+        if ($is_manager) {
+            // Managers: department-wide (ignore section) OR own originated rows
+            $where[]  = "(
+                assignee = ?
+                OR originator_name = ?
+            )";
+            $params[] = $user_dept;
+            $params[] = $user_name;
+            $types   .= 'ss';
+        } else {
+            // Non-managers: dept + (section empty or matches) OR own originated rows
+            $where[]  = "(
+                (assignee = ? AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
+                OR originator_name = ?
+            )";
+            $params[] = $user_dept;
+            $params[] = $user_sect;
+            $params[] = $user_name;
+            $types   .= 'sss';
+        }
     } else {
         if ($user_name !== '') {
             $where[]  = "originator_name = ?";

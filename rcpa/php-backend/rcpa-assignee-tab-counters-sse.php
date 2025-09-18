@@ -9,8 +9,6 @@ header('Content-Type: text/event-stream; charset=UTF-8');
 header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('X-Accel-Buffering: no'); // disable nginx buffering if present
-// CORS not needed for same-origin; add if you really need it:
-// header('Access-Control-Allow-Origin: https://your.domain');
 
 ignore_user_abort(true);
 set_time_limit(0);
@@ -55,27 +53,30 @@ $mysqli->set_charset('utf8mb4');
 
 // --- Helpers ---
 function fetch_counts(mysqli $db, string $user_name): array {
-  // Resolve department + section
+  // Resolve department + section + role
   $department = '';
   $section    = '';
+  $role       = '';
   if ($user_name !== '') {
-    $sql = "SELECT department, section
+    $sql = "SELECT department, section, role
               FROM system_users
              WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
              LIMIT 1";
     if ($stmt = $db->prepare($sql)) {
       $stmt->bind_param('s', $user_name);
       $stmt->execute();
-      $stmt->bind_result($db_department, $db_section);
+      $stmt->bind_result($db_department, $db_section, $db_role);
       if ($stmt->fetch()) {
         $department = (string)$db_department;
         $section    = (string)$db_section;
+        $role       = (string)$db_role;
       }
       $stmt->close();
     }
   }
   $dept_norm = strtolower(trim($department));
-  $is_qms = in_array($dept_norm, ['qms', 'qa'], true);
+  $is_qms    = in_array($dept_norm, ['qms', 'qa'], true);
+  $is_manager = (strcasecmp(trim($role), 'manager') === 0);
 
   $assignee_pending = 0;
   $for_closing      = 0;
@@ -96,25 +97,44 @@ function fetch_counts(mysqli $db, string $user_name): array {
       $stmt->close();
     }
   } elseif ($department !== '') {
-    $sql = "SELECT
-              SUM(CASE WHEN status = 'ASSIGNEE PENDING' THEN 1 ELSE 0 END) AS assignee_pending,
-              SUM(CASE WHEN status = 'FOR CLOSING'      THEN 1 ELSE 0 END) AS for_closing
-            FROM rcpa_request
-            WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
-              AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-              AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
-    if ($stmt = $db->prepare($sql)) {
-      $stmt->bind_param('ss', $department, $section);
-      $stmt->execute();
-      $stmt->bind_result($p, $c);
-      if ($stmt->fetch()) {
-        $assignee_pending = (int)($p ?? 0);
-        $for_closing      = (int)($c ?? 0);
+    if ($is_manager) {
+      // Manager: ignore section; department match only
+      $sql = "SELECT
+                SUM(CASE WHEN status = 'ASSIGNEE PENDING' THEN 1 ELSE 0 END) AS assignee_pending,
+                SUM(CASE WHEN status = 'FOR CLOSING'      THEN 1 ELSE 0 END) AS for_closing
+              FROM rcpa_request
+              WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
+                AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+      if ($stmt = $db->prepare($sql)) {
+        $stmt->bind_param('s', $department);
+        $stmt->execute();
+        $stmt->bind_result($p, $c);
+        if ($stmt->fetch()) {
+          $assignee_pending = (int)($p ?? 0);
+          $for_closing      = (int)($c ?? 0);
+        }
+        $stmt->close();
       }
-      $stmt->close();
+    } else {
+      // Non-manager: dept + (blank OR matching) section
+      $sql = "SELECT
+                SUM(CASE WHEN status = 'ASSIGNEE PENDING' THEN 1 ELSE 0 END) AS assignee_pending,
+                SUM(CASE WHEN status = 'FOR CLOSING'      THEN 1 ELSE 0 END) AS for_closing
+              FROM rcpa_request
+              WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
+                AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
+      if ($stmt = $db->prepare($sql)) {
+        $stmt->bind_param('ss', $department, $section);
+        $stmt->execute();
+        $stmt->bind_result($p, $c);
+        if ($stmt->fetch()) {
+          $assignee_pending = (int)($p ?? 0);
+          $for_closing      = (int)($c ?? 0);
+        }
+        $stmt->close();
+      }
     }
-  } else {
-    // No department—show zeros (or adjust to originator scope if desired)
   }
 
   return [
@@ -135,20 +155,20 @@ function sse_send(array $payload, string $event = 'rcpa-assignee-tabs', ?string 
 }
 
 // --- Stream loop (short-lived; EventSource will reconnect automatically) ---
-$lastHash = '';
+$lastHash  = '';
 $maxSeconds = 60;   // lifetime per connection
 $interval   = 3;    // seconds between polls
 $start = time();
 
 // Send initial snapshot immediately
-$current = fetch_counts($mysqli, $user_name);
+$current  = fetch_counts($mysqli, $user_name);
 $lastHash = md5(json_encode($current['counts']));
 sse_send($current, 'rcpa-assignee-tabs', (string)time());
 
 while (!connection_aborted()) {
   if ((time() - $start) >= $maxSeconds) break;
 
-  // Small heartbeat comment to keep some proxies happy
+  // Heartbeat
   echo ": ping\n\n";
   @flush();
 

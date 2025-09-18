@@ -38,32 +38,35 @@ if (!$mysqli || $mysqli->connect_errno) {
 $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
-   Resolve user's department & section
+   Resolve user's department, section, role
    Visibility rules:
-     - QA or QMS  => can see ALL rows
-     - Others     => can see rows where:
-         * (assignee = user's department AND (section IS NULL/'' OR section = user's section))
-           OR originator_name = current user's name
+     - QA or QMS  => see ALL
+     - MANAGER    => (assignee = user's dept) OR (originator_name = user)   <-- ignore section
+     - Others     => (assignee = user's dept AND (section IS NULL/'' OR section = user's section))
+                     OR originator_name = user
 --------------------------- */
 $dept = '';
 $sect = '';
+$role = '';
 if ($user_name !== '') {
-    $sqlDept = "SELECT department, section
+    $sqlDept = "SELECT department, section, role
                 FROM system_users
                 WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                 LIMIT 1";
     if ($stmt = $mysqli->prepare($sqlDept)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department, $db_section);
+        $stmt->bind_result($db_department, $db_section, $db_role);
         if ($stmt->fetch()) {
             $dept = (string)$db_department;
             $sect = (string)$db_section;
+            $role = (string)$db_role;
         }
         $stmt->close();
     }
 }
-$isQaqms = in_array(strtoupper(trim($dept)), ['QA', 'QMS'], true);
+$isQaqms   = in_array(strtoupper(trim($dept)), ['QA', 'QMS'], true);
+$isManager = (strcasecmp(trim($role), 'manager') === 0);
 
 /* ---------------------------
    Inputs (filters + paging)
@@ -116,18 +119,29 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     }
 }
 
-/* Visibility restriction with section match (for non QA/QMS) */
+/* Visibility restriction (role-aware) */
 if (!$isQaqms) {
     if ($dept !== '') {
-        // When row has a non-empty section, it must match user's section. Empty/NULL section is allowed with dept match.
-        $where[]  = "(
-            (assignee = ? AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
-            OR originator_name = ?
-        )";
-        $params[] = $dept;
-        $params[] = $sect;
-        $params[] = $user_name;
-        $types   .= 'sss';
+        if ($isManager) {
+            // Manager: department-wide (ignore section) OR own originated rows
+            $where[]  = "(
+                assignee = ?
+                OR originator_name = ?
+            )";
+            $params[] = $dept;
+            $params[] = $user_name;
+            $types   .= 'ss';
+        } else {
+            // Non-manager: dept + (section empty or matches) OR own originated rows
+            $where[]  = "(
+                (assignee = ? AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
+                OR originator_name = ?
+            )";
+            $params[] = $dept;
+            $params[] = $sect;
+            $params[] = $user_name;
+            $types   .= 'sss';
+        }
     } else {
         if ($user_name !== '') {
             $where[]  = "originator_name = ?";

@@ -25,29 +25,32 @@ function send_event($event, $dataArr, $retryMs = 10000) {
 }
 
 function build_payload(mysqli $mysqli, string $user_name): array {
-    // --- resolves department/section + computes same counts as rcpa-task-counters.php ---
+    // --- resolves department/section/role + computes same counts as rcpa-task-counters.php ---
     $department = '';
     $section    = '';
+    $role       = '';
 
     if ($user_name !== '') {
-        $sql = "SELECT department, section
+        $sql = "SELECT department, section, role
                   FROM system_users
                  WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
                  LIMIT 1";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->bind_param('s', $user_name);
             $stmt->execute();
-            $stmt->bind_result($db_department, $db_section);
+            $stmt->bind_result($db_department, $db_section, $db_role);
             if ($stmt->fetch()) {
                 $department = (string)$db_department;
                 $section    = (string)$db_section;
+                $role       = (string)$db_role;
             }
             $stmt->close();
         }
     }
 
     $dept_norm = strtolower(trim($department));
-    $is_qms = in_array($dept_norm, ['qms', 'qa'], true);
+    $is_qms    = in_array($dept_norm, ['qms', 'qa'], true);
+    $is_mgr    = (strcasecmp(trim($role), 'manager') === 0);
 
     // 1) QMS TASKS (global only if QA/QMS)
     $qms = 0;
@@ -76,17 +79,33 @@ function build_payload(mysqli $mysqli, string $user_name): array {
             $stmt->close();
         }
     } elseif ($department !== '') {
-        $sql = "SELECT COUNT(*)
-                  FROM rcpa_request
-                 WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
-                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                   AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
-        if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('ss', $department, $section);
-            $stmt->execute();
-            $stmt->bind_result($cnt);
-            if ($stmt->fetch()) $assignee_pending = (int)$cnt;
-            $stmt->close();
+        if ($is_mgr) {
+            // Manager: ignore section
+            $sql = "SELECT COUNT(*)
+                      FROM rcpa_request
+                     WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
+                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('s', $department);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $assignee_pending = (int)$cnt;
+                $stmt->close();
+            }
+        } else {
+            // Non-manager
+            $sql = "SELECT COUNT(*)
+                      FROM rcpa_request
+                     WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
+                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                       AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('ss', $department, $section);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $assignee_pending = (int)$cnt;
+                $stmt->close();
+            }
         }
     }
 
@@ -113,24 +132,47 @@ function build_payload(mysqli $mysqli, string $user_name): array {
             $stmt->close();
         }
     } elseif ($department !== '') {
-        $sql = "SELECT
-                    SUM(CASE WHEN status = 'VALID APPROVAL'       THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN status = 'IN-VALID APPROVAL'    THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN status = 'FOR CLOSING APPROVAL' THEN 1 ELSE 0 END)
-                FROM rcpa_request
-                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
-                  AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                  AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
-        if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('ss', $department, $section);
-            $stmt->execute();
-            $stmt->bind_result($v1, $v2, $v3);
-            if ($stmt->fetch()) {
-                $valid_approval        = (int)($v1 ?? 0);
-                $not_valid_approval    = (int)($v2 ?? 0);
-                $for_closing_approval  = (int)($v3 ?? 0);
+        if ($is_mgr) {
+            // Manager: ignore section
+            $sql = "SELECT
+                        SUM(CASE WHEN status = 'VALID APPROVAL'       THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN status = 'IN-VALID APPROVAL'    THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN status = 'FOR CLOSING APPROVAL' THEN 1 ELSE 0 END)
+                    FROM rcpa_request
+                    WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
+                      AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('s', $department);
+                $stmt->execute();
+                $stmt->bind_result($v1, $v2, $v3);
+                if ($stmt->fetch()) {
+                    $valid_approval        = (int)($v1 ?? 0);
+                    $not_valid_approval    = (int)($v2 ?? 0);
+                    $for_closing_approval  = (int)($v3 ?? 0);
+                }
+                $stmt->close();
             }
-            $stmt->close();
+        } else {
+            // Non-manager
+            $sql = "SELECT
+                        SUM(CASE WHEN status = 'VALID APPROVAL'       THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN status = 'IN-VALID APPROVAL'    THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN status = 'FOR CLOSING APPROVAL' THEN 1 ELSE 0 END)
+                    FROM rcpa_request
+                    WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
+                      AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                      AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('ss', $department, $section);
+                $stmt->execute();
+                $stmt->bind_result($v1, $v2, $v3);
+                if ($stmt->fetch()) {
+                    $valid_approval        = (int)($v1 ?? 0);
+                    $not_valid_approval    = (int)($v2 ?? 0);
+                    $for_closing_approval  = (int)($v3 ?? 0);
+                }
+                $stmt->close();
+            }
         }
     }
     $approval_total = $valid_approval + $not_valid_approval + $for_closing_approval;
@@ -167,17 +209,33 @@ function build_payload(mysqli $mysqli, string $user_name): array {
             $stmt->close();
         }
     } elseif ($department !== '') {
-        $sql = "SELECT COUNT(*)
-                  FROM rcpa_request
-                 WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
-                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                   AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
-        if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('ss', $department, $section);
-            $stmt->execute();
-            $stmt->bind_result($cnt);
-            if ($stmt->fetch()) $closed = (int)$cnt;
-            $stmt->close();
+        if ($is_mgr) {
+            // Manager: ignore section
+            $sql = "SELECT COUNT(*)
+                      FROM rcpa_request
+                     WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
+                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('s', $department);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $closed = (int)$cnt;
+                $stmt->close();
+            }
+        } else {
+            // Non-manager
+            $sql = "SELECT COUNT(*)
+                      FROM rcpa_request
+                     WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
+                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                       AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('ss', $department, $section);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $closed = (int)$cnt;
+                $stmt->close();
+            }
         }
     }
 
@@ -258,8 +316,6 @@ try {
     }
 
     // graceful end; client will auto-reconnect
-    // (Optionally send a final event)
-    // send_event('rcpa-task-counters', $payload);
 } catch (Throwable $e) {
     send_event('rcpa-task-counters', ['ok' => false, 'error' => 'Server error']);
 }

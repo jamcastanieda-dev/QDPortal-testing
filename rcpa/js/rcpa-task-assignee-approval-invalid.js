@@ -1,18 +1,27 @@
 (function () {
-  const IS_APPROVER = !!window.RCPA_IS_APPROVER;
-  const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
-  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase(); // expose in rcpa-cookie.php
+  // Parse booleans robustly
+  const toBoolFlag = (v) => {
+    if (v === true || v === 1) return true;
+    if (v === false || v === 0 || v == null) return false;
+    const s = String(v).trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes' || s === 'on';
+  };
 
-  const tbody = document.querySelector('#rcpa-table tbody');
-  const totalEl = document.getElementById('rcpa-total');
+  const IS_APPROVER   = toBoolFlag(window.RCPA_IS_APPROVER);
+  const CURRENT_DEPT  = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
+  const CURRENT_SECT  = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+  const CURRENT_ROLE  = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 manager support
+
+  const tbody    = document.querySelector('#rcpa-table tbody');
+  const totalEl  = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn = document.getElementById('rcpa-prev');
-  const nextBtn = document.getElementById('rcpa-next');
-  const fType = document.getElementById('rcpa-filter-type');
+  const prevBtn  = document.getElementById('rcpa-prev');
+  const nextBtn  = document.getElementById('rcpa-next');
+  const fType    = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn = document.getElementById('view-button');
+  const viewBtn   = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
@@ -28,9 +37,10 @@
 
   const norm = (s) => (s ?? '').toString().trim().toLowerCase();
 
-  // Dept must match AND if row has a section, that must match user's section too
+  // Dept must match; if user is manager -> ignore section. Else: require section match when present.
   const canActOnRow = (rowAssignee, rowSection) => {
     if (norm(rowAssignee) !== CURRENT_DEPT) return false;
+    if (CURRENT_ROLE === 'manager') return true; // 👈 manager override on section
     const rs = norm(rowSection);
     if (!rs) return true;                 // no section on row → department match is enough
     if (!CURRENT_SECT) return false;      // row has section but user doesn't → cannot act
@@ -87,7 +97,7 @@
     return '';
   }
 
-  // ✅ Only show hamburger if approver AND dept/section match
+  // ✅ Only show hamburger if approver AND dept/section match (managers ignore section)
   function actionButtonHtml(id, assignee, section) {
     const safeId = escapeHtml(id ?? '');
     if (IS_APPROVER && canActOnRow(assignee, section)) {
@@ -204,7 +214,6 @@
     es.onerror = () => { /* EventSource auto-reconnects */ };
   }
 
-  // after function load() { ... }
   document.addEventListener('rcpa:refresh', () => { load(); });
 
   const switchIcon = (el, icon) => {
@@ -313,6 +322,7 @@
   load();
   startSse(); // ⚡ realtime
 })();
+
 
 
 
