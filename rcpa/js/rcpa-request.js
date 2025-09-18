@@ -488,11 +488,18 @@
 
       if (label && select) {
         if (role === 'manager') {
+          // Hide and not required (as before)
           label.hidden = true;
           select.hidden = true;
           select.removeAttribute('required');
           select.value = '';
+        } else if (role === 'supervisor') {
+          // Show but NOT required
+          label.hidden = false;
+          select.hidden = false;
+          select.removeAttribute('required');
         } else {
+          // Everyone else: show and required
           label.hidden = false;
           select.hidden = false;
           select.setAttribute('required', '');
@@ -500,21 +507,23 @@
       }
 
       if (role === 'manager') {
-        setSupervisorVisibility(false);
+        setSupervisorVisibility(false);                 // hidden, not required
+      } else if (role === 'supervisor') {
+        setSupervisorVisibility(true, /* required */ false); // visible, NOT required
+        loadSupervisorOptions();
       } else {
-        setSupervisorVisibility(true);
+        setSupervisorVisibility(true, /* required */ true);  // visible, required
         loadSupervisorOptions();
       }
     } catch (err) {
       console.error('Originator fetch failed:', err);
       startClock(dateInput, Date.now()); // fallback to client time
-      setSupervisorVisibility(true);
+      setSupervisorVisibility(true, /* required */ true);
       loadSupervisorOptions();
     }
   }
 
-  /* Helper: show/hide the Supervisor dropdown */
-  function setSupervisorVisibility(show) {
+  function setSupervisorVisibility(show, required = true) {
     const label = document.querySelector('label[for="originatorSupervisor"]');
     const select = document.getElementById('originatorSupervisor');
     if (!label || !select) return;
@@ -526,9 +535,15 @@
     if (choicesWrapper) choicesWrapper.hidden = !show;
     else select.hidden = !show;
 
-    if (!show) select.removeAttribute('required');
-    else select.setAttribute('required', '');
+    // manage required flag separately
+    if (!show) {
+      select.removeAttribute('required');
+    } else {
+      if (required) select.setAttribute('required', '');
+      else select.removeAttribute('required');
+    }
   }
+
 
   /* Load supervisor options only when needed */
   async function loadSupervisorOptions() {
@@ -1449,6 +1464,7 @@
     const actionsBar = byId('rcpa-originator-actions');
     const approveBtn = byId('rcpa-approve-btn');
     const disapproveBtn = byId('rcpa-disapprove-btn');
+    const resubmitBtn = byId('rcpa-resubmit-btn'); // NEW
 
     // Disapprove form modal (with upload)
     const rejectModal = byId('rcpa-reject-modal');
@@ -2068,10 +2084,33 @@
 
         // Show/Hide Originator actions
         const statusNow = String(byId('rcpa-view-status')?.value || '').trim().toUpperCase();
-        const canAct = (statusNow === 'REPLY CHECKING - ORIGINATOR'
-          || statusNow === 'EVIDENCE CHECKING - ORIGINATOR'
-          || statusNow === 'IN-VALID APPROVAL - ORIGINATOR');
-        if (actionsBar) actionsBar.hidden = !canAct;
+
+        // Show action bar if we are in any “originator acts” state OR REJECTED
+        const showActionBar =
+          statusNow === 'REPLY CHECKING - ORIGINATOR' ||
+          statusNow === 'EVIDENCE CHECKING - ORIGINATOR' ||
+          statusNow === 'IN-VALID APPROVAL - ORIGINATOR' ||
+          statusNow === 'REJECTED'; // NEW
+
+        if (actionsBar) actionsBar.hidden = !showActionBar;
+
+        // hide all buttons by default
+        if (approveBtn) approveBtn.style.display = 'none';
+        if (disapproveBtn) disapproveBtn.style.display = 'none';
+        if (resubmitBtn) resubmitBtn.style.display = 'none';
+
+        // show correct buttons for this status
+        if (
+          statusNow === 'REPLY CHECKING - ORIGINATOR' ||
+          statusNow === 'EVIDENCE CHECKING - ORIGINATOR' ||
+          statusNow === 'IN-VALID APPROVAL - ORIGINATOR'
+        ) {
+          if (approveBtn) approveBtn.style.display = '';
+          if (disapproveBtn) disapproveBtn.style.display = '';
+        } else if (statusNow === 'REJECTED') {
+          if (resubmitBtn) resubmitBtn.style.display = ''; // NEW
+        }
+
 
         // Category
         (function setCategory() {
@@ -2373,6 +2412,83 @@
       } catch (err) {
         if (window.Swal) Swal.fire({ icon: 'error', title: 'Submit failed', text: err?.message || 'Unexpected error.' });
         else alert(err?.message || 'Submit failed.');
+      }
+    });
+
+    resubmitBtn?.addEventListener('click', async () => {
+      const id = parseInt(document.getElementById('rcpa-view-modal')?.dataset.rcpaId || '0', 10);
+      if (!id) return;
+
+      const confirmMsg =
+        'This will resubmit the request. ' +
+        'If an Originator Supervisor/Head is set, it will route for their approval; ' +
+        'otherwise it will go to QMS CHECKING.';
+
+      const ok = await (window.Swal
+        ? Swal.fire({
+          icon: 'question',
+          title: 'Resubmit this request?',
+          text: confirmMsg,
+          showCancelButton: true,
+          confirmButtonText: 'Yes, resubmit',
+          cancelButtonText: 'Cancel',
+        }).then(r => r.isConfirmed)
+        : Promise.resolve(window.confirm(confirmMsg))
+      );
+      if (!ok) return;
+
+      try {
+        resubmitBtn.disabled = true;
+
+        // optional: show a brief loading modal while we call the API
+        let loadingSwal;
+        if (window.Swal) {
+          loadingSwal = Swal.fire({
+            title: 'Resubmitting…',
+            didOpen: () => Swal.showLoading(),
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            allowEnterKey: false,
+            showConfirmButton: false
+          });
+        }
+
+        const res = await fetch('../php-backend/rcpa-resubmit-request.php', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data?.error || `Resubmit failed (HTTP ${res.status})`);
+
+        // refresh table, close view modal
+        if (typeof refreshRcpaTable === 'function') {
+          try { await refreshRcpaTable(); } catch { /* ignore */ }
+        }
+        const vm = document.getElementById('rcpa-view-modal');
+        if (vm) { vm.classList.remove('show'); setTimeout(() => (vm.hidden = true), 150); }
+
+        const newStatus = (data.status || 'QMS CHECKING').toUpperCase();
+
+        if (window.Swal) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Resubmitted',
+            text: `Request moved to ${newStatus}.`
+          });
+        } else {
+          alert(`Resubmitted. Request moved to ${newStatus}.`);
+        }
+      } catch (err) {
+        if (window.Swal) {
+          Swal.fire({ icon: 'error', title: 'Resubmit failed', text: err?.message || 'Unexpected error.' });
+        } else {
+          alert(err?.message || 'Resubmit failed.');
+        }
+      } finally {
+        resubmitBtn.disabled = false;
       }
     });
 

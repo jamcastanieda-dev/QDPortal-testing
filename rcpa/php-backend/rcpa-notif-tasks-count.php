@@ -38,26 +38,29 @@ try {
     }
     $mysqli->set_charset('utf8mb4');
 
-    // Look up department + role from system_users using cookie name
+    // Look up department + role + section from system_users using cookie name
     $department = '';
     $role       = '';
-    $sql = "SELECT department, role
+    $section    = '';
+    $sql = "SELECT department, role, section
               FROM system_users
              WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
              LIMIT 1";
     if ($stmt = $mysqli->prepare($sql)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department, $db_role);
+        $stmt->bind_result($db_department, $db_role, $db_section);
         if ($stmt->fetch()) {
             $department = (string)$db_department;
             $role       = (string)$db_role;
+            $section    = (string)$db_section;
         }
         $stmt->close();
     }
 
-    $dept_norm = strtolower(trim($department));
-    $role_norm = strtolower(trim($role));
+    $dept_norm    = strtolower(trim($department));
+    $role_norm    = strtolower(trim($role));
+    $section_norm = strtolower(trim($section));
 
     // QMS-wide visibility rule:
     //  - QMS department, OR
@@ -65,8 +68,8 @@ try {
     $can_qms_view = ($dept_norm === 'qms') ||
                     ($dept_norm === 'qa' && in_array($role_norm, ['manager','supervisor'], true));
 
-    // FULL status set (with FOR CLOSING APPROVAL included)
-    $status_list = "(
+    // FULL list (for QMS/QA managers & supervisors)
+    $STATUS_FULL = "(
         'QMS CHECKING',
         'VALIDATION REPLY',
         'IN-VALIDATION REPLY',
@@ -82,10 +85,26 @@ try {
         'CLOSED (IN-VALID)'
     )";
 
+    // RESTRICTED list (for everyone else)
+    // Excludes:
+    //   'QMS CHECKING', 'VALIDATION REPLY', 'IN-VALIDATION REPLY',
+    //   'EVIDENCE CHECKING', 'IN-VALIDATION REPLY APPROVAL', 'EVIDENCE APPROVAL'
+    $STATUS_RESTRICTED = "(
+        'ASSIGNEE PENDING',
+        'FOR CLOSING',
+        'VALID APPROVAL',
+        'IN-VALID APPROVAL',
+        'FOR CLOSING APPROVAL',
+        'CLOSED (VALID)',
+        'CLOSED (IN-VALID)'
+    )";
+
+    $status_list = $can_qms_view ? $STATUS_FULL : $STATUS_RESTRICTED;
+
     $count = 0;
 
     if ($can_qms_view) {
-        // QMS or QA managers/supervisors: global count
+        // QMS or QA managers/supervisors: global count (full status set)
         $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $status_list";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
@@ -94,21 +113,43 @@ try {
             $stmt->close();
         }
     } else {
-        // Everyone else: scope by assignee = user's department (if available)
+        // Everyone else: restricted statuses with scoping rules
         if ($department === '') {
             echo json_encode(['ok' => true, 'count' => 0]);
             exit;
         }
-        $sql = "SELECT COUNT(*)
-                  FROM rcpa_request
-                 WHERE status IN $status_list
-                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
-        if ($stmt = $mysqli->prepare($sql)) {
-            $stmt->bind_param('s', $department);
-            $stmt->execute();
-            $stmt->bind_result($cnt);
-            if ($stmt->fetch()) $count = (int)$cnt;
-            $stmt->close();
+
+        if ($role_norm === 'manager') {
+            // Managers (non-privileged depts): department-only
+            $sql = "SELECT COUNT(*)
+                      FROM rcpa_request
+                     WHERE status IN $status_list
+                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('s', $department);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $count = (int)$cnt;
+                $stmt->close();
+            }
+        } else {
+            // Non-managers: department + section match
+            if ($section_norm === '') {
+                echo json_encode(['ok' => true, 'count' => 0]);
+                exit;
+            }
+            $sql = "SELECT COUNT(*)
+                      FROM rcpa_request
+                     WHERE status IN $status_list
+                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                       AND LOWER(TRIM(section))  = LOWER(TRIM(?))";
+            if ($stmt = $mysqli->prepare($sql)) {
+                $stmt->bind_param('ss', $department, $section);
+                $stmt->execute();
+                $stmt->bind_result($cnt);
+                if ($stmt->fetch()) $count = (int)$cnt;
+                $stmt->close();
+            }
         }
     }
 

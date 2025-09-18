@@ -122,7 +122,7 @@
                     <option value="QMS CHECKING">QMS CHECKING</option>
                     <option value="FOR APPROVAL OF SUPERVISOR">FOR APPROVAL OF SUPERVISOR</option>
                     <option value="FOR APPROVAL OF MANAGER">FOR APPROVAL OF MANAGER</option>
-                    
+
                     <option value="REJECTED">REJECTED</option>
                     <option value="ASSIGNEE PENDING">ASSIGNEE PENDING</option>
                     <option value="VALID APPROVAL">VALID APPROVAL</option>
@@ -831,10 +831,17 @@
                 </fieldset>
 
                 <!-- ORIGINATOR ACTIONS (shown only when status = REPLY CHECKING - ORIGINATOR) -->
+                <!-- ORIGINATOR ACTIONS -->
                 <div id="rcpa-originator-actions" class="rcpa-actions" hidden>
                     <button type="button" id="rcpa-disapprove-btn" class="rcpa-btn disapprove">Disapprove</button>
                     <button type="button" id="rcpa-approve-btn" class="rcpa-btn approve">Approve</button>
+
+                    <!-- NEW: only shows for REJECTED -->
+                    <button type="button" id="rcpa-resubmit-btn" class="rcpa-btn approve" style="display:none;">
+                        Resubmit
+                    </button>
                 </div>
+
             </form>
         </div>
     </div>
