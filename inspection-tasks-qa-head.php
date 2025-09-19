@@ -56,8 +56,8 @@ date_default_timezone_set('Asia/Manila');
             <li class="selected">
                 <a href="#">Inspection Request <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
                 <ul class="submenu">
-                    <li class="not-selected"><a class="sublist-selected">Tasks</a></li>
                     <li class="not-selected"><a href="inspection-dashboard-qa-head.php">Dashboard</a></li>
+                    <li class="not-selected"><a class="sublist-selected">Tasks</a></li>
                 </ul>
             </li>
             <!--<li class="not-selected">

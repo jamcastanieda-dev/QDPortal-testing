@@ -50,7 +50,7 @@ date_default_timezone_set('Asia/Manila');
     <link href="style-inspection-homepage.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <link href="rcpa/css/rcpa-style.css" rel="stylesheet">
+    <link href="rcpa-notif.css" rel="stylesheet"> <!-- RCPA ADDED -->
     <title>Completed</title>
 </head>
 
@@ -61,11 +61,11 @@ date_default_timezone_set('Asia/Manila');
             <li class="not-selected">
                 <a href="inspection-homepage-dashboard-qa.php">Dashboard</a>
             </li>
-            <li class="not-selected">
+            <li class="selected">
                 <a href="#">Inspection Request <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
                 <ul class="submenu">
-                    <li class="not-selected"><a href="inspection-tasks-qa.php">Tasks</a></li>
                     <li class="not-selected"><a href="inspection-dashboard-qa.php">Dashboard</a></li>
+                    <li class="not-selected"><a class="sublist-selected">Tasks</a></li>
                 </ul>
             </li>
             <!--<li class="not-selected">
