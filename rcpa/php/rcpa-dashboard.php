@@ -325,7 +325,7 @@
 
     <nav id="sidebar">
         <ul class="sidebar-menu-list">
-            <?php
+          <?php
             // Decide homepage by privilege (set in rcpa-cookie.php)
             $priv = trim($employee_privilege ?? '');
             if ($priv === 'QA-Respondent') {

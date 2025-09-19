@@ -17,7 +17,7 @@
 
 <body>
 
-    <nav id="sidebar">
+    <nav id="sidebar"> 
         <ul class="sidebar-menu-list">
             <?php
             // Decide homepage by privilege (set in rcpa-cookie.php)

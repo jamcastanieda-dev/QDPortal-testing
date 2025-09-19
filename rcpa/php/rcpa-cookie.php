@@ -75,7 +75,7 @@ $dept_norm = strtolower(trim($department));
 $rcpa_can_actions = in_array($dept_norm, ['qms', 'qa'], true);
 
 // Decide if the user may see QMS-related buttons
-$rcpa_show_qms = ($dept_norm === 'qms') || ($dept_norm === 'qa' && $can_see_rcpa_approval);
+$rcpa_show_qms = ($dept_norm === 'qms') || ($dept_norm === 'qa' && $can_see_rcpa_approval); 
 
 // 5) Expose to JS before any page scripts run
 echo '<script>
