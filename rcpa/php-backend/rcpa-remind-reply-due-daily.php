@@ -55,7 +55,7 @@ $sql = "
   WHERE reply_due_date IS NOT NULL
     AND reply_date IS NULL
     AND DATEDIFF(reply_due_date, CURDATE()) IN (2,1,0)
-    AND status IN ('ASSIGNEE PENDING','VALIDATION REPLY','IN-VALIDATION REPLY')
+    AND status IN ('ASSIGNEE PENDING','VALID APPROVAL','IN-VALID APPROVAL')
   ORDER BY id
 ";
 

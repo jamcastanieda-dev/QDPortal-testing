@@ -1,6 +1,8 @@
 <?php
 // php-backend/rcpa-remind-close-due-daily.php
-// Runs daily and emails assignee groups when close_due_date is exactly 4, 3, 2, 1 weeks away, or today (28, 21, 14, 7, 0 days).
+// Runs daily and emails assignee groups when close_due_date is exactly
+// 4, 3, 2, 1 weeks, 2 days, 1 day away, or today (28, 21, 14, 7, 2, 1, 0 days).
+// Emails regardless of status EXCEPT when status is "CLOSED (VALID)" or "CLOSED (IN-VALID)".
 
 declare(strict_types=1);
 date_default_timezone_set('Asia/Manila');
@@ -33,7 +35,7 @@ if ($qs = $db->prepare("SELECT email FROM system_users WHERE department = ? AND 
 $qmsEmails = array_values(array_unique(array_filter($qmsEmails)));
 
 /* ---------------------------------------------------
-   Pull all rows due weekly (28, 21, 14, 7, or 0 days) based on `close_due_date`
+   Pull all rows due at specific offsets (28, 21, 14, 7, 2, 1, or 0 days) based on `close_due_date`
 --------------------------------------------------- */
 $sql = "
   SELECT
@@ -45,8 +47,8 @@ $sql = "
   FROM rcpa_request
   WHERE close_due_date IS NOT NULL
     AND close_date IS NULL
-    AND DATEDIFF(close_due_date, CURDATE()) IN (28, 21, 14, 7, 0)
-    AND status IN ('ASSIGNEE PENDING', 'VALIDATION REPLY', 'IN-VALIDATION REPLY')
+    AND DATEDIFF(close_due_date, CURDATE()) IN (28, 21, 14, 7, 2, 1, 0)
+    AND status NOT IN ('CLOSED (VALID)', 'CLOSED (IN-VALID)')
   ORDER BY id
 ";
 
@@ -83,8 +85,13 @@ foreach ($rows as $r) {
   if ($daysLeft === 0) {
     $label = 'today';
     $activityStr = 'Reminder: Close due today';
+  } elseif ($daysLeft < 7) {
+    // 1–6 days: use days wording
+    $label = ($daysLeft === 1) ? '1 day' : ($daysLeft . ' days');
+    $activityStr = 'Reminder: Close due in ' . $label;
   } else {
-    $weeks = intdiv($daysLeft, 7); // safe because we only fetch multiples of 7
+    // 7+ days: use weeks wording (safe because we only fetch multiples of 7)
+    $weeks = intdiv($daysLeft, 7);
     $label = ($weeks === 1) ? '1 week' : ($weeks . ' weeks');
     // Keep activity string stable at the "weekly mark" to avoid duplicate sends on the same day
     $activityStr = 'Reminder: Close due in ' . $label;
