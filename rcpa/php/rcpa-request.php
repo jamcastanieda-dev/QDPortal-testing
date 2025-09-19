@@ -19,17 +19,42 @@
 
     <nav id="sidebar">
         <ul class="sidebar-menu-list">
+            <?php
+            // Decide homepage by privilege (set in rcpa-cookie.php)
+            $priv = trim($employee_privilege ?? '');
+            if ($priv === 'QA-Respondent') {
+                $homeHref = '../../homepage-dashboard-qa.php';
+            } elseif ($priv === 'QA-Head-Inspection') {
+                $homeHref = '../../homepage-dashboard-qa-head.php';
+            } else {
+                $homeHref = '../../homepage-dashboard-initiator.php'; // default
+            }
+            ?>
             <li class="not-selected">
-                <a href="../homepage-dashboard-initiator.php">Dashboard</a>
+                <a href="<?= htmlspecialchars($homeHref, ENT_QUOTES, 'UTF-8'); ?>">Dashboard</a>
             </li>
             <li class="not-selected">
                 <a href="#">Inspection Request <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
                 <ul class="submenu">
-                    <li class="not-selected"><a href="../../inspection-dashboard-qa-head.php">Dashboard</a></li>
-                    <li class="not-selected"><a href="../../inspection-create-initiator.php">Request</a></li>
+                    <?php
+                        $priv = trim($employee_privilege ?? '');
+                        if ($priv === 'QA-Respondent') {
+                            // QA Respondent view
+                            echo '<li class="not-selected"><a href="../../inspection-dashboard-qa.php">Dashboard</a></li>';
+                            echo '<li class="not-selected"><a href="../../inspection-tasks-qa.php">Tasks</a></li>';
+                        } elseif ($priv === 'QA-Head-Inspection') {
+                            // QA Head-Inspection view
+                            echo '<li class="not-selected"><a href="../../inspection-dashboard-qa-head.php">Dashboard</a></li>';
+                            echo '<li class="not-selected"><a href="../../inspection-tasks-qa-head.php">Tasks</a></li>';
+                        } else {
+                            // Default (Initiator) view
+                            echo '<li class="not-selected"><a href="../../inspection-dashboard-initiator.php">Dashboard</a></li>';
+                            echo '<li class="not-selected"><a href="../../inspection-create-initiator.php">Request</a></li>';
+                        }
+                    ?>
                 </ul>
             </li>
-            <li class="not-selected">
+            <!-- <li class="not-selected">
                 <a href="#">NCR <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
                 <ul class="submenu">
                     <li class="not-selected"><a href="../../ncr/ncr-dashboard-initiator.php">Dashboard</a></li>
@@ -43,7 +68,7 @@
                     <li class="not-selected"><a href="mrb-dashboard.php">Dashboard</a></li>
                     <li class="not-selected"><a href="mrb-task.php">Tasks</a></li>
                 </ul>
-            </li>
+            </li> -->
 
             <li class="selected">
                 <a href="#" class="has-badge">

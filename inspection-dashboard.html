@@ -1,0 +1,213 @@
+<style>
+    h3 {
+        margin: 0;
+    }
+
+    p {
+        margin: 5px 0;
+    }
+
+    /* 0) Global box-sizing for reliable padding/margins */
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    /* Container to center and cap width */
+    .dashboard-container {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 20px;
+        padding: 10px;
+    }
+
+    /* === Section 1: Metrics Grid === */
+    .metrics-grid {
+        display: grid;
+        /* auto‑fit cards, min 200px up to 1fr */
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 20px;
+    }
+
+    .metric-card {
+        background: #fff;
+        color: #0350A1;
+        border-radius: 6px;
+        padding: 10px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        text-align: left;
+    }
+
+    .metric-card.two-col {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        /* icon / text */
+        gap: 10px;
+        /* space between them */
+        align-items: center;
+        /* vertically center icon & text block */
+        background: #fff;
+        color: #0350A1;
+        border-radius: 6px;
+        padding: 10px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease;
+    }
+
+    .metric-card.two-col:hover {
+        transform: scale(1.03);
+        cursor: pointer;
+    }
+
+    .metric-card.two-col:active {
+        transform: scale(1);
+    }
+
+    .metric-card.two-col .icon-col i {
+        font-size: 2em;
+        /* tweak icon size as needed */
+        margin: 0 10px;
+        padding: 15px;
+        border-radius: 10px;
+    }
+
+    .metric-card.two-col .text-col h3 {
+        margin: 0;
+    }
+
+    .metric-card.two-col .text-col p {
+        margin: 5px 0 0;
+        font-size: 1.2em;
+    }
+
+    #icon-total {
+        color: #FFE600;
+        background-color: #ffc;
+    }
+
+    #icon-rti {
+        color: #33f;
+        background-color: #cce5ff;
+    }
+
+    #icon-ssd {
+        color: #60c;
+        background-color: #ccf;
+    }
+
+    /* === Section 2: Dashboard Grid === */
+    /* default: single column on small screens */
+    .dashboard-grid {
+        flex: 1;
+        /* Expands to fill remaining space in content-wrapper */
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin: 20px;
+        height: calc(100% - 300px);
+    }
+
+    /* Column 1 styling */
+    .daily-card {
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        color: #0350A1;
+        border-radius: 6px;
+        padding: 15px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+
+    #column-chart {
+        flex: 1;
+        /* Expands to fill remaining space in daily-card */
+        width: 100%;
+        /* Ensures full width */
+    }
+
+    /* Column 2 wrapper */
+    .right-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .boxes-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        /* exactly 4 columns */
+        grid-auto-rows: auto;
+        /* let rows size to content */
+        gap: 10px;
+        /* space between boxes */
+    }
+
+    .box {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        /* label on left, value on right */
+        align-items: center;
+        /* vertical centering */
+        gap: 10px;
+        /* space between label & value */
+
+        /* keep your existing styling: */
+        background: #fff;
+        color: #0350A1;
+        border-radius: 4px;
+        padding: 10px;
+        text-align: left;
+        /* labels left-align */
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+        font-size: 0.9em;
+    }
+
+    .box-label {
+        /* optional tweaks */
+        font-weight: 500;
+    }
+
+    .box-value {
+        /* optional: make the number stand out */
+        font-weight: 700;
+        text-align: right;
+    }
+
+    /* Chart area */
+    .chart-container {
+        background: #fff;
+        border-radius: 6px;
+        padding: 15px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .chart-container {
+        flex: 1;
+        /* Expands to fill remaining space in right-panel */
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        border-radius: 6px;
+        padding: 15px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+        color: #0350A1;
+    }
+
+    #request-chart {
+        flex: 1;
+        /* Expands to fill remaining space in chart-container */
+        width: 100%;
+        /* Ensures full width */
+    }
+
+    .chart-placeholder {
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-style: italic;
+        font-size: 0.9em;
+    }
+</style>

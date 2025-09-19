@@ -155,7 +155,7 @@
       charts.assignee = new ApexCharts(els.chartAssignee, {
         chart: {
           type: 'bar',
-          height: 260,
+          height: 500,
           stacked: true,                // stacked bars
           toolbar: { show: false },
           animations: CHART_ANIMS

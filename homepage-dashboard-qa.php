@@ -23,6 +23,8 @@ if (isset($user['privilege']) && $user['privilege'] === 'QA-Head-Inspection') {
 
 $current_user = $user;
 
+include __DIR__ . '/rcpa-visibility.php'; // RCPA ADDED
+
 include "navigation-bar.html";
 include "custom-scroll-bar.html";
 include 'inspection-history.html';
@@ -42,6 +44,7 @@ date_default_timezone_set('Asia/Manila');
     <link href="style-inspection-homepage.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="rcpa/css/rcpa-style.css" rel="stylesheet"> <!-- RCPA ADDED -->
     <title>Home</title>
 </head>
 
@@ -62,8 +65,8 @@ date_default_timezone_set('Asia/Manila');
             <!--<li class="not-selected">
                 <a href="#">NCR <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
                 <ul class="submenu">
-                    <li class="not-selected"><a href ="ncr/ncr-task-qa.php">Tasks</a></li>
-                    <li class="not-selected"><a href="ncr/ncr-dashboard-qa.php">Dashboard</a></li>
+                    <li class="not-selected"><a>Tasks</a></li>
+                    <li class="not-selected"><a>Dashboard</a></li>
                 </ul>
             </li>
             <li class="not-selected">
@@ -72,15 +75,46 @@ date_default_timezone_set('Asia/Manila');
                     <li class="not-selected"><a>Tasks</a></li>
                     <li class="not-selected"><a>Dashboard</a></li>
                 </ul>
-            </li>
+            </li>-->
             <li class="not-selected">
-                <a href="#">RCPA <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
+                <a href="#" class="has-badge">
+                    RCPA
+                    <span id="rcpa-parent-badge" class="notif-badge" hidden>0</span>
+                    <i class="fa-solid fa-caret-right submenu-indicator"></i>
+                </a>
                 <ul class="submenu">
-                    <li class="not-selected"><a>Tasks</a></li>
-                    <li class="not-selected"><a>Dashboard</a></li>
+                    <li class="not-selected">
+                        <a href="rcpa/php/rcpa-dashboard.php" class="has-badge">
+                            Dashboard
+                            <span id="rcpa-dashboard-badge" class="notif-badge" hidden>0</span>
+                        </a>
+                    </li>
+
+                    <li class="not-selected">
+                        <a href="rcpa/php/rcpa-request.php" class="has-badge">
+                            Request
+                            <span id="rcpa-request-badge" class="notif-badge" hidden>0</span>
+                        </a>
+                    </li>
+
+                    <?php if (!empty($can_see_rcpa_approval) && $can_see_rcpa_approval): ?>
+                        <li class="not-selected">
+                            <a href="rcpa/php/rcpa-approval.php" class="has-badge">
+                                Approval
+                                <span id="rcpa-approval-badge" class="notif-badge" hidden>0</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <li class="not-selected">
+                        <a href="rcpa/php/rcpa-task.php" class="has-badge">
+                            Tasks
+                            <span id="rcpa-task-badge" class="notif-badge" hidden>0</span>
+                        </a>
+                    </li>
                 </ul>
             </li>
-            <li class="not-selected">
+            <!--<li class="not-selected">
                 <a href="#">Request for Distribution <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
                 <ul class="submenu">
                     <li class="not-selected"><a>Tasks</a></li>
@@ -102,7 +136,7 @@ date_default_timezone_set('Asia/Manila');
             </div>
         </div>
         <div class="user-profile-section">
-           <div class="profile">
+            <div class="profile">
                 <p class="greetings">Good Day, <?php echo htmlspecialchars($current_user['name']); ?></p>
                 <p id="date-time" class="date-time"><?php echo date('F d, Y g:i A'); ?></p>
             </div>
@@ -124,9 +158,8 @@ date_default_timezone_set('Asia/Manila');
     <script src="logout.js" type="text/javascript"></script>
     <script src="sidebar.js" type="text/javascript"></script>
 
-    <!-- SESSION KEEPALIVE JAVASCRIPT -->
-    <script src="keep-alive.js"></script>
-
+    <!-- RCPA ADDED notif -->
+    <script src="sidebar-notif.js"></script>
 
     <!-- CDN JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

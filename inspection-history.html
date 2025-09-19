@@ -1,0 +1,107 @@
+<style>
+    .history-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+        z-index: 1000;
+    }
+
+    .modal-history-backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-history-container {
+        position: relative;
+        background: #fff;
+        width: 100%;
+        max-width: 1000px;
+        margin: 10% auto;
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        max-height: 400px;
+        z-index: 1;
+        overflow: auto;
+    }
+
+    .modal-history-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .modal-history-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .modal-history-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        color: #0350A1;
+    }
+
+    .modal-history-body {
+        padding: 1rem;
+    }
+
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .history-table th,
+    .history-table td {
+        text-align: center;
+        padding: 0.5rem;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .history-table td {
+        font-size: 14px;
+    }
+
+
+    .history-table th {
+        background: #f2f2f2;
+        font-size: 16px;
+    }
+
+    /* Inspection No */
+    .history-table th:nth-child(1),
+    .history-table td:nth-child(1) {
+        width: 15%;
+    }
+
+    /* Name */
+    .history-table th:nth-child(2),
+    .history-table td:nth-child(2) {
+        width: 15%;
+    }
+
+    /* Date | Time */
+    .history-table th:nth-child(3),
+    .history-table td:nth-child(3) {
+        width: 30%;
+    }
+
+    /* Activity */
+    .history-table th:nth-child(4),
+    .history-table td:nth-child(4) {
+        width: 40%;
+    }
+
+</style>

@@ -821,9 +821,9 @@ date_default_timezone_set('Asia/Manila');
     <script src="current-date-time.js" type="text/javascript"></script>
     <script src="homepage.js" type="text/javascript"></script>
     <script src="inspection-css.js?v=4" type="text/javascript"></script>
-    <script src="inspection-data-insert.js?v=8" type="text/javascript"></script>
+    <script src="inspection-data-insert.js?v=9" type="text/javascript"></script>
     <script src="inspection-data-insert-history.js" type="text/javascript"></script>
-    <script src="inspection-data-retrieve.js?v=7.2" type="text/javascript"></script>
+    <script src="inspection-data-retrieve.js?v=7.3" type="text/javascript"></script>
     <script src="inspection-data-retrieve-history.js" type="text/javascript"></script>
     <script src="inspection-populate-elements.js?v=3.1" type="text/javascript"></script>
     <script src="inspection-for-rejected.js" type="text/javascript"></script>

@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "TSD": ["CNC", "CONVENTIONAL", "ASSEMBLY", "TOOLROOM"],
     "EF": ["MECHANICAL", "WELDING", "WATERJET"],
     "PVD": ["PRODUCTION", "SALES"],
-    "A & C": ["CMT", "AUTOMATION"],
+    "A & C": ["CMT", "AUTOMATION", "ELECTRICAL"],
     "MAINTENANCE": ["MECHANICAL", "ELECTRONICS", "B&G"],
     "PE": ["POWER ELECTRONICS", "PROJECTS", "POWER PLANT"]
   };

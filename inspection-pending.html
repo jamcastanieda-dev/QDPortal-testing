@@ -1,0 +1,113 @@
+<style>
+    .two-col {
+        display: grid;
+        grid-template-columns: auto auto auto;
+        gap: 10px;
+        margin-left: 20px;
+        margin-bottom: 10px;
+        align-items: center;
+        /* vertically center items */
+    }
+
+    .two-col button {
+        box-sizing: border-box;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        /* exact same height: */
+        height: 30px;
+    }
+
+    .two-col button {
+        width: auto;
+        height: auto;
+        padding: 8px 12px;
+        box-sizing: border-box;
+        font-size: 1rem;
+        border-radius: 5px;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .pass {
+        background-color: #0c0;
+        transition: transform 0.3s ease;
+    }
+
+    .pass:hover {
+        transform: scale(1.05);
+    }
+
+    .pass:active {
+        transform: scale(1);
+    }
+
+    .fail {
+        background-color: #c00;
+        transition: transform 0.3s ease;
+    }
+
+    .fail:hover {
+        transform: scale(1.05);
+    }
+
+    .fail:active {
+        transform: scale(1);
+    }
+
+    .pwf {
+        background-color: #b266ff;
+        transition: transform 0.3s ease;
+    }
+
+    .pwf:hover {
+        transform: scale(1.05);
+    }
+
+    .pwf:active {
+        transform: scale(1);
+    }
+
+    .wbs-left {
+        text-align: left;
+        margin-left: 25px;
+    }
+
+    #wbs-list {
+        overflow-y: auto;
+        overflow-x: hidden;
+        max-height: 100px;
+        border: 1px solid #ccc;
+        box-shadow: 0 5px 10xpx rgba(0, 0, 0, 0.2);
+        margin-left: 20px;
+        border-radius: 10px;
+    }
+
+    #wbs-list input.selected-wbs {
+        outline: 2px solid #4285f4;
+        background: #e8f0fe;
+    }
+
+    /* pass/fail styles */
+    #wbs-list input.pass-wbs {
+        background: #9f9;
+    }
+
+    #wbs-list input.fail-wbs {
+        background: #f99;
+    }
+
+    #wbs-list input.pwf-wbs {
+        background: #b266ff;
+    }
+
+    #wbs-list input {
+        /* now it will fill the first 80% column */
+        width: 90%;
+        padding: 8px 12px;
+        box-sizing: border-box;
+        font-size: 1rem;
+        margin: 5px 20px;
+        cursor: pointer;
+    }
+</style>

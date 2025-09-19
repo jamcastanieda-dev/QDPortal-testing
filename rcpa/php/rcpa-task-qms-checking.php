@@ -36,7 +36,7 @@
                     <li class="not-selected"><a href="../../inspection-create-initiator.php">Request</a></li>
                 </ul>
             </li>
-            <li class="not-selected">
+            <!-- <li class="not-selected">
                 <a href="#">NCR <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
                 <ul class="submenu">
                     <li class="not-selected"><a href="../../ncr/ncr-dashboard-initiator.php">Dashboard</a></li>
@@ -50,7 +50,7 @@
                     <li class="not-selected"><a href="mrb-dashboard.php">Dashboard</a></li>
                     <li class="not-selected"><a href="mrb-task.php">Tasks</a></li>
                 </ul>
-            </li>
+            </li> -->
 
             <li class="selected">
                 <a href="#" class="has-badge">

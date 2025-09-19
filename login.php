@@ -229,7 +229,7 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
             </div>
         </div>
     </div>
-    <script src="login-data-retrieve.js?v=1.4" type="text/javascript"></script>
+    <script src="login-data-retrieve.js?v=1.5" type="text/javascript"></script>
 </body>
 
 </html>

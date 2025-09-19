@@ -41,28 +41,31 @@ if (!$mysqli || $mysqli->connect_errno) {
     exit('Database connection not available.');
 }
 
-// 3) Lookup role, department, section
+// 3) Lookup role, department, section, employee_privilege
 $role = '';
 $department = '';
 $section = '';
+$employee_privilege = '';
 $user_name = trim($current_user['name'] ?? '');
 if ($user_name !== '') {
-    $sql = "SELECT role, department, section
+    $sql = "SELECT role, department, section, employee_privilege
             FROM system_users
             WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
             LIMIT 1";
     if ($stmt = $mysqli->prepare($sql)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_role, $db_department, $db_section);
+        $stmt->bind_result($db_role, $db_department, $db_section, $db_priv);
         if ($stmt->fetch()) {
             $role = (string)$db_role;
             $department = (string)$db_department;
             $section = (string)$db_section;
+            $employee_privilege = (string)$db_priv;
         }
         $stmt->close();
     }
 }
+
 
 // 4) Compute visibility flags
 $can_see_rcpa_approval = in_array(strtolower($role), ['manager', 'supervisor'], true);
@@ -82,6 +85,7 @@ echo '<script>
   window.RCPA_SECTION = ' . json_encode($section, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) . ';
   window.RCPA_SHOW_QMS = ' . ($rcpa_show_qms ? 'true' : 'false') . ';
   window.RCPA_ROLE = ' . json_encode($role, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) . ';
+  window.RCPA_PRIVILEGE = ' . json_encode($employee_privilege, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) . ';
 </script>';
 
 include "../../navigation-bar.html";
