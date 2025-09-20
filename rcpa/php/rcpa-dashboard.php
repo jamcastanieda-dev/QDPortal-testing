@@ -653,7 +653,7 @@
                     <option value="FOR CLOSING">FOR CLOSING</option>
                     <option value="FOR CLOSING APPROVAL">FOR CLOSING APPROVAL</option>
                     <option value="EVIDENCE CHECKING">EVIDENCE CHECKING</option>
-                    <option value="EVIDENCE CHECKING APPROVAL">EVIDENCE CHECKING APPROVAL</option>
+                    <!-- <option value="EVIDENCE CHECKING APPROVAL">EVIDENCE CHECKING APPROVAL</option> -->
                     <option value="EVIDENCE APPROVAL">EVIDENCE APPROVAL</option>
                     <option value="CLOSED (VALID)">CLOSED (VALID)</option>
                     <option value="CLOSED (IN-VALID)">CLOSED (IN-VALID)</option>
