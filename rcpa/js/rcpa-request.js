@@ -1050,6 +1050,28 @@
       if (d === null) return base;
       return `${base} (${d} ${Math.abs(d) === 1 ? 'day' : 'days'})`;
     }
+    // Styled close-due cell with thresholds:
+    // >25 days = badge-cat-obs, >7 days = badge-cat-minor, <=7 days = badge-cat-major
+    function formatCloseDueCell(ymd) {
+      if (!ymd || /^\s*$/.test(String(ymd))) {
+        return '<span class="rcpa-muted">No closing due date yet</span>';
+      }
+      const pretty = fmtYmd(ymd);
+      const diff = diffDaysFromTodayManila(ymd);
+      if (diff === null) return pretty;
+
+      const abs = Math.abs(diff);
+      const plural = abs === 1 ? 'day' : 'days';
+      const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
+
+      let className = '';
+      if (abs > 25) className = 'badge-cat-obs';
+      else if (abs > 7) className = 'badge-cat-minor';
+      else className = 'badge-cat-major';
+
+      return `<span class="rcpa-badge ${className}">${pretty} (${valueText})</span>`;
+    }
+
 
     // parse SQL DATETIME as local
     function parseSQLDateTime(s) {
@@ -1162,7 +1184,7 @@
   <td>${esc(labelForType(r?.rcpa_type))}</td>
   <td>${badgeForCategory(r?.category)}</td>
   <td>${fmtDate(r?.date_request)}</td>
-  <td>${renderCloseDue(r?.close_due_date)}</td>
+  <td>${formatCloseDueCell(r?.close_due_date)}</td>
   <td>${badgeForStatus(r?.status)}</td>
   <td>${esc(r?.originator_name)}</td>
   <td>${esc(r?.section ? `${r.assignee} - ${r.section}` : r?.assignee)}</td>

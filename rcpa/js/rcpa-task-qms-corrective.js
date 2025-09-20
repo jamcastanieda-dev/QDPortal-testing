@@ -140,6 +140,26 @@
     const plural = Math.abs(d) === 1 ? 'day' : 'days';
     return `${base} (${d} ${plural})`;
   }
+  // Styled close-due cell with thresholds:
+  // >25 days = badge-cat-obs, >7 days = badge-cat-minor, <=7 days = badge-cat-major
+  function formatCloseDueCell(ymd) {
+    if (!ymd) return '';
+    const pretty = fmtYmd(ymd);
+    const diff = diffDaysFromTodayManila(ymd);
+    if (diff === null) return pretty;
+
+    const abs = Math.abs(diff);
+    const plural = abs === 1 ? 'day' : 'days';
+    const valueText = (diff < 0 ? `-${abs}` : `${abs}`) + ` ${plural}`;
+
+    let className = '';
+    if (abs > 25) className = 'badge-cat-obs';
+    else if (abs > 7) className = 'badge-cat-minor';
+    else className = 'badge-cat-major';
+
+    return `<span class="rcpa-badge ${className}">${pretty} (${valueText})</span>`;
+  }
+
 
   async function load() {
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
@@ -172,7 +192,7 @@
           <td>${labelForType(r.rcpa_type)}</td>
           <td>${badgeForCategory(r.category || r.cetegory)}</td>
           <td>${fmtDate(r.date_request)}</td>
-          <td>${renderCloseDue(r.close_due_date)}</td>
+          <td>${formatCloseDueCell(r.close_due_date)}</td>
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
           <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>

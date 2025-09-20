@@ -841,7 +841,7 @@
   const API_URL = '../php-backend/rcpa-dashboard-rcpa.php';
   const VIEW_URL = '../php-backend/rcpa-view-closed.php';
   const WHY_URL = '../php-backend/rcpa-why-analysis-list.php';
-  const COLS = 17; // header count incl. Action column
+  const COLS = 19; // header count incl. Action column
 
   // state
   let allRows = [];
@@ -850,6 +850,14 @@
   /* NEW: pagination state */
   let page = 1;
   const pageSize = 9;
+
+  function badgeForHit(v) {
+    const t = String(v ?? '').trim().toLowerCase();
+    if (t === 'hit') return `<span class="rcpa-badge badge-closed">Hit</span>`;
+    if (t === 'missed') return `<span class="rcpa-badge badge-cat-major">Missed</span>`;
+    return esc(v || '—');
+  }
+
 
   /* =======================
      UTILITIES
@@ -1181,9 +1189,11 @@
       <td>${r.no_days_reply ?? ''}</td>
       <td>${fmtYmd(r.reply_date)}</td>
       <td>${fmtYmd(r.reply_due_date)}</td>
+      <td>${badgeForHit(r.hit_reply)}</td>
       <td>${r.no_days_close ?? ''}</td>
       <td>${fmtYmd(r.close_date)}</td>
       <td>${fmtYmd(r.close_due_date)}</td>
+      <td>${badgeForHit(r.hit_close)}</td>
       <td>
         <button type="button" class="rcpa-btn rcpa-view-btn"
                 data-view-id="${esc(r.id)}"
@@ -1227,7 +1237,7 @@
           r.conformance, r.quarter,
           r.system_applicable_std_violated, r.standard_clause_number,
           r.remarks,
-          r.date_request, r.reply_received, r.reply_date, r.reply_due_date, r.close_date, r.close_due_date
+          r.date_request, r.reply_received, r.reply_date, r.reply_due_date, r.close_date, r.close_due_date, r.hit_reply, r.hit_close
         ];
         r.__search = parts.map(toText).join(' ').toLowerCase();
       });

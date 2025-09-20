@@ -172,14 +172,15 @@
             </header>
 
             <div class="rcpa-table-wrap">
-                <table id="rcpa-table" class="rcpa-table">
+                <table id="rcpa-table" class="rcpa-table closed-table">
                     <thead>
                         <tr>
                             <th>RCPA No.</th>
                             <th>RCPA Type</th>
                             <th>Category</th>
                             <th>Date Request</th>
-                            <th>Closing due date</th> <!-- NEW -->
+                            <th>Closed date</th>
+                            <th>Status of closing</th>
                             <th>Status</th>
                             <th>Originator</th>
                             <th>Assignee</th>
@@ -190,7 +191,7 @@
                     <tbody>
                         <tr>
                             <!-- total columns now 10 -->
-                            <td colspan="10" class="rcpa-empty">Loading…</td>
+                            <td colspan="11" class="rcpa-empty">Loading…</td>
                         </tr>
                     </tbody>
                 </table>

@@ -668,7 +668,7 @@
 
             <div class="rcpa-table-wrap">
                 <table class="rcpa-table-list" id="rcpaListTable">
-                    <thead>
+                   <thead>
                         <tr>
                             <th>Company</th>
                             <th>RCPA No.</th>
@@ -682,16 +682,18 @@
                             <th>No. of Days (5 days Reply)</th>
                             <th>Actual date of reply</th>
                             <th>Due Date (5 days reply)</th>
+                            <th>Status of reply</th>        <!-- NEW -->
                             <th>No. of Days (30 days Closing)</th>
                             <th>Actual date of closing</th>
                             <th>Due date of (30 days closing)</th>
-                            <th>Action</th> <!-- existing -->
-                            <th>History</th> <!-- moved: now last -->
+                            <th>Status of closing</th>      <!-- NEW -->
+                            <th>Action</th>
+                            <th>History</th>
                         </tr>
                     </thead>
                     <tbody id="rcpaListTbody">
                         <tr>
-                            <td colspan="17" class="rcpa-empty">Loading…</td>
+                            <td colspan="19" class="rcpa-empty">Loading…</td>
                         </tr>
                     </tbody>
                 </table>

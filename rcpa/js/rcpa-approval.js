@@ -76,7 +76,7 @@
   function actionButtonHtml(id) {
     const safeId = escapeHtml(id ?? '');
     return `
-      <div class="rcpa-actions">
+      <div class="rcpa-actions rcpa-action-table-mid">
         <button class="rcpa-more" data-id="${safeId}" title="Actions">
           <i class="fa-solid fa-bars" aria-hidden="true"></i>
           <span class="sr-only">Actions</span>

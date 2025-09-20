@@ -1090,7 +1090,9 @@ input[type="checkbox"] {
   align-items: center;
   height: 100%
 }
-
+.rcpa-action-table-mid{
+  justify-content: start;
+}
 .rcpa-more {
   display: inline-flex;
   align-items: center;
@@ -1900,7 +1902,13 @@ fieldset.reject-remarks {
   width: 180px;
   max-width: 180px
 }
-
+.closed-table th:nth-child(5),
+.closed-table td:nth-child(5),
+.closed-table th:nth-child(6),
+.closed-table td:nth-child(6) {
+  width: 80px;
+  max-width: 80px
+}
 .rcpa-table th:nth-child(7),
 .rcpa-table td:nth-child(7),
 .rcpa-table th:nth-child(8),

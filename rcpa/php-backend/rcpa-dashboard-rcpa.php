@@ -5,27 +5,39 @@ header('Cache-Control: no-store');
 date_default_timezone_set('Asia/Manila');
 
 /* ---------- Auth ---------- */
-if (!isset($_COOKIE['user'])) { http_response_code(401); echo json_encode(['success'=>false,'error'=>'Not logged in']); exit; }
+if (!isset($_COOKIE['user'])) {
+  http_response_code(401);
+  echo json_encode(['success'=>false,'error'=>'Not logged in']);
+  exit;
+}
 $user = json_decode($_COOKIE['user'], true);
-if (!$user || !is_array($user)) { http_response_code(401); echo json_encode(['success'=>false,'error'=>'Invalid user cookie']); exit; }
+if (!$user || !is_array($user)) {
+  http_response_code(401);
+  echo json_encode(['success'=>false,'error'=>'Invalid user cookie']);
+  exit;
+}
 
 /* ---------- DB ---------- */
 require '../../connection.php';
 $db = isset($mysqli) && $mysqli instanceof mysqli ? $mysqli
    : (isset($conn) && $conn instanceof mysqli ? $conn : null);
-if (!$db) { http_response_code(500); echo json_encode(['success'=>false,'error'=>'DB connection not available']); exit; }
+if (!$db) {
+  http_response_code(500);
+  echo json_encode(['success'=>false,'error'=>'DB connection not available']);
+  exit;
+}
 $db->set_charset('utf8mb4');
 
 /* ---------- Inputs ---------- */
 $site = trim((string)($_GET['site'] ?? '')); // reserved for future use
 $year = trim((string)($_GET['year'] ?? ''));
 
-$where = [];
+$where  = [];
 $params = [];
 $types  = '';
 
 if ($year !== '') {
-  $where[] = "YEAR(date_request) = ?";
+  $where[]  = "YEAR(date_request) = ?";
   $params[] = (int)$year;
   $types   .= 'i';
 }
@@ -49,14 +61,20 @@ $sql = "SELECT
           reply_due_date,
           no_days_close,
           close_date,
-          close_due_date
+          close_due_date,
+          hit_reply,            -- NEW
+          hit_close             -- NEW
         FROM rcpa_request
         $where_sql
         ORDER BY date_request DESC, id DESC
         LIMIT 1000";
 
 $stmt = $db->prepare($sql);
-if (!$stmt) { http_response_code(500); echo json_encode(['success'=>false,'error'=>'Prepare failed']); exit; }
+if (!$stmt) {
+  http_response_code(500);
+  echo json_encode(['success'=>false,'error'=>'Prepare failed']);
+  exit;
+}
 if ($types !== '') $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $res = $stmt->get_result();
@@ -88,13 +106,18 @@ while ($r = $res->fetch_assoc()) {
     'section'                => (string)($r['section'] ?? ''),
     'status'                 => (string)($r['status'] ?? ''),
     'date_request'           => $r['date_request'] ? date('Y-m-d H:i:s', strtotime($r['date_request'])) : null,
+
     'reply_received'         => $reply_received,
     'no_days_reply'          => is_null($r['no_days_reply']) ? null : (int)$r['no_days_reply'],
     'reply_date'             => $reply_date,
     'reply_due_date'         => $r['reply_due_date'] ? date('Y-m-d', strtotime($r['reply_due_date'])) : null,
+
     'no_days_close'          => is_null($r['no_days_close']) ? null : (int)$r['no_days_close'],
     'close_date'             => $close_date,
     'close_due_date'         => $close_due_date,
+
+    'hit_reply'              => (string)($r['hit_reply'] ?? ''),  // NEW
+    'hit_close'              => (string)($r['hit_close'] ?? ''),  // NEW
   ];
 }
 $stmt->close();

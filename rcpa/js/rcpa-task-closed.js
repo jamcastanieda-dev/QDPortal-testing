@@ -130,13 +130,24 @@
         const plural = Math.abs(d) === 1 ? 'day' : 'days';
         return `${base} (${d} ${plural})`;
     }
+    function renderClosedDate(ymd) {
+        if (!ymd) return '';
+        return fmtYmd(ymd);
+    }
+    // NEW: badge for hit_close
+    function badgeForHitClose(v) {
+        const t = String(v ?? '').trim().toLowerCase();
+        if (t === 'hit') return `<span class="rcpa-badge badge-closed">Hit</span>`;
+        if (t === 'missed') return `<span class="rcpa-badge badge-cat-major">Missed</span>`;
+        return escapeHtml(v ?? '');
+    }
 
     async function load() {
         const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
         if (fType.value) params.set('type', fType.value);
         if (fStatus.value) params.set('status', fStatus.value); // '' -> both
 
-        tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">Loading…</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="rcpa-empty">Loading…</td></tr>`;
 
         let res;
         try {
@@ -154,7 +165,7 @@
         const rows = Array.isArray(data.rows) ? data.rows : [];
 
         if (!rows.length) {
-            tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">No records.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" class="rcpa-empty">No records.</td></tr>`;
         } else {
             tbody.innerHTML = rows.map(r => `
         <tr>
@@ -162,7 +173,8 @@
           <td>${labelForType(r.rcpa_type)}</td>
           <td>${badgeForCategory(r.category || r.cetegory)}</td>
           <td>${fmtDate(r.date_request)}</td>
-          <td>${renderCloseDue(r.close_due_date)}</td>
+          <td>${renderClosedDate(r.close_date)}</td>
+          <td>${badgeForHitClose(r.hit_close)}</td>
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
           <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
