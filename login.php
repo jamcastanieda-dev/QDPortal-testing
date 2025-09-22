@@ -172,6 +172,18 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
                     required>
             </div>
 
+            <!-- Role (shown first in Register mode) -->
+            <div class="input-group" id="role-group" style="display:none;">
+                <label for="role">Role:</label>
+                <select name="role" id="role" required>
+                    <option value="">— Select role —</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Probi">Probi</option>
+                </select>
+            </div>
+
             <div class="input-group" id="department-group" style="display: none;">
                 <label for="department">Department:</label>
                 <select name="department" id="department" required>
@@ -190,18 +202,6 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
                 <select name="section" id="section">
                     <option value="">— Select section —</option>
                     <!-- options injected by JS -->
-                </select>
-            </div>
-
-            <!-- Role (always visible in Register mode) -->
-            <div class="input-group" id="role-group" style="display:none;">
-                <label for="role">Role:</label>
-                <select name="role" id="role">
-                    <option value="">— Select role —</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Supervisor">Supervisor</option>
-                    <option value="Regular">Regular</option>
-                    <option value="Probi">Probi</option>
                 </select>
             </div>
 

@@ -1,0 +1,44 @@
+:root {
+  --rcpa-accent: #0350A1;
+  --rcpa-accent-600: #024389;
+  --rcpa-text: #0f172a;
+  --rcpa-muted: #64748b;
+  --rcpa-muted-higher: #0f172a; /* much higher contrast than #64748b */
+  --rcpa-border: #e5e7eb;
+  --rcpa-card: #f8fafc;
+  --rcpa-shadow: 0 12px 32px rgba(2, 6, 23, .08);
+  --rcpa-button-color: #2e7d32;
+  --rcpa-button-hover: #27642b;
+  --choice-row: 2.4rem;
+  --rcpa-danger: #dc2626;
+  --rcpa-danger-700: #b91c1c;
+  --rcpa-major-bg: #fee2e2;
+  --rcpa-major-fg: #991b1b;
+  --rcpa-major-bd: #fecaca;
+  --rcpa-minor-bg: #ffedd5;
+  --rcpa-minor-fg: #9a3412;
+  --rcpa-minor-bd: #fed7aa;
+  --rcpa-obs-bg: #e0f2fe;
+  --rcpa-obs-fg: #075985;
+  --rcpa-obs-bd: #bae6fd;
+
+  /* NEW: alert border color for blinking rows */
+  --rcpa-alert-bd: #ef4444;
+  --rcpa-alert-bd-rgb: 239 68 68; /* same color in RGB for alpha blends */
+}
+
+
+.ncr-container {
+  display: flex;
+  flex-direction: column;
+  margin: 0 20px;
+  padding: 20px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .3);
+  position: relative;
+  height: 74vh;
+  overflow: hidden;
+  min-height: 0
+}

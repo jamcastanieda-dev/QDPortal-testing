@@ -11,16 +11,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
  
 // Grab and trim all registration fields
-$employee_id = trim($_POST['employee-id']       ?? '');
-$password    =        ($_POST['password']       ?? '');
+$employee_id = trim($_POST['employee-id']         ?? '');
+$password    =        ($_POST['password']         ?? '');
 $confirm     =        ($_POST['confirm-password'] ?? ''); // confirm password (Register only)
-$full_name   = trim($_POST['full-name']         ?? '');
-$department  = trim($_POST['department']        ?? '');
-$email       = trim($_POST['email']             ?? '');
+$full_name   = trim($_POST['full-name']           ?? '');
+$department  = trim($_POST['department']          ?? '');
+$email       = trim($_POST['email']               ?? '');
  
-// NEW: Section + Role
-$section_in  = trim($_POST['section']           ?? '');
-$role_in     = trim($_POST['role']              ?? '');
+// Section + Role
+$section_in  = trim($_POST['section']             ?? '');
+$role_in     = trim($_POST['role']                ?? '');
  
 // Validate required fields
 if (empty($employee_id) || empty($password) || empty($full_name) || empty($department) || empty($email)) {
@@ -44,24 +44,23 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     exit;
 }
  
-// Departments that require a Section (case-insensitive)
-$section_required_depts = ['SSD','PPIC','TSD','EF','PVD','A & C','MAINTENANCE','PE'];
-$dept_uc = strtoupper($department);
- 
-if (in_array($dept_uc, $section_required_depts, true) && $section_in === '') {
-    echo json_encode(['success' => false, 'message' => 'Please select a Section for the chosen department.']);
-    exit;
-}
- 
-// Role is required in our UI; enforce it here too
+// Role is required; normalize role FIRST
 if ($role_in === '') {
     echo json_encode(['success' => false, 'message' => 'Please select a Role.']);
     exit;
 }
- 
-// Normalize role: manager/supervisor → lowercase; others → 'others'
 $role_lc = strtolower($role_in);
 $role    = in_array($role_lc, ['manager','supervisor'], true) ? $role_lc : 'others';
+ 
+// Departments that require a Section (case-insensitive)
+$section_required_depts = ['SSD','PPIC','TSD','EF','PVD','A & C','MAINTENANCE','PE'];
+$dept_uc = strtoupper($department);
+ 
+// Only require Section if NOT Manager and dept requires it
+if ($role !== 'manager' && in_array($dept_uc, $section_required_depts, true) && $section_in === '') {
+    echo json_encode(['success' => false, 'message' => 'Please select a Section for the chosen department.']);
+    exit;
+}
  
 // 1) Ensure the employee_id or email isn’t already taken
 $sql  = "SELECT employee_id FROM system_users WHERE employee_id = ? OR email = ?";
@@ -83,8 +82,8 @@ $stmt->close();
 // 2) Insert new user
 $privilege = 'Initiator';
  
-// Keep section when department requires it; else store NULL using NULLIF
-$section_param = in_array($dept_uc, $section_required_depts, true) ? $section_in : '';
+// If Manager, ignore/clear section; else keep when department requires it; NULLIF will store NULL for ''
+$section_param = ($role === 'manager') ? '' : (in_array($dept_uc, $section_required_depts, true) ? $section_in : '');
  
 $sql = "
   INSERT INTO system_users
@@ -105,7 +104,7 @@ $stmt->bind_param(
     $password,     // NOTE: Currently plaintext to match existing login logic
     $privilege,
     $department,
-    $section_param, // becomes NULL if ''
+    $section_param, // becomes NULL if '' (including Manager case)
     $role
 );
  

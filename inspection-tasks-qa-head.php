@@ -41,7 +41,7 @@ date_default_timezone_set('Asia/Manila');
     <link href="style-inspection-homepage.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <link href="rcpa/css/rcpa-style.css" rel="stylesheet">
+    <link href="rcpa-notif.css" rel="stylesheet">
     <audio id="notification-sound" src="audio/notification.mp3" preload="auto"></audio>
     <title>Tasks</title>
 </head>

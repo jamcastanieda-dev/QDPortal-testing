@@ -156,7 +156,7 @@
         .rcpa-table-list tbody td:nth-child(11),
         .rcpa-table-list tbody td:nth-child(12),
         .rcpa-table-list tbody td:nth-child(14),
-        .rcpa-table-list tbody td:nth-child(15) {width: 120px; max-width: 120px; white-space: nowrap;text-align: center;}
+        .rcpa-table-list tbody td:nth-child(15) {width: 120px; max-width: 170px; white-space: nowrap;text-align: center;}
 
         .rcpa-table-list thead th:nth-child(9),
         .rcpa-table-list tbody td:nth-child(9){max-width: 130px; }

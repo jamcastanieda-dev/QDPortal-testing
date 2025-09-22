@@ -44,7 +44,7 @@ date_default_timezone_set('Asia/Manila');
     <link href="style-inspection-homepage.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <link href="rcpa/css/rcpa-style.css" rel="stylesheet"> <!-- RCPA ADDED -->
+    <link href="rcpa-notif.css" rel="stylesheet"> <!-- RCPA ADDED -->
     <title>Home</title>
 </head>
 
