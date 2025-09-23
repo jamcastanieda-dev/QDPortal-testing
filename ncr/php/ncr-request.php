@@ -1,4 +1,4 @@
-<?php include 'rcpa-cookie.php'; ?>
+<?php include 'ncr-cookie.php'; ?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -144,10 +144,184 @@
     <h2><span>NCR Request</span></h2>
 
     <div class="ncr-container">
+        <div class="ncr-request-btn-container">
 
+            <div class="ncr-filters">
+                <select id="ncr-filter-status" class="u-line">
+                    <option value="">All Status</option>
+                    <option value="">AGUTUSUSUSUSUSUS</option>
+                </select>
+
+                <select id="ncr-filter-type" class="u-line">
+                    <option value="">All Types</option>
+                </select>
+            </div>
+
+            <button class="ncr-request-btn" id="ncr-req-btn">Request</button>
+        </div>
+
+        <!-- NCR Requests Card -->
+        <section class="ncr-card">
+            <header class="ncr-table-toolbar"></header>
+
+            <div class="ncr-table-wrap">
+                <table id="ncr-table" class="ncr-table">
+                    <thead>
+                        <tr>
+                            <th>NCR No.</th>
+                            <th>NCR Type</th>
+                            <th>Category</th>
+                            <th>Date Request</th>
+                            <th>Closing due date</th>
+                            <th>Status</th>
+                            <th>Originator</th>
+                            <th>Assignee</th>
+                            <th>Actions</th>
+                            <th>History</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <!-- total columns now 10 -->
+                            <td colspan="10" class="ncr-empty">Loading…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="ncr-table-footer">
+                <div class="ncr-paging">
+                    <button id="ncr-prev" class="ncr-btn" type="button" disabled>Prev</button>
+                    <span id="ncr-page-info" class="ncr-muted">Page 1</span>
+                    <button id="ncr-next" class="ncr-btn" type="button" disabled>Next</button>
+                </div>
+                <div class="ncr-total" id="ncr-total">0 records</div>
+            </footer>
+        </section>
     </div>
 
+    <!-- CREATE NCR MODAL -->
+    <div class="modal-overlay" id="ncr-modal" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="ncr-modal-title">
+            <button type="button" class="close-btn" id="ncr-modal-close" aria-label="Close">&times;</button>
+            <h2 id="ncr-modal-title" class="modal-title">NON-CONFORMANCE REPORT</h2>
 
+            <!-- Hard-copy style table, modernized -->
+            <div class="ncr-form-table" role="group" aria-labelledby="ncr-form-title">
+                <!-- Header band -->
+                <div class="ncr-form-header ncr-left-head">To be completed by Initiator / Auditor</div>
+                <div class="ncr-form-header ncr-right-head">Verified by Supervisor/Immediate Superior:</div>
+
+                <!-- Row 1 -->
+                <div class="ncr-cell ncr-label">Initiator:</div>
+                <div class="ncr-cell"><input class="ncr-input-line" type="text" placeholder="R. ARINGO"></div>
+
+                <div class="ncr-cell ncr-label">Department:</div>
+                <div class="ncr-cell"><input class="ncr-input-line" type="text" placeholder="TSD"></div>
+                <div class="ncr-cell ncr-label ncr-date">Date :</div>
+                <div class="ncr-cell"><input class="ncr-input-line" type="date"></div>
+
+                <!-- Row 2 -->
+                <div class="ncr-cell ncr-label">Assignee / Workcenter:</div>
+                <div class="ncr-cell"><input class="ncr-input-line" type="text" placeholder="TSD"></div>
+
+                <div class="ncr-cell ncr-label">Department:</div>
+                <div class="ncr-cell"><input class="ncr-input-line" type="text" placeholder="TSD"></div>
+                <div class="ncr-cell ncr-label ncr-date">Date :</div>
+                <div class="ncr-cell"><input class="ncr-input-line" type="date"></div>
+            </div>
+
+            <!-- ===== Items / Quantities table — fixed 3 rows ===== -->
+            <div class="ncr-items-table">
+                <!-- Header row -->
+                <div class="hdr item">Item / Part No.</div>
+                <div class="hdr project">Project Name</div>
+                <div class="hdr part">Part Name</div>
+                <div class="hdr order" aria-label="Order / Delivery Qty">
+                    <span>Order / Delivery Qty</span>
+                    <div class="order-sub">
+                        <div>Full</div>
+                        <div>Partial</div>
+                        <div>Bal</div>
+                    </div>
+                </div>
+                <div class="hdr nonconf">Non-Conforming Qty</div>
+                <div class="hdr scrap">Final Scrap Qty.</div>
+
+                <!-- Row 1 -->
+                <div class="cell"><input class="ncr-input-line" type="text" placeholder="B01"></div>
+                <div class="cell"><input class="ncr-input-line" type="text" placeholder="S45B CONCAST SHOE"></div>
+                <div class="cell"><input class="ncr-input-line" type="text" placeholder="CONCAST SHOE"></div>
+                <div class="cell order-wrap">
+                    <input class="ncr-input-line" type="number" min="0" step="1">
+                    <input class="ncr-input-line" type="number" min="0" step="1">
+                    <input class="ncr-input-line" type="number" min="0" step="1">
+                </div>
+                <div class="cell"><input class="ncr-input-line" type="number" min="0" step="1" placeholder="1"></div>
+                <div class="cell"><input class="ncr-input-line" type="number" min="0" step="1"></div>
+
+                <!-- Row 2 -->
+                <div class="cell"><input class="ncr-input-line" type="text"></div>
+                <div class="cell"><input class="ncr-input-line" type="text"></div>
+                <div class="cell"><input class="ncr-input-line" type="text"></div>
+                <div class="cell order-wrap">
+                    <input class="ncr-input-line" type="number" min="0" step="1">
+                    <input class="ncr-input-line" type="number" min="0" step="1">
+                    <input class="ncr-input-line" type="number" min="0" step="1">
+                </div>
+                <div class="cell"><input class="ncr-input-line" type="number" min="0" step="1"></div>
+                <div class="cell"><input class="ncr-input-line" type="number" min="0" step="1"></div>
+
+                <!-- Row 3 -->
+                <div class="cell"><input class="ncr-input-line" type="text"></div>
+                <div class="cell"><input class="ncr-input-line" type="text"></div>
+                <div class="cell"><input class="ncr-input-line" type="text"></div>
+                <div class="cell order-wrap">
+                    <input class="ncr-input-line" type="number" min="0" step="1">
+                    <input class="ncr-input-line" type="number" min="0" step="1">
+                    <input class="ncr-input-line" type="number" min="0" step="1">
+                </div>
+                <div class="cell"><input class="ncr-input-line" type="number" min="0" step="1"></div>
+                <div class="cell"><input class="ncr-input-line" type="number" min="0" step="1"></div>
+            </div>
+
+            <!-- ===== Part Identification & Status (Check One) ===== -->
+            <section class="ncr-checks">
+                <div class="ncr-band">Part Identification &amp; Status (Check One)</div>
+
+                <div class="ncr-checks-row">
+                    <label class="ncr-check">
+                        <input type="checkbox" id="chk-incoming">
+                        <span>Incoming</span>
+                    </label>
+
+                    <label class="ncr-check">
+                        <input type="checkbox" id="chk-inprocess">
+                        <span>In-process</span>
+                    </label>
+
+                    <label class="ncr-check">
+                        <input type="checkbox" id="chk-final">
+                        <span>Final Inspection</span>
+                    </label>
+
+                    <label class="ncr-check ncr-check-test" for="chk-testing">
+                        <input type="checkbox" id="chk-testing">
+                        <span>Product Testing (No:</span>
+                        <input type="text" class="ncr-input-line ncr-input-inline" aria-label="Product Testing Number">
+                        <span>)</span>
+                    </label>
+
+                    <label class="ncr-check">
+                        <input type="checkbox" id="chk-complaint">
+                        <span>Customer Complaint</span>
+                    </label>
+                </div>
+            </section>
+
+
+        </div>
+    </div>
 
     <!-- Front End JS -->
     <script src="../../current-date-time.js" type="text/javascript"></script>
@@ -156,7 +330,10 @@
     <script src="../../pagination.js" type="text/javascript"></script>
     <script src="../../sidebar.js" type="text/javascript"></script>
 
+    <!-- ncr js -->
+    <script src="../js/ncr-request.js"></script>
 
+    <!-- notif if sidebar -->
     <script src="../../sidebar-notif-with-folder.js"></script>
 
     <!-- CDN JS -->

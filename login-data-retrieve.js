@@ -22,6 +22,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const confirmGroup = document.getElementById("confirm-group");
   const confirmInput = document.getElementById("confirm-password");
  
+  // Prevent duplicate submissions
+  let isSubmitting = false;
+ 
   // --- Department → Section options map (keys should be UPPERCASE) ---
   const SECTION_MAP = {
     "SSD": ["DESIGN", "PPIC", "QA", "WAREHOUSE", "PRODUCTION"],
@@ -42,7 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // Helper: build Section options for a department
   function populateSectionOptions(deptUC) {
     const options = SECTION_MAP[deptUC] || [];
-    // reset to placeholder
     if (sectionSel) {
       sectionSel.innerHTML = `<option value="">— Select section —</option>`;
       options.forEach(opt => {
@@ -59,7 +61,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const deptUC = (deptSel?.value || "").trim().toUpperCase();
     const hasSections = !!SECTION_MAP[deptUC];
  
-    // If Manager, force-hide/clear Section regardless of department
     if (isManager()) {
       if (sectionGroup) sectionGroup.style.display = "none";
       sectionSel?.removeAttribute("required");
@@ -121,13 +122,12 @@ document.addEventListener("DOMContentLoaded", () => {
     nameGroup.style.display = "block";
     if (roleGroup) roleGroup.style.display = "block";
  
-    // 👇 Department is visible immediately (like before)
+    // 👇 Department is visible immediately
     deptGroup.style.display = "block";
  
     if (emailGroup) emailGroup.style.display = "block";
-    if (confirmGroup) confirmGroup.style.display = "block"; // confirm only in REGISTER
+    if (confirmGroup) confirmGroup.style.display = "block";
  
-    // Section recalculated based on role/department
     refreshSectionVisibility();
  
     regLink.closest("p").style.display = "none";
@@ -143,31 +143,39 @@ document.addEventListener("DOMContentLoaded", () => {
     if (sectionGroup) sectionGroup.style.display = "none";
     if (roleGroup) roleGroup.style.display = "none";
     if (emailGroup) emailGroup.style.display = "none";
-    if (confirmGroup) confirmGroup.style.display = "none"; // hide confirm in LOGIN
+    if (confirmGroup) confirmGroup.style.display = "none";
     loginLink.closest("p").style.display = "none";
     regLink.closest("p").style.display = "block";
   });
  
-  // React to ROLE change: only recompute Section visibility (Department stays visible)
+  // React to ROLE change
   roleSel?.addEventListener("change", () => {
     refreshSectionVisibility();
   });
  
-  // React to DEPARTMENT change (drives Section visibility + options)
+  // React to DEPARTMENT change
   deptSel?.addEventListener("change", refreshSectionVisibility);
  
   // — Main click handler for Login/Register —
   submitBtn.addEventListener("click", function (e) {
     e.preventDefault();
+    if (isSubmitting) return;
+    isSubmitting = true;
  
     // --- Button ripple ---
     const rippleBtn = document.createElement("span");
     rippleBtn.classList.add("ripple");
     const btnRect = this.getBoundingClientRect();
     const btnSize = Math.max(btnRect.width, btnRect.height);
+ 
+    // Center ripple for keyboard / programmatic clicks
+    const isKeyboardLike = (e.detail === 0) || ((e.clientX === 0 && e.clientY === 0));
+    const clickX = isKeyboardLike ? (btnRect.left + btnRect.width / 2) : e.clientX;
+    const clickY = isKeyboardLike ? (btnRect.top + btnRect.height / 2) : e.clientY;
+ 
     rippleBtn.style.width = rippleBtn.style.height = btnSize + "px";
-    rippleBtn.style.left = e.clientX - btnRect.left - btnSize / 2 + "px";
-    rippleBtn.style.top = e.clientY - btnRect.top - btnSize / 2 + "px";
+    rippleBtn.style.left = clickX - btnRect.left - btnSize / 2 + "px";
+    rippleBtn.style.top = clickY - btnRect.top - btnSize / 2 + "px";
     this.appendChild(rippleBtn);
     rippleBtn.addEventListener("animationend", () => rippleBtn.remove());
  
@@ -175,8 +183,12 @@ document.addEventListener("DOMContentLoaded", () => {
     rippleBody.classList.add("ripple", "ripple-body");
     const sizeBody = Math.max(window.innerWidth, window.innerHeight) * 2;
     rippleBody.style.width = rippleBody.style.height = sizeBody + "px";
-    rippleBody.style.left = e.clientX - sizeBody / 2 + "px";
-    rippleBody.style.top = e.clientY - sizeBody / 2 + "px";
+    rippleBody.style.left = (clickX - sizeBody / 2) + "px";
+    rippleBody.style.top = (clickY - sizeBody / 2) + "px";
+    // Keep the ripple behind SweetAlert and non-blocking
+    rippleBody.style.position = "fixed";
+    rippleBody.style.zIndex = "1050";
+    rippleBody.style.pointerEvents = "none";
  
     // — Gather form values —
     const mode = this.id; // "login" or "register"
@@ -192,38 +204,40 @@ document.addEventListener("DOMContentLoaded", () => {
  
     // — Validation —
     if (!empId || !password || (mode === "register" && (!fullName || !department))) {
+      isSubmitting = false;
       Swal.fire({ icon: "warning", title: "Missing Fields", text: "Please fill in all required fields" });
       return;
     }
  
     if (mode === "register") {
-      // Confirm password required + must match (REGISTER ONLY)
       const confirmVal = (confirmInput?.value || "");
       if (!confirmVal) {
+        isSubmitting = false;
         Swal.fire({ icon: "warning", title: "Confirm Password", text: "Please confirm your password." });
         return;
       }
       if (confirmVal !== password) {
+        isSubmitting = false;
         Swal.fire({ icon: "error", title: "Passwords Don’t Match", text: "Password and Confirm Password must match." });
         return;
       }
  
-      // Email required + basic format check
       const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal);
       if (!emailVal || !emailOk) {
+        isSubmitting = false;
         Swal.fire({ icon: "warning", title: "Invalid Email", text: "Please enter a valid email address." });
         return;
       }
  
-      // Role required
       if (!roleSel?.value) {
+        isSubmitting = false;
         Swal.fire({ icon: "warning", title: "Role Required", text: "Please select a Role." });
         return;
       }
  
-      // Section only required when department has sections AND role is NOT Manager
       if (!isManager()) {
         if (hasSections && !section) {
+          isSubmitting = false;
           Swal.fire({ icon: "warning", title: "Section Required", text: "Please select a Section for the chosen department." });
           return;
         }
@@ -246,11 +260,8 @@ document.addEventListener("DOMContentLoaded", () => {
       formData.append("full-name", fullName);
       formData.append("department", department);
       formData.append("email", emailVal);
- 
-      // If Manager, send empty section; else send when department has sections
       const sectionToSend = isManager() ? "" : (hasSections ? section : "");
       formData.append("section", sectionToSend);
- 
       formData.append("role", role);
       formData.append("confirm-password", confirmInput?.value || "");
     }
@@ -269,6 +280,11 @@ document.addEventListener("DOMContentLoaded", () => {
  
         if (data.success) {
           document.body.appendChild(rippleBody);
+          // Make extra sure SweetAlert is above anything else
+          const styleBump = document.createElement("style");
+          styleBump.textContent = ".swal2-container{z-index:2000 !important}";
+          document.head.appendChild(styleBump);
+ 
           rippleBody.addEventListener("animationend", () => rippleBody.remove());
           Swal.fire({
             icon: "success",
@@ -277,6 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
             showConfirmButton: false
           }).then(() => { window.location.href = data.redirect; });
         } else {
+          isSubmitting = false;
           Swal.fire({
             icon: "error",
             title: mode === "login" ? "Login Failed" : "Registration Failed",
@@ -285,10 +302,42 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       })
       .catch(err => {
+        isSubmitting = false;
         console.error("Error:", err);
         Swal.fire({ icon: "error", title: "Oops...", text: "Failed to process request: " + err.message });
       });
   });
+ 
+  // -------- Enter-to-submit wiring --------
+  function bindEnterToSubmit(el) {
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.isComposing) {
+        e.preventDefault();
+        submitBtn?.click();
+      }
+    });
+  }
+ 
+  // Attach to inputs
+  ["employee-id", "password", "confirm-password", "full-name", "email"]
+    .forEach(id => bindEnterToSubmit(document.getElementById(id)));
+ 
+  // Attach to selects
+  bindEnterToSubmit(deptSel);
+  bindEnterToSubmit(sectionSel);
+  bindEnterToSubmit(roleSel);
+ 
+  // Fallback: only fire if not already prevented (avoids double submit)
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing || e.defaultPrevented) return;
+    const tag = (e.target?.tagName || "").toLowerCase();
+    if (["input", "select", "button"].includes(tag)) {
+      e.preventDefault();
+      submitBtn?.click();
+    }
+  });
+  // ---------------------------------------
  
   // Default page is Login → ensure confirm is hidden
   if (confirmGroup) confirmGroup.style.display = "none";

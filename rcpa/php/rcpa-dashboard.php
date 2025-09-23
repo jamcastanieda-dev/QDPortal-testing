@@ -317,6 +317,51 @@
         }
 
         #rcpaListTypeFilter { min-width: 36ch; }  /* long Type strings */
+
+        /* Row of filter blocks (inline as a row, wrap when needed) */
+        #rcpaListModal .rcpa-modal-controls{
+        display:flex;
+        flex-wrap:wrap;
+        align-items:flex-start;
+        gap:12px;
+        }
+
+        /* Each block: label on top, control below */
+        #rcpaListModal .rcpa-field{
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+        flex:0 0 auto;           /* keep as inline-sized blocks */
+        min-width:220px;         /* tweak to taste */
+        }
+
+        /* Label style */
+        #rcpaListModal .rcpa-field label{
+        font-weight:800;
+        color:#334155;
+        white-space:nowrap;
+        margin:0;
+        }
+
+        /* Control look (matches your existing styles) */
+        #rcpaListModal .rcpa-field input[type="search"],
+        #rcpaListModal .rcpa-field select{
+        height:40px;
+        padding:0 12px;
+        border:1px solid var(--rcpa-border,#e5e7eb);
+        border-radius:10px;
+        background:#fff;
+        font-weight:800;
+        color:var(--rcpa-text,#0f172a);
+        box-shadow:0 2px 6px rgba(2,6,23,.05);
+        width:100%;
+        }
+
+        /* Wider ones if desired */
+        #rcpaListSearch{ min-width:28ch; }
+        #rcpaListTypeFilter{ min-width:36ch; }
+        #rcpaListModal .rcpa-field.rcpa-field--wide{ min-width:320px; }
+
     </style>
 
 </head>
@@ -604,40 +649,38 @@
 
 
                 <!-- in-modal Year filter -->
-                <div class="rcpa-modal-controls" style="display:flex;align-items:center;gap:8px;">
+               <div class="rcpa-modal-controls">
+                <div class="rcpa-field">
+                    <label for="rcpaListSearch">Search</label>
+                    <input id="rcpaListSearch" type="search" placeholder="Search RCPA no., type, names, status…">
+                </div>
 
-                <!-- Global search -->
-                    <label for="rcpaListSearch" style="font-weight:800;color:#334155;">Search</label>
-                    <input id="rcpaListSearch" type="search" placeholder="Search RCPA no., type, names, status…"
-                        style="height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:text;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);min-width:28ch;">
-
-
-                    <!-- Company filter -->
-                    <label for="rcpaListCompanyFilter" style="font-weight:800;color:#334155;">Company</label>
-                    <select id="rcpaListCompanyFilter"
-                        style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
-                        <option value="all" selected>All</option>
-                        <option value="RTI">RTI</option>
-                        <option value="SSD">SSD</option>
+                <div class="rcpa-field">
+                    <label for="rcpaListCompanyFilter">Company</label>
+                    <select id="rcpaListCompanyFilter">
+                    <option value="all" selected>All</option>
+                    <option value="RTI">RTI</option>
+                    <option value="SSD">SSD</option>
                     </select>
+                </div>
 
-                    <!-- year filter -->
-                    <label for="rcpaListYearFilter" style="font-weight:800;color:#334155;">Year</label>
-                    <select id="rcpaListYearFilter" style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
-                        <option value="all" selected>All</option>
+                <div class="rcpa-field">
+                    <label for="rcpaListYearFilter">Year</label>
+                    <select id="rcpaListYearFilter">
+                    <option value="all" selected>All</option>
                     </select>
+                </div>
 
-                    <!-- Type Of RCPA filter -->
-                    <label for="rcpaListTypeFilter" style="font-weight:800;color:#334155;">Type Of RCPA</label>
-                    <select id="rcpaListTypeFilter"
-                        style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
-                        <option value="all" selected>All</option>
+                <div class="rcpa-field rcpa-field--wide">
+                    <label for="rcpaListTypeFilter">Type Of RCPA</label>
+                    <select id="rcpaListTypeFilter">
+                    <option value="all" selected>All</option>
                     </select>
+                </div>
 
-                    <!-- Status filter -->
-                    <label for="rcpaListStatusFilter" style="font-weight:800;color:#334155;">Status</label>
-                    <select id="rcpaListStatusFilter"
-                            style="appearance:none;height:40px;padding:0 12px;border:1px solid var(--rcpa-border,#e5e7eb);border-radius:10px;background:#fff;cursor:pointer;font-weight:800;color:var(--rcpa-text,#0f172a);box-shadow:0 2px 6px rgba(2,6,23,.05);">
+                <div class="rcpa-field">
+                    <label for="rcpaListStatusFilter">Status</label>
+                    <select id="rcpaListStatusFilter">
                     <option value="">All Status</option>
                     <option value="QMS CHECKING">QMS CHECKING</option>
                     <option value="FOR APPROVAL OF SUPERVISOR">FOR APPROVAL OF SUPERVISOR</option>
@@ -653,7 +696,6 @@
                     <option value="FOR CLOSING">FOR CLOSING</option>
                     <option value="FOR CLOSING APPROVAL">FOR CLOSING APPROVAL</option>
                     <option value="EVIDENCE CHECKING">EVIDENCE CHECKING</option>
-                    <!-- <option value="EVIDENCE CHECKING APPROVAL">EVIDENCE CHECKING APPROVAL</option> -->
                     <option value="EVIDENCE APPROVAL">EVIDENCE APPROVAL</option>
                     <option value="CLOSED (VALID)">CLOSED (VALID)</option>
                     <option value="CLOSED (IN-VALID)">CLOSED (IN-VALID)</option>
@@ -661,8 +703,9 @@
                     <option value="EVIDENCE CHECKING - ORIGINATOR">EVIDENCE CHECKING - ORIGINATOR</option>
                     <option value="IN-VALID APPROVAL - ORIGINATOR">IN-VALID APPROVAL - ORIGINATOR</option>
                     </select>
-
                 </div>
+                </div>
+
             </div>
 
 
