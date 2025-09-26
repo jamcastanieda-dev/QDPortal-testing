@@ -58,56 +58,48 @@ try {
   $can_qms_view = ($dept_norm === 'qms') ||
                   ($dept_norm === 'qa' && in_array($role_norm, ['manager','supervisor'], true));
 
-  // Status lists (match REST exactly)
-  $STATUS_FULL = "(
-    'QMS CHECKING',
-    'VALIDATION REPLY',
-    'IN-VALIDATION REPLY',
-    'EVIDENCE CHECKING',
-    'ASSIGNEE PENDING',
-    'FOR CLOSING',
-    'VALID APPROVAL',
-    'IN-VALID APPROVAL',
-    'FOR CLOSING APPROVAL',
-    'IN-VALIDATION REPLY APPROVAL',
-    'EVIDENCE APPROVAL',
-    'CLOSED (VALID)',
-    'CLOSED (IN-VALID)'
+  // Status lists
+  $status_list_all = "(
+    'QMS CHECKING','VALIDATION REPLY','IN-VALIDATION REPLY','EVIDENCE CHECKING',
+    'ASSIGNEE PENDING','FOR CLOSING',
+    'VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL',
+    'IN-VALIDATION REPLY APPROVAL','EVIDENCE APPROVAL',
+    'CLOSED (VALID)','CLOSED (IN-VALID)'
   )";
 
-  $STATUS_RESTRICTED = "(
-    'ASSIGNEE PENDING',
-    'FOR CLOSING',
-    'VALID APPROVAL',
-    'IN-VALID APPROVAL',
-    'FOR CLOSING APPROVAL',
-    'CLOSED (VALID)',
-    'CLOSED (IN-VALID)'
+  $status_list_restricted = "(
+    'ASSIGNEE PENDING','FOR CLOSING',
+    'VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL'
   )";
 
-  $getCount = function() use($mysqli,$can_qms_view,$department,$section,$role_norm,$section_norm,$STATUS_FULL,$STATUS_RESTRICTED){
+  // Choose list for this user
+  $statuses = $can_qms_view ? $status_list_all : $status_list_restricted;
+
+  // Counting logic identical to REST
+  $getCount = function() use($mysqli,$can_qms_view,$department,$section,$role_norm,$statuses){
     $count = 0;
 
     if ($can_qms_view) {
-      $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $STATUS_FULL";
+      $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $statuses";
       if ($stmt=$mysqli->prepare($sql)) { $stmt->execute(); $stmt->bind_result($cnt); if($stmt->fetch()) $count=(int)$cnt; $stmt->close(); }
       return $count;
     }
 
     if ($department === '') return 0;
 
-    // Non-privileged: restricted + scoping
     if ($role_norm === 'manager') {
+      // Managers: department-only
       $sql = "SELECT COUNT(*) FROM rcpa_request
-              WHERE status IN $STATUS_RESTRICTED
+              WHERE status IN $statuses
                 AND LOWER(TRIM(assignee))=LOWER(TRIM(?))";
       if ($stmt=$mysqli->prepare($sql)) { $stmt->bind_param('s',$department); $stmt->execute(); $stmt->bind_result($cnt); if($stmt->fetch()) $count=(int)$cnt; $stmt->close(); }
     } else {
-      if ($section_norm === '') return 0;
+      // Non-managers: department + section must match
+      // Treat NULL/empty in DB and user section as equivalent using COALESCE
       $sql = "SELECT COUNT(*) FROM rcpa_request
-              WHERE status IN $STATUS_RESTRICTED
-                AND LOWER(TRIM(assignee))=LOWER(TRIM(?))
-                AND LOWER(TRIM(section)) = LOWER(TRIM(?))";
+              WHERE status IN $statuses
+                AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                AND LOWER(TRIM(COALESCE(section, ''))) = LOWER(TRIM(COALESCE(?, '')))";
       if ($stmt=$mysqli->prepare($sql)) { $stmt->bind_param('ss',$department,$section); $stmt->execute(); $stmt->bind_result($cnt); if($stmt->fetch()) $count=(int)$cnt; $stmt->close(); }
     }
 
