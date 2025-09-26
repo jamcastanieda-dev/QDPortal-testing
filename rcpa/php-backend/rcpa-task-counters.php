@@ -55,16 +55,26 @@ try {
         }
     }
 
-    // Treat QMS and QA the same for badge visibility
+    // ===== Visibility flags =====
+    // SEE-ALL: QMS (any role), or QA ONLY if role is 'manager' or 'supervisor'
     $dept_norm = strtolower(trim($department));
-    $is_qms    = in_array($dept_norm, ['qms', 'qa'], true);
-    $is_mgr    = (strcasecmp(trim($role), 'manager') === 0);
+    $role_norm = strtolower(trim($role));
+
+    $see_all = ($dept_norm === 'qms')
+            || ($dept_norm === 'qa' && in_array($role_norm, ['manager','supervisor'], true));
+
+    // Keep separate flag for dept managers (dept-wide, ignore section) when NOT see-all
+    $is_mgr  = ($role_norm === 'manager');
+
+    // Back-compat flag for frontend: previously named "is_qms" to toggle QMS/QA badges.
+    // Now true only for QMS, or QA supervisors/managers.
+    $is_qms_like_viewer = $see_all;
 
     // ---------- COUNTS ----------
 
-    // 1) QMS TASKS (visible only to QMS/QA) — global
+    // 1) QMS TASKS (visible only to QMS or QA supervisors/managers) — global
     $qms = 0;
-    if ($is_qms) {
+    if ($see_all) {
         $sql = "
             SELECT COUNT(*)
             FROM rcpa_request
@@ -79,8 +89,8 @@ try {
 
     // 2) ASSIGNEE TASKS (ASSIGNEE PENDING + FOR CLOSING)
     $assignee_pending = 0;
-    if ($is_qms) {
-        // Global for QA/QMS
+    if ($see_all) {
+        // Global for QMS or QA sup/manager
         $sql = "
             SELECT COUNT(*)
             FROM rcpa_request
@@ -114,7 +124,7 @@ try {
                 WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                   AND (
-                        section IS NULL OR section = '' OR
+                        section IS NULL OR TRIM(section) = '' OR
                         LOWER(TRIM(section)) = LOWER(TRIM(?))
                       )";
             if ($stmt = $mysqli->prepare($sql)) {
@@ -132,13 +142,13 @@ try {
     $not_valid_approval = 0;
     $for_closing_approval = 0;
 
-    if ($is_qms) {
-        // Global for QA/QMS
+    if ($see_all) {
+        // Global for QMS or QA sup/manager
         $sql = "
             SELECT
-                SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END) AS valid_approval,
-                SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END) AS not_valid_approval,
-                SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END) AS for_closing_approval
+                SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END),
+                SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END),
+                SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END)
             FROM rcpa_request
             WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')";
         if ($stmt = $mysqli->prepare($sql)) {
@@ -184,7 +194,7 @@ try {
                 WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                   AND (
-                        section IS NULL OR section = '' OR
+                        section IS NULL OR TRIM(section) = '' OR
                         LOWER(TRIM(section)) = LOWER(TRIM(?))
                       )";
             if ($stmt = $mysqli->prepare($sql)) {
@@ -202,14 +212,14 @@ try {
     }
     $approval_total = $valid_approval + $not_valid_approval + $for_closing_approval;
 
-    // 4) QMS APPROVAL (only for QMS/QA users; global)
+    // 4) QMS APPROVAL (only for see-all users: QMS or QA supervisor/manager) — global
     $qms_reply_approval    = 0; // IN-VALIDATION REPLY APPROVAL
     $qms_evidence_approval = 0; // EVIDENCE APPROVAL
-    if ($is_qms) {
+    if ($see_all) {
         $sql = "
             SELECT
-                SUM(CASE WHEN status = 'IN-VALIDATION REPLY APPROVAL' THEN 1 ELSE 0 END) AS qms_reply_approval,
-                SUM(CASE WHEN status = 'EVIDENCE APPROVAL'           THEN 1 ELSE 0 END) AS qms_evidence_approval
+                SUM(CASE WHEN status = 'IN-VALIDATION REPLY APPROVAL' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN status = 'EVIDENCE APPROVAL'           THEN 1 ELSE 0 END)
             FROM rcpa_request
             WHERE status IN ('IN-VALIDATION REPLY APPROVAL','EVIDENCE APPROVAL')";
         if ($stmt = $mysqli->prepare($sql)) {
@@ -226,7 +236,7 @@ try {
 
     // 5) CLOSED
     $closed = 0;
-    if ($is_qms) {
+    if ($see_all) {
         $sql = "
             SELECT COUNT(*)
             FROM rcpa_request
@@ -260,7 +270,7 @@ try {
                 WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                   AND (
-                        section IS NULL OR section = '' OR
+                        section IS NULL OR TRIM(section) = '' OR
                         LOWER(TRIM(section)) = LOWER(TRIM(?))
                       )";
             if ($stmt = $mysqli->prepare($sql)) {
@@ -275,7 +285,9 @@ try {
 
     echo json_encode([
         'ok' => true,
-        'is_qms' => $is_qms,
+        // Back-compat key used by frontend to toggle QA/QMS-wide badges.
+        // True only for QMS (any role) or QA with role manager/supervisor.
+        'is_qms' => $is_qms_like_viewer,
         'counts' => [
             // QMS TASKS
             'qms' => $qms,

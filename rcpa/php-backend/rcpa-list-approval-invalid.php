@@ -40,10 +40,12 @@ $mysqli->set_charset('utf8mb4');
 /* ---------------------------
    Resolve user's department, section, role
    Visibility rules:
-     - QA or QMS  => see ALL
-     - MANAGER    => (assignee = user's dept) OR (originator_name = user)   <-- ignore section
-     - Others     => (assignee = user's dept AND (section IS NULL/'' OR section = user's section))
-                     OR originator_name = user
+     - QMS               => see ALL (any role)
+     - QA                => see ALL only if role is 'supervisor' or 'manager'
+     - Manager (non see-all)
+                         => (assignee = user's dept) OR (originator_name = user)  [ignore section]
+     - Others            => (assignee = user's dept AND (section IS NULL/'' OR section = user's section))
+                            OR originator_name = user
 --------------------------- */
 $dept = '';
 $sect = '';
@@ -65,8 +67,17 @@ if ($user_name !== '') {
         $stmt->close();
     }
 }
-$isQaqms   = in_array(strtoupper(trim($dept)), ['QA', 'QMS'], true);
-$isManager = (strcasecmp(trim($role), 'manager') === 0);
+
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($role));
+
+$isManager = ($role_norm === 'manager');
+$see_all   = false;
+if ($dept_norm === 'QMS') {
+    $see_all = true; // QMS always see all
+} elseif ($dept_norm === 'QA' && ($role_norm === 'manager' || $role_norm === 'supervisor')) {
+    $see_all = true; // QA supervisors/managers see all
+}
 
 /* ---------------------------
    Inputs (filters + paging)
@@ -120,7 +131,7 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
 }
 
 /* Visibility restriction (role-aware) */
-if (!$isQaqms) {
+if (!$see_all) {
     if ($dept !== '') {
         if ($isManager) {
             // Manager: department-wide (ignore section) OR own originated rows
@@ -134,7 +145,7 @@ if (!$isQaqms) {
         } else {
             // Non-manager: dept + (section empty or matches) OR own originated rows
             $where[]  = "(
-                (assignee = ? AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
+                (assignee = ? AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
                 OR originator_name = ?
             )";
             $params[] = $dept;

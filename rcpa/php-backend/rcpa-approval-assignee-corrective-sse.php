@@ -30,7 +30,14 @@ if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
 if (!$mysqli || $mysqli->connect_errno) { http_response_code(500); exit; }
 $mysqli->set_charset('utf8mb4');
 
-/* -------- Resolve user's dept/section/role (visibility) -------- */
+/* -------- Resolve user's dept/section/role (visibility) --------
+   SEE ALL when:
+     - department = QMS (any role), OR
+     - department = QA  AND role IN ('supervisor','manager')
+   Otherwise:
+     - Manager: dept-wide (ignore section) OR own originated rows
+     - Others : dept + (section empty/match) OR own originated rows
+--------------------------------------------------------------- */
 $dept = '';
 $sect = '';
 $role = '';
@@ -46,8 +53,10 @@ if ($stmt0 = $mysqli->prepare("SELECT department, section, role FROM system_user
   }
   $stmt0->close();
 }
-$isQaqms   = in_array(strtoupper(trim($dept)), ['QA','QMS'], true);
-$isManager = (strcasecmp(trim($role), 'manager') === 0);
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($role));
+$see_all   = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+$isManager = ($role_norm === 'manager');
 
 /* -------- Inputs (must mirror list endpoint) -------- */
 $type = trim((string)($_GET['type'] ?? ''));
@@ -64,10 +73,10 @@ if ($type !== '') { $where[] = "rcpa_type = ?"; $params[] = $type; $types .= 's'
 $where[] = '(' . implode(' OR ', array_fill(0, count($allowed_statuses), 'status = ?')) . ')';
 foreach ($allowed_statuses as $st) { $params[] = $st; $types .= 's'; }
 
-if (!$isQaqms) {
+if (!$see_all) {
   if ($dept !== '') {
     if ($isManager) {
-      // Manager: dept-wide regardless of section
+      // Manager: dept-wide regardless of section OR own originated rows
       $where[]  = "(
         assignee = ?
         OR originator_name = ?

@@ -43,14 +43,15 @@ try {
 
     // Count approvals for this supervisor/head (case/space-insensitive name match)
     // Adjust the statuses array if you add/change workflow labels.
+    // Count approvals for this supervisor/head (case/space-insensitive name match)
     $count = 0;
     $sql = "
-        SELECT COUNT(*)
-        FROM rcpa_request
-        WHERE
-            status IN ('FOR APPROVAL OF MANAGER')
-            AND LOWER(TRIM(originator_supervisor_head)) = LOWER(TRIM(?))
-    ";
+    SELECT COUNT(*)
+    FROM rcpa_request
+    WHERE
+        status IN ('FOR APPROVAL OF MANAGER','FOR APPROVAL OF SUPERVISOR')
+        AND LOWER(TRIM(originator_supervisor_head)) = LOWER(TRIM(?))
+";
     if ($stmt = $mysqli->prepare($sql)) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
@@ -60,6 +61,7 @@ try {
         }
         $stmt->close();
     }
+
 
     echo json_encode(['ok' => true, 'count' => $count]);
 } catch (Throwable $e) {

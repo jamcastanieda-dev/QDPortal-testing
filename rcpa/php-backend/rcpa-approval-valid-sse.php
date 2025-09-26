@@ -40,7 +40,13 @@ $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
    Resolve user's department + section + role
-   (same visibility as rcpa-list-approval-valid.php)
+   Visibility (align with rcpa-list-approval-valid.php):
+     - SEE ALL if:
+         * department = QMS (any role), OR
+         * department = QA  AND role IN ('supervisor','manager')
+     - Otherwise:
+         * Manager: dept-wide (ignore section) OR own originated rows
+         * Others : dept + (section empty/match) OR own originated rows
 --------------------------- */
 $dept = '';
 $user_section = '';
@@ -57,8 +63,11 @@ if ($stmt0 = $mysqli->prepare("SELECT department, section, role FROM system_user
   }
   $stmt0->close();
 }
-$isQaqms   = in_array(strtoupper(trim($dept)), ['QA','QMS'], true);
-$isManager = (strcasecmp(trim($user_role), 'manager') === 0);
+
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($user_role));
+$see_all   = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+$isManager = ($role_norm === 'manager');
 
 /* ---------------------------
    Inputs (keep in sync with list)
@@ -84,7 +93,7 @@ $where[] = '(' . implode(' OR ', array_fill(0, count($allowed_statuses), 'status
 foreach ($allowed_statuses as $st) { $params[] = $st; $types .= 's'; }
 
 /* Visibility restriction (role-aware) */
-if (!$isQaqms) {
+if (!$see_all) {
   if ($dept !== '') {
     if ($isManager) {
       // Managers: department-wide (ignore section) OR own originated rows
@@ -112,9 +121,13 @@ if (!$isQaqms) {
       $types   .= 'sss';
     }
   } else {
-    $where[]  = "originator_name = ?";
-    $params[] = $user_name;
-    $types   .= 's';
+    if ($user_name !== '') {
+      $where[]  = "originator_name = ?";
+      $params[] = $user_name;
+      $types   .= 's';
+    } else {
+      $where[] = "1=0";
+    }
   }
 }
 

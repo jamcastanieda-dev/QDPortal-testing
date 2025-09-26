@@ -33,43 +33,88 @@ try {
   if (!$mysqli || $mysqli->connect_errno) { http_response_code(500); send_evt('rcpa-notif-tasks-count', ['ok'=>false,'error'=>'DB unavailable']); exit; }
   $mysqli->set_charset('utf8mb4');
 
-  // Resolve department + role
+  // Resolve department + role + section
   $department = '';
   $role = '';
+  $section = '';
   if ($user_name !== '') {
-    if ($stmt=$mysqli->prepare("SELECT department, role FROM system_users WHERE LOWER(TRIM(employee_name))=LOWER(TRIM(?)) LIMIT 1")){
+    if ($stmt=$mysqli->prepare("
+          SELECT department, role, section
+            FROM system_users
+           WHERE LOWER(TRIM(employee_name))=LOWER(TRIM(?))
+           LIMIT 1")){
       $stmt->bind_param('s',$user_name);
       $stmt->execute();
-      $stmt->bind_result($dep, $r);
-      if($stmt->fetch()) { $department=(string)$dep; $role=(string)$r; }
+      $stmt->bind_result($dep, $r, $sec);
+      if($stmt->fetch()) { $department=(string)$dep; $role=(string)$r; $section=(string)$sec; }
       $stmt->close();
     }
   }
-  $dept_norm = strtolower(trim($department));
-  $role_norm = strtolower(trim($role));
+  $dept_norm    = strtolower(trim($department));
+  $role_norm    = strtolower(trim($role));
+  $section_norm = strtolower(trim($section));
+
+  // Privilege rule (global visibility)
   $can_qms_view = ($dept_norm === 'qms') ||
                   ($dept_norm === 'qa' && in_array($role_norm, ['manager','supervisor'], true));
 
-  $status_list = "(
-    'QMS CHECKING','VALIDATION REPLY','IN-VALIDATION REPLY','EVIDENCE CHECKING',
-    'ASSIGNEE PENDING','FOR CLOSING',
-    'VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL',
-    'IN-VALIDATION REPLY APPROVAL','EVIDENCE APPROVAL',
-    'CLOSED (VALID)','CLOSED (IN-VALID)'
+  // Status lists (match REST exactly)
+  $STATUS_FULL = "(
+    'QMS CHECKING',
+    'VALIDATION REPLY',
+    'IN-VALIDATION REPLY',
+    'EVIDENCE CHECKING',
+    'ASSIGNEE PENDING',
+    'FOR CLOSING',
+    'VALID APPROVAL',
+    'IN-VALID APPROVAL',
+    'FOR CLOSING APPROVAL',
+    'IN-VALIDATION REPLY APPROVAL',
+    'EVIDENCE APPROVAL',
+    'CLOSED (VALID)',
+    'CLOSED (IN-VALID)'
   )";
 
-  $getCount = function() use($mysqli,$can_qms_view,$department,$status_list){
+  $STATUS_RESTRICTED = "(
+    'ASSIGNEE PENDING',
+    'FOR CLOSING',
+    'VALID APPROVAL',
+    'IN-VALID APPROVAL',
+    'FOR CLOSING APPROVAL',
+    'CLOSED (VALID)',
+    'CLOSED (IN-VALID)'
+  )";
+
+  $getCount = function() use($mysqli,$can_qms_view,$department,$section,$role_norm,$section_norm,$STATUS_FULL,$STATUS_RESTRICTED){
     $count = 0;
+
     if ($can_qms_view) {
-      $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $status_list";
+      $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $STATUS_FULL";
       if ($stmt=$mysqli->prepare($sql)) { $stmt->execute(); $stmt->bind_result($cnt); if($stmt->fetch()) $count=(int)$cnt; $stmt->close(); }
-    } elseif ($department !== '') {
-      $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $status_list AND LOWER(TRIM(assignee))=LOWER(TRIM(?))";
-      if ($stmt=$mysqli->prepare($sql)) { $stmt->bind_param('s',$department); $stmt->execute(); $stmt->bind_result($cnt); if($stmt->fetch()) $count=(int)$cnt; $stmt->close(); }
+      return $count;
     }
+
+    if ($department === '') return 0;
+
+    // Non-privileged: restricted + scoping
+    if ($role_norm === 'manager') {
+      $sql = "SELECT COUNT(*) FROM rcpa_request
+              WHERE status IN $STATUS_RESTRICTED
+                AND LOWER(TRIM(assignee))=LOWER(TRIM(?))";
+      if ($stmt=$mysqli->prepare($sql)) { $stmt->bind_param('s',$department); $stmt->execute(); $stmt->bind_result($cnt); if($stmt->fetch()) $count=(int)$cnt; $stmt->close(); }
+    } else {
+      if ($section_norm === '') return 0;
+      $sql = "SELECT COUNT(*) FROM rcpa_request
+              WHERE status IN $STATUS_RESTRICTED
+                AND LOWER(TRIM(assignee))=LOWER(TRIM(?))
+                AND LOWER(TRIM(section)) = LOWER(TRIM(?))";
+      if ($stmt=$mysqli->prepare($sql)) { $stmt->bind_param('ss',$department,$section); $stmt->execute(); $stmt->bind_result($cnt); if($stmt->fetch()) $count=(int)$cnt; $stmt->close(); }
+    }
+
     return $count;
   };
 
+  // Boot / stream
   $last = null;
   $ticks = 0; $interval = 5; $max = 300;
   $cur = $getCount(); $last = $cur;

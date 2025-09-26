@@ -2,6 +2,7 @@
 // php-backend/rcpa-approval-invalid-sse.php
 declare(strict_types=1);
 
+// --- SSE headers ---
 header('Content-Type: text/event-stream');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Connection: keep-alive');
@@ -35,7 +36,13 @@ if (!$mysqli || $mysqli->connect_errno) { http_response_code(500); exit; }
 $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
-   Resolve user's department, section, role (mirrors list)
+   Resolve user's department, section, role (mirror list visibility)
+   SEE-ALL when:
+     - department = QMS (any role), OR
+     - department = QA  AND role IN ('supervisor','manager')
+   Otherwise:
+     - Manager: dept-wide (ignore section) OR own originated rows
+     - Others : dept + (section empty/match) OR own originated rows
 --------------------------- */
 $dept = '';
 $sect = '';
@@ -52,8 +59,10 @@ if ($stmt0 = $mysqli->prepare("SELECT department, section, role FROM system_user
   }
   $stmt0->close();
 }
-$isQaqms   = in_array(strtoupper(trim($dept)), ['QA','QMS'], true);
-$isManager = (strcasecmp(trim($role), 'manager') === 0);
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($role));
+$see_all   = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+$isManager = ($role_norm === 'manager');
 
 /* ---------------------------
    Inputs (keep in sync with list)
@@ -78,7 +87,8 @@ if ($type !== '') {
 $where[] = '(' . implode(' OR ', array_fill(0, count($allowed_statuses), 'status = ?')) . ')';
 foreach ($allowed_statuses as $st) { $params[] = $st; $types .= 's'; }
 
-if (!$isQaqms) {
+/* Visibility restriction (role-aware) */
+if (!$see_all) {
   if ($dept !== '') {
     if ($isManager) {
       // Manager: department-wide (ignore section) OR own originated rows
@@ -92,7 +102,7 @@ if (!$isQaqms) {
     } else {
       // Non-manager: dept + (section empty or matches) OR own originated rows
       $where[]  = "(
-        (assignee = ? AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
+        (assignee = ? AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
         OR originator_name = ?
       )";
       $params[] = $dept;
@@ -101,9 +111,13 @@ if (!$isQaqms) {
       $types   .= 'sss';
     }
   } else {
-    $where[]  = "originator_name = ?";
-    $params[] = $user_name;
-    $types   .= 's';
+    if ($user_name !== '') {
+      $where[]  = "originator_name = ?";
+      $params[] = $user_name;
+      $types   .= 's';
+    } else {
+      $where[] = "1=0";
+    }
   }
 }
 

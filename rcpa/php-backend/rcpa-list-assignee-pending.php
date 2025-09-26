@@ -62,10 +62,23 @@ if ($user_name !== '') {
     }
 }
 
-/* Determine if QA/QMS (see all) + Manager (dept-wide regardless of section) */
+/* ---------------------------
+   Role/visibility flags
+   - QMS: see all (any role)
+   - QA: see all ONLY if role is supervisor or manager
+   - Others: restricted by dept/section (manager ignores section)
+--------------------------- */
 $dept_norm = strtoupper(trim($dept));
-$isQaqms   = in_array($dept_norm, ['QA', 'QMS'], true);
-$isManager = (strcasecmp(trim($user_role), 'manager') === 0);
+$role_norm = strtolower(trim($user_role));
+
+$isManager = ($role_norm === 'manager');           // manager: dept-wide (ignore section) if not see-all
+$see_all   = false;
+
+if ($dept_norm === 'QMS') {
+    $see_all = true; // QMS always see all
+} elseif ($dept_norm === 'QA' && ($role_norm === 'manager' || $role_norm === 'supervisor')) {
+    $see_all = true; // QA supervisors/managers see all
+}
 
 /* ---------------------------
    Inputs (filters + paging)
@@ -80,12 +93,10 @@ $q      = trim((string)($_GET['q'] ?? ''));       // free-text query (project/wb
 
 /* ---------------------------
    WHERE builder
-   Visibility:
-     - QA/QMS: see all
-     - Others:
-         * MANAGER: (assignee = user's dept) OR (originator_name = user's name)
-         * NON-MANAGER: (assignee = user's dept AND (row.section IS NULL/'' OR row.section = user.section))
-                        OR originator_name = user
+   Visibility if NOT see_all:
+     * MANAGER: (assignee = user's dept) OR (originator_name = user's name)
+     * NON-MANAGER: (assignee = user's dept AND (row.section IS NULL/'' OR row.section = user.section))
+                    OR originator_name = user
 --------------------------- */
 $allowed_statuses = ['ASSIGNEE PENDING'];
 
@@ -125,7 +136,7 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
 }
 
 /* Visibility restriction (role-aware) */
-if (!$isQaqms) {
+if (!$see_all) {
     if ($dept !== '') {
         if ($isManager) {
             // Managers: department-wide (ignore section) OR own originated rows

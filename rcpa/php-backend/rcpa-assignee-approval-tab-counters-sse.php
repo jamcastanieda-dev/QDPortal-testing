@@ -12,7 +12,8 @@ header('Content-Type: text/event-stream; charset=UTF-8');
 header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
 header('Connection: keep-alive');
 
-function sse_send($event, $dataArr) {
+function sse_send($event, $dataArr, $retryMs = 5000) {
+    if ($retryMs > 0) echo "retry: {$retryMs}\n";
     echo "event: {$event}\n";
     echo 'data: ' . json_encode($dataArr, JSON_UNESCAPED_UNICODE) . "\n\n";
     @flush();
@@ -42,14 +43,19 @@ function get_counts(mysqli $mysqli, string $user_name): array {
         }
     }
 
-    $dept_norm  = strtolower(trim($department));
-    $is_qms     = in_array($dept_norm, ['qms', 'qa'], true);
-    $is_manager = (strcasecmp(trim($role), 'manager') === 0);
+    // Visibility:
+    // - QMS => see all (any role)
+    // - QA  => see all only if role in ('supervisor','manager')
+    // - Others => restricted by dept/section (manager ignores section)
+    $dept_norm  = strtoupper(trim($department));
+    $role_norm  = strtolower(trim($role));
+    $see_all    = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+    $is_manager = ($role_norm === 'manager');
 
     $valid_approval   = 0; // 'VALID APPROVAL'
     $invalid_approval = 0; // 'IN-VALID APPROVAL'
 
-    if ($is_qms) {
+    if ($see_all) {
         $sql = "SELECT
                     SUM(CASE WHEN status = 'VALID APPROVAL'    THEN 1 ELSE 0 END) AS valid_approval,
                     SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
@@ -106,8 +112,11 @@ function get_counts(mysqli $mysqli, string $user_name): array {
     }
 
     return [
-        'ok'     => true,
-        'counts' => [
+        'ok'      => true,
+        // Back-compat + explicit visibility
+        'is_qms'  => $see_all,
+        'see_all' => $see_all,
+        'counts'  => [
             'valid_approval'   => $valid_approval,
             'invalid_approval' => $invalid_approval,
         ],
@@ -154,9 +163,13 @@ try {
         $payload = get_counts($mysqli, $user_name);
         $hash = md5(json_encode($payload['counts'] ?? []));
         if ($hash !== $lastHash || $i === 0) {
-            sse_send('rcpa-assignee-approval-tabs', $payload);
+            sse_send('rcpa-assignee-approval-tabs', $payload, 5000);
             $lastHash = $hash;
         }
+
+        // heartbeat comment keeps intermediaries happy
+        echo ": ping\n\n";
+        @flush();
 
         @sleep($sleepSec);
     }

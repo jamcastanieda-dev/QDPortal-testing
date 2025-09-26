@@ -33,7 +33,7 @@ if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
 if (!$mysqli || $mysqli->connect_errno) { http_response_code(500); exit; }
 $mysqli->set_charset('utf8mb4');
 
-/* -------- Resolve user's dept/section/role + QA/QMS flag -------- */
+/* -------- Resolve user's dept/section/role + see-all flag -------- */
 $user_dept = '';
 $user_sect = '';
 $user_role = '';
@@ -45,8 +45,11 @@ if ($stmt0 = $mysqli->prepare("SELECT department, section, role FROM system_user
   }
   $stmt0->close();
 }
-$is_qaqms   = in_array(strtoupper(trim($user_dept)), ['QA','QMS'], true);
-$is_manager = (strcasecmp(trim($user_role), 'manager') === 0);
+$dept_norm = strtoupper(trim($user_dept));
+$role_norm = strtolower(trim($user_role));
+
+$see_all   = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+$is_manager = ($role_norm === 'manager');
 
 /* -------- Inputs (keep in sync with list) -------- */
 $type = trim((string)($_GET['type'] ?? ''));
@@ -63,7 +66,7 @@ if ($type !== '') { $where[] = "rcpa_type = ?"; $params[] = $type; $types .= 's'
 $where[] = '(' . implode(' OR ', array_fill(0, count($allowed_statuses), 'status = ?')) . ')';
 foreach ($allowed_statuses as $st) { $params[] = $st; $types .= 's'; }
 
-if (!$is_qaqms) {
+if (!$see_all) {
   if ($user_dept !== '') {
     if ($is_manager) {
       // Managers: department-wide (ignore section) OR own originated rows
@@ -77,7 +80,8 @@ if (!$is_qaqms) {
     } else {
       // Non-managers: dept + (section empty or matches) OR own originated rows
       $where[] = "(
-        (assignee = ? AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
+        (assignee = ?
+          AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
         OR originator_name = ?
       )";
       $params[] = $user_dept;

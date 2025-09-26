@@ -41,11 +41,13 @@ $mysqli->set_charset('utf8mb4');
 /* ---------------------------
    Resolve user's department, section, role
    Visibility rules:
-     - QA or QMS  => see ALL rows
-     - Manager    => (assignee = user's dept) OR (originator_name = user)
-                     (ignore section)
-     - Others     => (assignee = user's dept AND (section IS NULL/'' OR section = user's section))
-                     OR originator_name = user
+     - QMS                 => see ALL rows (any role)
+     - QA                  => see ALL rows only if role is 'supervisor' or 'manager'
+     - Manager (non see-all)
+                            => (assignee = user's dept) OR (originator_name = user) [ignore section]
+     - Others (non see-all)
+                            => (assignee = user's dept AND (section IS NULL/'' OR section = user's section))
+                               OR originator_name = user
 --------------------------- */
 $dept = '';
 $sect = '';
@@ -67,8 +69,12 @@ if ($user_name !== '') {
         $stmt->close();
     }
 }
-$isQaqms   = in_array(strtoupper(trim($dept)), ['QA', 'QMS'], true);
-$isManager = (strcasecmp(trim($role), 'manager') === 0);
+
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($role));
+
+$see_all   = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+$isManager = ($role_norm === 'manager');
 
 /* ---------------------------
    Inputs (filters + paging)
@@ -121,11 +127,11 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
     }
 }
 
-/* Visibility restriction (role-aware for non-QA/QMS) */
-if (!$isQaqms) {
+/* Visibility restriction (role-aware for non see-all) */
+if (!$see_all) {
     if ($dept !== '') {
         if ($isManager) {
-            // Manager: dept-wide regardless of section
+            // Manager: dept-wide regardless of section OR own originated rows
             $where[]  = "(
                 assignee = ?
                 OR originator_name = ?

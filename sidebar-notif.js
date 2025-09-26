@@ -1,3 +1,4 @@
+// sidebar-notif.js
 // NOTIF FOR RCPA
 (function () {
   const AGG_ID = 'rcpa-parent-badge';
@@ -230,4 +231,3 @@
   }
 })();
 // NOTIF FOR RCPA END
-

@@ -24,6 +24,16 @@ function send_event($event, $dataArr, $retryMs = 10000) {
     @flush();
 }
 
+/**
+ * Build the payload for a given user.
+ * NOTE: Visibility is aligned with rcpa-task-counters.php:
+ *  - SEE ALL if:
+ *      * department = QMS (any role), OR
+ *      * department = QA AND role IN ('supervisor','manager')
+ *  - Otherwise:
+ *      * Manager: dept-wide (ignore section) OR own originated rows
+ *      * Others : dept + (section empty/match) OR own originated rows
+ */
 function build_payload(mysqli $mysqli, string $user_name): array {
     // --- resolves department/section/role + computes same counts as rcpa-task-counters.php ---
     $department = '';
@@ -49,12 +59,18 @@ function build_payload(mysqli $mysqli, string $user_name): array {
     }
 
     $dept_norm = strtolower(trim($department));
-    $is_qms    = in_array($dept_norm, ['qms', 'qa'], true);
-    $is_mgr    = (strcasecmp(trim($role), 'manager') === 0);
+    $role_norm = strtolower(trim($role));
 
-    // 1) QMS TASKS (global only if QA/QMS)
+    // SEE-ALL: QMS (any role), or QA only if supervisor/manager
+    $see_all = ($dept_norm === 'qms')
+            || ($dept_norm === 'qa' && in_array($role_norm, ['manager','supervisor'], true));
+
+    // Manager flag for non-see-all paths
+    $is_mgr  = ($role_norm === 'manager');
+
+    // 1) QMS TASKS (global only for SEE-ALL viewers)
     $qms = 0;
-    if ($is_qms) {
+    if ($see_all) {
         $sql = "SELECT COUNT(*)
                   FROM rcpa_request
                  WHERE status IN ('QMS CHECKING','VALIDATION REPLY','IN-VALIDATION REPLY','EVIDENCE CHECKING')";
@@ -66,9 +82,9 @@ function build_payload(mysqli $mysqli, string $user_name): array {
         }
     }
 
-    // 2) ASSIGNEE TASKS
+    // 2) ASSIGNEE TASKS (ASSIGNEE PENDING + FOR CLOSING)
     $assignee_pending = 0;
-    if ($is_qms) {
+    if ($see_all) {
         $sql = "SELECT COUNT(*)
                   FROM rcpa_request
                  WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')";
@@ -98,7 +114,7 @@ function build_payload(mysqli $mysqli, string $user_name): array {
                       FROM rcpa_request
                      WHERE status IN ('ASSIGNEE PENDING','FOR CLOSING')
                        AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                       AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
+                       AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('ss', $department, $section);
                 $stmt->execute();
@@ -114,7 +130,7 @@ function build_payload(mysqli $mysqli, string $user_name): array {
     $not_valid_approval = 0;
     $for_closing_approval = 0;
 
-    if ($is_qms) {
+    if ($see_all) {
         $sql = "SELECT
                     SUM(CASE WHEN status = 'VALID APPROVAL'       THEN 1 ELSE 0 END),
                     SUM(CASE WHEN status = 'IN-VALID APPROVAL'    THEN 1 ELSE 0 END),
@@ -161,7 +177,7 @@ function build_payload(mysqli $mysqli, string $user_name): array {
                     FROM rcpa_request
                     WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                      AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
+                      AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('ss', $department, $section);
                 $stmt->execute();
@@ -177,10 +193,10 @@ function build_payload(mysqli $mysqli, string $user_name): array {
     }
     $approval_total = $valid_approval + $not_valid_approval + $for_closing_approval;
 
-    // 4) QMS APPROVAL (only QA/QMS)
-    $qms_reply_approval = 0;    // IN-VALIDATION REPLY APPROVAL
+    // 4) QMS APPROVAL (global only for SEE-ALL viewers)
+    $qms_reply_approval    = 0; // IN-VALIDATION REPLY APPROVAL
     $qms_evidence_approval = 0; // EVIDENCE APPROVAL
-    if ($is_qms) {
+    if ($see_all) {
         $sql = "SELECT
                     SUM(CASE WHEN status = 'IN-VALIDATION REPLY APPROVAL' THEN 1 ELSE 0 END),
                     SUM(CASE WHEN status = 'EVIDENCE APPROVAL'            THEN 1 ELSE 0 END)
@@ -200,8 +216,10 @@ function build_payload(mysqli $mysqli, string $user_name): array {
 
     // 5) CLOSED
     $closed = 0;
-    if ($is_qms) {
-        $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')";
+    if ($see_all) {
+        $sql = "SELECT COUNT(*)
+                  FROM rcpa_request
+                 WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($cnt);
@@ -228,7 +246,7 @@ function build_payload(mysqli $mysqli, string $user_name): array {
                       FROM rcpa_request
                      WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
                        AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                       AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
+                       AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('ss', $department, $section);
                 $stmt->execute();
@@ -241,7 +259,9 @@ function build_payload(mysqli $mysqli, string $user_name): array {
 
     return [
         'ok' => true,
-        'is_qms' => $is_qms,
+        // Back-compat: frontend expects this to enable QA/QMS-wide badges.
+        // True for QMS (any role) or QA with role supervisor/manager.
+        'is_qms' => $see_all,
         'counts' => [
             'qms' => $qms,
             'assignee_pending' => $assignee_pending,
@@ -288,8 +308,8 @@ try {
     $mysqli->set_charset('utf8mb4');
 
     // --- Stream loop ---
-    $lastHash = '';
-    $ticks = 0;
+    $lastHash   = '';
+    $ticks      = 0;
     $maxSeconds = 300;     // ~5 minutes per connection (let EventSource reconnect)
     $interval   = 5;       // poll DB every 5s
 

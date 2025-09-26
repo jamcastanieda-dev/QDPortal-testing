@@ -41,10 +41,13 @@ $mysqli->set_charset('utf8mb4');
 /* ---------------------------
    Resolve user's department/section/role
    Visibility rules:
-     - QA or QMS  => can see ALL rows
-     - MANAGER    => can see all rows for their department (ignore section) OR own originated rows
-     - Others     => (assignee = user's dept AND (row.section IS NULL/'' OR row.section = user.section))
-                     OR originator_name = user
+     - QMS             => can see ALL rows (any role)
+     - QA              => can see ALL rows only if role is supervisor or manager
+     - MANAGER (non see-all)
+                       => can see all rows for their department (ignore section)
+                          OR own originated rows
+     - OTHERS          => (assignee = user's dept AND (row.section IS NULL/'' OR row.section = user.section))
+                          OR originator_name = user
 --------------------------- */
 $dept = '';
 $user_section = '';
@@ -66,8 +69,17 @@ if ($user_name !== '') {
         $stmt->close();
     }
 }
-$isQaqms   = in_array(strtoupper(trim($dept)), ['QA', 'QMS'], true);
-$isManager = (strcasecmp(trim($user_role), 'manager') === 0);
+
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($user_role));
+
+$isManager = ($role_norm === 'manager');
+$see_all = false;
+if ($dept_norm === 'QMS') {
+    $see_all = true; // QMS always see all
+} elseif ($dept_norm === 'QA' && ($role_norm === 'manager' || $role_norm === 'supervisor')) {
+    $see_all = true; // QA supervisors/managers see all
+}
 
 /* ---------------------------
    Inputs (filters + paging)
@@ -121,7 +133,7 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
 }
 
 /* Visibility restriction (role-aware) */
-if (!$isQaqms) {
+if (!$see_all) {
     if ($dept !== '') {
         if ($isManager) {
             // Managers: department-wide (ignore section) OR own originated rows
@@ -144,7 +156,7 @@ if (!$isQaqms) {
                 OR originator_name = ?
             )";
             $params[] = $dept;
-            $params[] = $user_section;
+            $params[] = $user_section;   // empty means they only see rows with empty section
             $params[] = $user_name;
             $types   .= 'sss';
         }
@@ -154,7 +166,7 @@ if (!$isQaqms) {
             $params[] = $user_name;
             $types   .= 's';
         } else {
-            $where[] = "1=0";
+            $where[] = "1=0"; // no dept and no name: see nothing
         }
     }
 }

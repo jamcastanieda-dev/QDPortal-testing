@@ -74,14 +74,20 @@ function fetch_counts(mysqli $db, string $user_name): array {
       $stmt->close();
     }
   }
-  $dept_norm = strtolower(trim($department));
-  $is_qms    = in_array($dept_norm, ['qms', 'qa'], true);
-  $is_manager = (strcasecmp(trim($role), 'manager') === 0);
+
+  // Visibility:
+  // - QMS: see all (any role)
+  // - QA : see all only if role in ('supervisor','manager')
+  // - Others: restricted by dept/section (manager ignores section)
+  $dept_norm = strtoupper(trim($department));
+  $role_norm = strtolower(trim($role));
+  $see_all   = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+  $is_manager = ($role_norm === 'manager');
 
   $assignee_pending = 0;
   $for_closing      = 0;
 
-  if ($is_qms) {
+  if ($see_all) {
     $sql = "SELECT
               SUM(CASE WHEN status = 'ASSIGNEE PENDING' THEN 1 ELSE 0 END) AS assignee_pending,
               SUM(CASE WHEN status = 'FOR CLOSING'      THEN 1 ELSE 0 END) AS for_closing
@@ -138,8 +144,11 @@ function fetch_counts(mysqli $db, string $user_name): array {
   }
 
   return [
-    'ok'     => true,
-    'counts' => [
+    'ok'      => true,
+    // Legacy flag kept for UI gating; now reflects "global visibility" (QMS or QA supervisor/manager)
+    'is_qms'  => $see_all,
+    'see_all' => $see_all,
+    'counts'  => [
       'assignee_pending' => $assignee_pending,
       'for_closing'      => $for_closing
     ]
@@ -155,10 +164,10 @@ function sse_send(array $payload, string $event = 'rcpa-assignee-tabs', ?string 
 }
 
 // --- Stream loop (short-lived; EventSource will reconnect automatically) ---
-$lastHash  = '';
+$lastHash   = '';
 $maxSeconds = 60;   // lifetime per connection
 $interval   = 3;    // seconds between polls
-$start = time();
+$start      = time();
 
 // Send initial snapshot immediately
 $current  = fetch_counts($mysqli, $user_name);

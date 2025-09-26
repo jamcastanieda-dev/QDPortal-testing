@@ -17,7 +17,7 @@ try {
         echo json_encode(['ok' => false, 'error' => 'Invalid user cookie']);
         exit;
     }
-    $user_name = trim($user['name'] ?? '');
+    $user_name = trim((string)($user['name'] ?? ''));
     if ($user_name === '') {
         http_response_code(401);
         echo json_encode(['ok' => false, 'error' => 'Missing user name']);
@@ -38,22 +38,22 @@ try {
     }
     $mysqli->set_charset('utf8mb4');
 
-    // Look up department + role + section from system_users using cookie name
+    // Resolve department + role + section
     $department = '';
-    $role       = '';
-    $section    = '';
-    $sql = "SELECT department, role, section
+    $role = '';
+    $section = '';
+    if ($stmt = $mysqli->prepare("
+            SELECT department, role, section
               FROM system_users
              WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
-             LIMIT 1";
-    if ($stmt = $mysqli->prepare($sql)) {
+             LIMIT 1")) {
         $stmt->bind_param('s', $user_name);
         $stmt->execute();
-        $stmt->bind_result($db_department, $db_role, $db_section);
+        $stmt->bind_result($dep, $r, $sec);
         if ($stmt->fetch()) {
-            $department = (string)$db_department;
-            $role       = (string)$db_role;
-            $section    = (string)$db_section;
+            $department = (string)$dep;
+            $role       = (string)$r;
+            $section    = (string)$sec;
         }
         $stmt->close();
     }
@@ -62,13 +62,13 @@ try {
     $role_norm    = strtolower(trim($role));
     $section_norm = strtolower(trim($section));
 
-    // QMS-wide visibility rule:
+    // Privilege rule (global visibility):
     //  - QMS department, OR
     //  - QA department WITH role == manager or supervisor
     $can_qms_view = ($dept_norm === 'qms') ||
                     ($dept_norm === 'qa' && in_array($role_norm, ['manager','supervisor'], true));
 
-    // FULL list (for QMS/QA managers & supervisors)
+    // FULL list (privileged global view)
     $STATUS_FULL = "(
         'QMS CHECKING',
         'VALIDATION REPLY',
@@ -85,10 +85,7 @@ try {
         'CLOSED (IN-VALID)'
     )";
 
-    // RESTRICTED list (for everyone else)
-    // Excludes:
-    //   'QMS CHECKING', 'VALIDATION REPLY', 'IN-VALIDATION REPLY',
-    //   'EVIDENCE CHECKING', 'IN-VALIDATION REPLY APPROVAL', 'EVIDENCE APPROVAL'
+    // RESTRICTED list (non-privileged users only)
     $STATUS_RESTRICTED = "(
         'ASSIGNEE PENDING',
         'FOR CLOSING',
@@ -99,13 +96,11 @@ try {
         'CLOSED (IN-VALID)'
     )";
 
-    $status_list = $can_qms_view ? $STATUS_FULL : $STATUS_RESTRICTED;
-
     $count = 0;
 
     if ($can_qms_view) {
-        // QMS or QA managers/supervisors: global count (full status set)
-        $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $status_list";
+        // Privileged: global, FULL list
+        $sql = "SELECT COUNT(*) FROM rcpa_request WHERE status IN $STATUS_FULL";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($cnt);
@@ -113,17 +108,17 @@ try {
             $stmt->close();
         }
     } else {
-        // Everyone else: restricted statuses with scoping rules
+        // Non-privileged: RESTRICTED list + scoping
         if ($department === '') {
             echo json_encode(['ok' => true, 'count' => 0]);
             exit;
         }
 
         if ($role_norm === 'manager') {
-            // Managers (non-privileged depts): department-only
+            // Managers: department-only
             $sql = "SELECT COUNT(*)
                       FROM rcpa_request
-                     WHERE status IN $status_list
+                     WHERE status IN $STATUS_RESTRICTED
                        AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('s', $department);
@@ -133,14 +128,14 @@ try {
                 $stmt->close();
             }
         } else {
-            // Non-managers: department + section match
+            // Non-managers: department + section must match
             if ($section_norm === '') {
                 echo json_encode(['ok' => true, 'count' => 0]);
                 exit;
             }
             $sql = "SELECT COUNT(*)
                       FROM rcpa_request
-                     WHERE status IN $status_list
+                     WHERE status IN $STATUS_RESTRICTED
                        AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                        AND LOWER(TRIM(section))  = LOWER(TRIM(?))";
             if ($stmt = $mysqli->prepare($sql)) {

@@ -30,7 +30,14 @@ if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
 if (!$mysqli || $mysqli->connect_errno) { http_response_code(500); exit; }
 $mysqli->set_charset('utf8mb4');
 
-/* -------- Resolve user's dept/section/role (visibility) -------- */
+/* -------- Resolve user's dept/section/role (visibility) --------
+   SEE-ALL when:
+     - department = QMS (any role), OR
+     - department = QA  AND role IN ('supervisor','manager')
+   Otherwise:
+     - Manager: dept-wide (ignore section) OR own originated rows
+     - Others : dept + (section empty/match) OR own originated rows
+--------------------------------------------------------------- */
 $dept = '';
 $section = '';
 $role = '';
@@ -46,18 +53,26 @@ if ($stmt0 = $mysqli->prepare("SELECT department, section, role FROM system_user
   }
   $stmt0->close();
 }
-$isQaqms   = in_array(strtoupper(trim($dept)), ['QA','QMS'], true);
-$isManager = (strcasecmp(trim($role), 'manager') === 0);
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($role));
+$see_all   = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+$isManager = ($role_norm === 'manager');
 
 /* -------- Inputs (must mirror list endpoint) -------- */
 $type      = trim((string)($_GET['type'] ?? ''));
-$statusRaw = trim((string)($_GET['status'] ?? ''));
+
+// status filter: '', 'valid', 'invalid', 'CLOSED (VALID)', 'CLOSED (IN-VALID)', 'all'
+$statusRaw  = trim((string)($_GET['status'] ?? ''));
 $statusNorm = '';
 if ($statusRaw !== '') {
   $up = strtoupper($statusRaw);
-  if ($up === 'VALID' || $up === 'CLOSED (VALID)')                               $statusNorm = 'CLOSED (VALID)';
-  elseif ($up === 'INVALID' || $up === 'IN-VALID' || $up === 'CLOSED (IN-VALID)') $statusNorm = 'CLOSED (IN-VALID)';
-  elseif ($up === 'ALL')                                                          $statusNorm = '';
+  if ($up === 'VALID' || $up === 'CLOSED (VALID)') {
+    $statusNorm = 'CLOSED (VALID)';
+  } elseif ($up === 'INVALID' || $up === 'IN-VALID' || $up === 'CLOSED (IN-VALID)') {
+    $statusNorm = 'CLOSED (IN-VALID)';
+  } elseif ($up === 'ALL') {
+    $statusNorm = '';
+  }
 }
 
 /* -------- WHERE (mirror rcpa-list-closed.php) -------- */
@@ -73,6 +88,7 @@ if ($type !== '') {
   $types   .= 's';
 }
 
+// Status: if a valid specific status was requested, use it; else include both allowed
 if ($statusNorm !== '' && in_array($statusNorm, $allowed_statuses, true)) {
   $where[]  = "status = ?";
   $params[] = $statusNorm;
@@ -82,10 +98,23 @@ if ($statusNorm !== '' && in_array($statusNorm, $allowed_statuses, true)) {
   foreach ($allowed_statuses as $st) { $params[] = $st; $types .= 's'; }
 }
 
-if (!$isQaqms) {
+/* Visibility restriction (role-aware):
+   - see_all: no extra restriction
+   - Else:
+       * If department known:
+            Manager:
+              (LOWER(TRIM(assignee)) = LOWER(TRIM(?))) OR originator_name = ?
+            Non-manager:
+              (
+                LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+                AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
+              )
+              OR originator_name = ?
+       * If department unknown: only originator_name = user_name
+*/
+if (!$see_all) {
   if ($dept !== '') {
     if ($isManager) {
-      // Manager: dept-wide regardless of section OR own originated rows
       $where[]  = "(
         LOWER(TRIM(assignee)) = LOWER(TRIM(?))
         OR originator_name = ?
@@ -94,11 +123,10 @@ if (!$isQaqms) {
       $params[] = $user_name;
       $types   .= 'ss';
     } else {
-      // Non-manager: dept + (section empty/match) OR own originated rows
       $where[]  = "(
         (
           LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-          AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
+          AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
         )
         OR originator_name = ?
       )";
@@ -124,7 +152,8 @@ $sql = "SELECT MAX(id) AS max_id, COUNT(*) AS cnt
 $stmt = $mysqli->prepare($sql);
 if (!$stmt) { http_response_code(500); exit; }
 
-$deadline  = time() + 60;  // one-minute window; EventSource auto-reconnects
+/* -------- Stream loop (short-lived; EventSource auto-reconnects) -------- */
+$deadline  = time() + 60;  // ~1 minute per connection
 $lastPing  = 0;
 $lastMaxId = -1;
 $lastCount = -1;

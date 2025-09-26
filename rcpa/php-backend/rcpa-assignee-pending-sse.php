@@ -38,7 +38,13 @@ $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
    Resolve department + section + role
-   (mirror list endpoint)
+   Visibility (aligned with rcpa-list-assignee-pending.php):
+     - SEE ALL if:
+         * department = QMS (any role), OR
+         * department = QA  AND role IN ('supervisor','manager')
+     - Otherwise:
+         * Manager: dept-wide (ignore section) OR own originated rows
+         * Others : dept + (section empty/match) OR own originated rows
 --------------------------- */
 $dept = '';
 $user_section = '';
@@ -51,8 +57,11 @@ if ($stmt0 = $mysqli->prepare("SELECT department, section, role FROM system_user
   }
   $stmt0->close();
 }
-$isQaqms   = in_array(strtoupper(trim($dept)), ['QA', 'QMS'], true);
-$isManager = (strcasecmp(trim($user_role), 'manager') === 0);
+
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($user_role));
+$see_all   = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+$isManager = ($role_norm === 'manager');
 
 /* ---------------------------
    Inputs (optional)
@@ -80,7 +89,7 @@ if (!empty($allowed_statuses)) {
 }
 
 /* Visibility restriction (role-aware) */
-if (!$isQaqms) {
+if (!$see_all) {
   if ($dept !== '') {
     if ($isManager) {
       // Managers: department-wide (ignore section) OR own originated rows
@@ -108,9 +117,13 @@ if (!$isQaqms) {
       $types   .= 'sss';
     }
   } else {
-    $where[]  = "originator_name = ?";
-    $params[] = $user_name;
-    $types   .= 's';
+    if ($user_name !== '') {
+      $where[]  = "originator_name = ?";
+      $params[] = $user_name;
+      $types   .= 's';
+    } else {
+      $where[] = "1=0";
+    }
   }
 }
 
@@ -123,7 +136,7 @@ $sql = "SELECT MAX(id) AS max_id, COUNT(*) AS cnt
         FROM rcpa_request
         WHERE $where_sql";
 
-$deadline  = time() + 60;
+$deadline  = time() + 60;   // stream up to 60s then let EventSource reconnect
 $lastPing  = 0;
 $lastMaxId = 0;
 $lastCount = 0;

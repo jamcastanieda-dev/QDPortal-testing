@@ -42,13 +42,16 @@ $mysqli->set_charset('utf8mb4');
 /* ---------------------------
    Resolve user's department + section + role
    Visibility rules:
-     - QA or QMS  => can see ALL rows
-     - MANAGER    => can see rows where:
-         * assignee = user's department  (ignore section)
-         * OR originator_name = user's name
-     - Others     => can see rows where:
-         * (assignee = user's department AND (section is NULL/'' OR section = user's section))
-           OR originator_name = user's name
+     - QMS  => can see ALL rows (any role)
+     - QA   => can see ALL rows ONLY if role is 'supervisor' or 'manager'
+     - MANAGER (when not see-all)
+             => can see rows where:
+                 * assignee = user's department  (ignore section)
+                 * OR originator_name = user's name
+     - Others (when not see-all)
+             => can see rows where:
+                 * (assignee = user's department AND (section is NULL/'' OR section = user's section))
+                   OR originator_name = user's name
 --------------------------- */
 $dept = '';
 $section = '';
@@ -70,8 +73,17 @@ if ($user_name !== '') {
         $stmt->close();
     }
 }
-$isQaqms   = in_array(strtoupper(trim($dept)), ['QA', 'QMS'], true);
-$isManager = (strcasecmp(trim($role), 'manager') === 0);
+
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($role));
+
+$isManager = ($role_norm === 'manager');
+$see_all   = false;
+if ($dept_norm === 'QMS') {
+    $see_all = true; // QMS always see all
+} elseif ($dept_norm === 'QA' && ($role_norm === 'manager' || $role_norm === 'supervisor')) {
+    $see_all = true; // QA supervisors/managers see all
+}
 
 /* ---------------------------
    Inputs (filters + paging)
@@ -141,7 +153,7 @@ if ($statusNorm !== '' && in_array($statusNorm, $allowed_statuses, true)) {
 }
 
 /* Visibility restriction (role-aware):
-   - QA/QMS: no extra restriction (see all)
+   - see_all (QMS, or QA supervisor/manager): no extra restriction
    - Else:
        * If department known:
             Manager:
@@ -154,7 +166,7 @@ if ($statusNorm !== '' && in_array($statusNorm, $allowed_statuses, true)) {
               OR originator_name = ?
        * If department unknown: only originator_name = user_name
 */
-if (!$isQaqms) {
+if (!$see_all) {
     if ($dept !== '') {
         if ($isManager) {
             $where[]  = "(
@@ -168,7 +180,7 @@ if (!$isQaqms) {
             $where[]  = "(
                 (
                   LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                  AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
+                  AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
                 )
                 OR originator_name = ?
             )";
@@ -256,8 +268,8 @@ while ($r = $res->fetch_assoc()) {
         'section'          => (string)($r['section'] ?? ''),
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
-        'close_date'        => $r['close_date'] ? date('Y-m-d', strtotime($r['close_date'])) : null,
-        'hit_close'         => (string)($r['hit_close'] ?? ''),
+        'close_date'       => $r['close_date'] ? date('Y-m-d', strtotime($r['close_date'])) : null,
+        'hit_close'        => (string)($r['hit_close'] ?? ''),
     ];
 }
 $stmt->close();
