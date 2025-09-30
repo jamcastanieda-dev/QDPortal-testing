@@ -80,7 +80,8 @@ try {
     // Restricted list for non-$can_qms_view users
     $status_list_restricted = "(
         'ASSIGNEE PENDING','FOR CLOSING',
-        'VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL'
+        'VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL',
+        'CLOSED (VALID)','CLOSED (IN-VALID)'
     )";
 
     // Choose which list to use

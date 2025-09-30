@@ -69,7 +69,8 @@ try {
 
   $status_list_restricted = "(
     'ASSIGNEE PENDING','FOR CLOSING',
-    'VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL'
+    'VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL',
+    'CLOSED (VALID)','CLOSED (IN-VALID)'
   )";
 
   // Choose list for this user
