@@ -76,14 +76,14 @@ $sql = "
     SUM(
       CASE
         WHEN rr.id IS NOT NULL
-         AND UPPER(TRIM(rr.status)) IN ('CLOSED (VALID)', 'CLOSED (IN-VALID)')
+         AND UPPER(TRIM(rr.status)) IN ('CLOSED (VALID)', 'CLOSED (INVALID)')
         THEN 1 ELSE 0
       END
     ) AS closed,
     SUM(
       CASE
         WHEN rr.id IS NOT NULL
-         AND UPPER(TRIM(rr.status)) NOT IN ('CLOSED (VALID)', 'CLOSED (IN-VALID)')
+         AND UPPER(TRIM(rr.status)) NOT IN ('CLOSED (VALID)', 'CLOSED (INVALID)')
         THEN 1 ELSE 0
       END
     ) AS not_closed

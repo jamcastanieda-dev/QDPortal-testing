@@ -31,7 +31,7 @@ if ($id === null || !ctype_digit((string)$id)) {
   exit;
 }
 
-$status = 'IN-VALIDATION REPLY APPROVAL';
+$status = 'INVALIDATION REPLY APPROVAL';
 
 try {
   if (!isset($conn) || !($conn instanceof mysqli)) {
@@ -64,7 +64,7 @@ try {
   }
 
   // 2) History entry
-  $activity = 'The in-validation reply by Assignee was approved by QA/QMS team';
+  $activity = 'The INVALIDation reply by Assignee was approved by QA/QMS team';
   $historySql = 'INSERT INTO rcpa_request_history (rcpa_no, name, date_time, activity)
                  VALUES (?, ?, CURRENT_TIMESTAMP, ?)';
   $h = $conn->prepare($historySql);

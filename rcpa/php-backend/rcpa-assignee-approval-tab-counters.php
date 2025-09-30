@@ -65,15 +65,15 @@ try {
     $is_manager = ($role_norm === 'manager');
 
     $valid_approval   = 0; // status = 'VALID APPROVAL'
-    $invalid_approval = 0; // status = 'IN-VALID APPROVAL'
+    $invalid_approval = 0; // status = 'INVALID APPROVAL'
 
     if ($see_all) {
         // Global counts
         $sql = "SELECT
                     SUM(CASE WHEN status = 'VALID APPROVAL'    THEN 1 ELSE 0 END) AS valid_approval,
-                    SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
+                    SUM(CASE WHEN status = 'INVALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
                 FROM rcpa_request
-                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL')";
+                WHERE status IN ('VALID APPROVAL','INVALID APPROVAL')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($v, $nv);
@@ -88,9 +88,9 @@ try {
             // Manager: ignore section; department match only
             $sql = "SELECT
                         SUM(CASE WHEN status = 'VALID APPROVAL'    THEN 1 ELSE 0 END) AS valid_approval,
-                        SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
+                        SUM(CASE WHEN status = 'INVALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
                     FROM rcpa_request
-                    WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL')
+                    WHERE status IN ('VALID APPROVAL','INVALID APPROVAL')
                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('s', $department);
@@ -106,9 +106,9 @@ try {
             // Non-manager: dept + (blank OR matching) section
             $sql = "SELECT
                         SUM(CASE WHEN status = 'VALID APPROVAL'    THEN 1 ELSE 0 END) AS valid_approval,
-                        SUM(CASE WHEN status = 'IN-VALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
+                        SUM(CASE WHEN status = 'INVALID APPROVAL' THEN 1 ELSE 0 END) AS invalid_approval
                     FROM rcpa_request
-                    WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL')
+                    WHERE status IN ('VALID APPROVAL','INVALID APPROVAL')
                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                       AND (
                             section IS NULL OR section = '' OR

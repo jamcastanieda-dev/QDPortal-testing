@@ -405,9 +405,9 @@
                     </label>
                 </fieldset>
 
-                <!-- FINDINGS IN-VALIDATION REPLY (no legend)-->
+                <!-- FINDINGS INVALIDATION REPLY (no legend)-->
                 <fieldset class="validation validation-invalid">
-                    <legend>IN-VALIDATION OF RCPA BY ASSIGNEE</legend>
+                    <legend>INVALIDATION OF RCPA BY ASSIGNEE</legend>
                     <label class="inline-check checkbox-invalid">
                         <input type="checkbox" id="rcpa-view-findings-not-valid">
                         <span>Findings not valid, reason for non-validity</span>

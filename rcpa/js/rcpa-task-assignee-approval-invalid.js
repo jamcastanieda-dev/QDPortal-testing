@@ -72,21 +72,21 @@
     if (t === 'REJECTED') return `<span class="rcpa-badge badge-rejected">REJECTED</span>`;
     if (t === 'ASSIGNEE PENDING') return `<span class="rcpa-badge badge-assignee-pending">ASSIGNEE PENDING</span>`;
     if (t === 'VALID APPROVAL') return `<span class="rcpa-badge badge-valid-approval">VALID APPROVAL</span>`;
-    if (t === 'IN-VALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">IN-VALID APPROVAL</span>`;
-    if (t === 'IN-VALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">IN-VALIDATION REPLY</span>`;
+    if (t === 'INVALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">INVALID APPROVAL</span>`;
+    if (t === 'INVALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">INVALIDATION REPLY</span>`;
     if (t === 'VALIDATION REPLY') return `<span class="rcpa-badge badge-validation-reply">VALIDATION REPLY</span>`;
     if (t === 'VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-validation-reply-approval">VALIDATION REPLY APPROVAL</span>`;
-    if (t === 'IN-VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">IN-VALIDATION REPLY APPROVAL</span>`;
+    if (t === 'INVALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">INVALIDATION REPLY APPROVAL</span>`;
     if (t === 'FOR CLOSING') return `<span class="rcpa-badge badge-assignee-corrective">FOR CLOSING</span>`;
     if (t === 'FOR CLOSING APPROVAL') return `<span class="rcpa-badge badge-assignee-corrective-approval">FOR CLOSING APPROVAL</span>`;
     if (t === 'EVIDENCE CHECKING') return `<span class="rcpa-badge badge-corrective-checking">EVIDENCE CHECKING</span>`;
     // if (t === 'EVIDENCE CHECKING APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE CHECKING APPROVAL</span>`;
     if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
-    if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
+    if (t === 'CLOSED (INVALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (INVALID)</span>`;
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
     if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
-    if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
+    if (t === 'INVALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">INVALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
   function badgeForCategory(c) {
@@ -816,7 +816,7 @@
       currentViewId = row.id;
       fillViewModal(row);
 
-      // IN-VALID info
+      // INVALID info
       try {
         const nvRes = await fetch(`../php-backend/rcpa-view-invalidation-reply.php?rcpa_no=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
         if (nvRes.ok) {
@@ -834,13 +834,13 @@
     }
   });
 
-  // ACCEPT action → set status = "IN-VALIDATION REPLY" (existing)
+  // ACCEPT action → set status = "INVALIDATION REPLY" (existing)
   document.addEventListener('rcpa:action', async (e) => {
     const { action, id } = e.detail || {};
     if (action !== 'accept' || !id) return;
 
     if (!window.Swal) {
-      const ok = confirm('Mark this RCPA as IN-VALIDATION REPLY? This will update the status to "IN-VALIDATION REPLY".');
+      const ok = confirm('Mark this RCPA as INVALIDATION REPLY? This will update the status to "INVALIDATION REPLY".');
       if (!ok) return;
       try {
         const fd = new FormData();
@@ -851,8 +851,8 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!data || !data.success) throw new Error(data?.error || 'Update failed');
-        setVal('rcpa-view-status', 'IN-VALIDATION REPLY');
-        alert('Status updated to "IN-VALIDATION REPLY".');
+        setVal('rcpa-view-status', 'INVALIDATION REPLY');
+        alert('Status updated to "INVALIDATION REPLY".');
         document.dispatchEvent(new CustomEvent('rcpa:refresh'));
         if (typeof window.refreshAssigneeApprovalBadges === 'function') window.refreshAssigneeApprovalBadges();
 
@@ -864,11 +864,11 @@
     }
 
     Swal.fire({
-      title: 'Mark this RCPA as IN-VALIDATION REPLY?',
-      text: 'This will update the status to "IN-VALIDATION REPLY".',
+      title: 'Mark this RCPA as INVALIDATION REPLY?',
+      text: 'This will update the status to "INVALIDATION REPLY".',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Yes, set IN-VALIDATION REPLY',
+      confirmButtonText: 'Yes, set INVALIDATION REPLY',
       cancelButtonText: 'Cancel',
       focusCancel: true,
       showLoaderOnConfirm: true,
@@ -885,8 +885,8 @@
       allowOutsideClick: () => !Swal.isLoading()
     }).then((result) => {
       if (!result.isConfirmed) return;
-      Swal.fire({ icon: 'success', title: 'Status updated', text: 'RCPA status set to "IN-VALIDATION REPLY".', timer: 1600, showConfirmButton: false });
-      setVal('rcpa-view-status', 'IN-VALIDATION REPLY');
+      Swal.fire({ icon: 'success', title: 'Status updated', text: 'RCPA status set to "INVALIDATION REPLY".', timer: 1600, showConfirmButton: false });
+      setVal('rcpa-view-status', 'INVALIDATION REPLY');
       document.dispatchEvent(new CustomEvent('rcpa:refresh'));
       if (typeof window.refreshAssigneeApprovalBadges === 'function') window.refreshAssigneeApprovalBadges();
     });
@@ -1127,7 +1127,7 @@
     if (!wrap) return null;
     wireNav(wrap);
 
-    // Tabs: 1) VALID APPROVAL  2) IN-VALID APPROVAL
+    // Tabs: 1) VALID APPROVAL  2) INVALID APPROVAL
     const tabValid = pickTab(wrap, 'rcpa-task-assignee-approval-valid.php', 1);
     const tabInvalid = pickTab(wrap, 'rcpa-task-assignee-approval-invalid.php', 2);
 

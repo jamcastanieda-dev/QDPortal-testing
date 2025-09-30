@@ -61,22 +61,22 @@ $isManager = ($role_norm === 'manager');
 /* -------- Inputs (must mirror list endpoint) -------- */
 $type      = trim((string)($_GET['type'] ?? ''));
 
-// status filter: '', 'valid', 'invalid', 'CLOSED (VALID)', 'CLOSED (IN-VALID)', 'all'
+// status filter: '', 'valid', 'invalid', 'CLOSED (VALID)', 'CLOSED (INVALID)', 'all'
 $statusRaw  = trim((string)($_GET['status'] ?? ''));
 $statusNorm = '';
 if ($statusRaw !== '') {
   $up = strtoupper($statusRaw);
   if ($up === 'VALID' || $up === 'CLOSED (VALID)') {
     $statusNorm = 'CLOSED (VALID)';
-  } elseif ($up === 'INVALID' || $up === 'IN-VALID' || $up === 'CLOSED (IN-VALID)') {
-    $statusNorm = 'CLOSED (IN-VALID)';
+  } elseif ($up === 'INVALID' || $up === 'INVALID' || $up === 'CLOSED (INVALID)') {
+    $statusNorm = 'CLOSED (INVALID)';
   } elseif ($up === 'ALL') {
     $statusNorm = '';
   }
 }
 
 /* -------- WHERE (mirror rcpa-list-closed.php) -------- */
-$allowed_statuses = ['CLOSED (VALID)','CLOSED (IN-VALID)'];
+$allowed_statuses = ['CLOSED (VALID)','CLOSED (INVALID)'];
 
 $where  = [];
 $params = [];

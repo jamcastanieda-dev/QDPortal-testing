@@ -41,7 +41,7 @@ try {
     $status_list = "(
         'REPLY CHECKING - ORIGINATOR',
         'EVIDENCE CHECKING - ORIGINATOR',
-        'IN-VALID APPROVAL - ORIGINATOR'
+        'INVALID APPROVAL - ORIGINATOR'
     )";
 
     $count = 0;

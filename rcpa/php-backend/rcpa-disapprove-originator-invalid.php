@@ -82,7 +82,7 @@ try {
   $conn->begin_transaction();
 
   // Insert disapproval remark
-  $type = 'Originator disapproved the in-valid reply approval';
+  $type = 'Originator disapproved the INVALID reply approval';
   $ins1 = $conn->prepare("INSERT INTO rcpa_disapprove_remarks (rcpa_no, disapprove_type, remarks, attachments) VALUES (?, ?, ?, ?)");
   if (!$ins1) throw new Exception('Prepare failed: '.$conn->error);
   $ins1->bind_param('isss', $id, $type, $remarks, $attachmentsJson);
@@ -99,7 +99,7 @@ try {
   $upd->close();
 
   // History
-  $activity = 'Originator returned the in-valid reply for QMS CHECKING';
+  $activity = 'Originator returned the INVALID reply for QMS CHECKING';
   $ins2 = $conn->prepare("INSERT INTO rcpa_request_history (rcpa_no, name, activity) VALUES (?, ?, ?)");
   if (!$ins2) throw new Exception('Prepare failed: '.$conn->error);
   $rcpa_no = (string)$id;

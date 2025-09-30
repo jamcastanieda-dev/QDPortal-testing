@@ -151,21 +151,21 @@
                     <option value="REJECTED">REJECTED</option>
                     <option value="ASSIGNEE PENDING">ASSIGNEE PENDING</option>
                     <option value="VALID APPROVAL">VALID APPROVAL</option>
-                    <option value="IN-VALID APPROVAL">IN-VALID APPROVAL</option>
-                    <option value="IN-VALIDATION REPLY">IN-VALIDATION REPLY</option>
+                    <option value="INVALID APPROVAL">INVALID APPROVAL</option>
+                    <option value="INVALIDATION REPLY">INVALIDATION REPLY</option>
                     <option value="VALIDATION REPLY">VALIDATION REPLY</option>
                     <option value="VALIDATION REPLY APPROVAL">VALIDATION REPLY APPROVAL</option>
-                    <option value="IN-VALIDATION REPLY APPROVAL">IN-VALIDATION REPLY APPROVAL</option>
+                    <option value="INVALIDATION REPLY APPROVAL">INVALIDATION REPLY APPROVAL</option>
                     <option value="FOR CLOSING">FOR CLOSING</option>
                     <option value="FOR CLOSING APPROVAL">FOR CLOSING APPROVAL</option>
                     <option value="EVIDENCE CHECKING">EVIDENCE CHECKING</option>
                     <!-- <option value="EVIDENCE CHECKING APPROVAL">EVIDENCE CHECKING APPROVAL</option> -->
                     <option value="EVIDENCE APPROVAL">EVIDENCE APPROVAL</option>
                     <option value="CLOSED (VALID)">CLOSED (VALID)</option>
-                    <option value="CLOSED (IN-VALID)">CLOSED (IN-VALID)</option>
+                    <option value="CLOSED (INVALID)">CLOSED (INVALID)</option>
                     <option value="REPLY CHECKING - ORIGINATOR">REPLY CHECKING - ORIGINATOR</option>
                     <option value="EVIDENCE CHECKING - ORIGINATOR">EVIDENCE CHECKING - ORIGINATOR</option>
-                    <option value="IN-VALID APPROVAL - ORIGINATOR">IN-VALID APPROVAL - ORIGINATOR</option>
+                    <option value="INVALID APPROVAL - ORIGINATOR">INVALID APPROVAL - ORIGINATOR</option>
 
                 </select>
 
@@ -711,7 +711,7 @@
                     </div>
                 </fieldset>
 
-                <!-- FINDINGS IN-VALIDATION REPLY (no legend) -->
+                <!-- FINDINGS INVALIDATION REPLY (no legend) -->
                 <fieldset class="validation validation-invalid">
                     <label class="inline-check checkbox-invalid">
                         <input type="checkbox" id="rcpa-view-findings-not-valid">

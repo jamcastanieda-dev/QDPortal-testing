@@ -906,11 +906,11 @@
       .trim()
       .toUpperCase();
     const blocked = new Set([
-      'IN-VALID APPROVAL',
-      'IN-VALIDATION REPLY',
-      'IN-VALIDATION REPLY APPROVAL',
-      'IN-VALID APPROVAL - ORIGINATOR',
-      'CLOSED (IN-VALID)'
+      'INVALID APPROVAL',
+      'INVALIDATION REPLY',
+      'INVALIDATION REPLY APPROVAL',
+      'INVALID APPROVAL - ORIGINATOR',
+      'CLOSED (INVALID)'
     ]);
     return blocked.has(status);
   }
@@ -1051,21 +1051,21 @@
       'REJECTED': 'badge-rejected',
       'ASSIGNEE PENDING': 'badge-assignee-pending',
       'VALID APPROVAL': 'badge-valid-approval',
-      'IN-VALID APPROVAL': 'badge-invalid-approval',
+      'INVALID APPROVAL': 'badge-invalid-approval',
       'REPLY CHECKING - ORIGINATOR': 'badge-validation-reply-approval',
-      'IN-VALIDATION REPLY': 'badge-invalidation-reply',
+      'INVALIDATION REPLY': 'badge-invalidation-reply',
       'VALIDATION REPLY': 'badge-validation-reply',
       'VALIDATION REPLY APPROVAL': 'badge-validation-reply-approval',
-      'IN-VALIDATION REPLY APPROVAL': 'badge-invalidation-reply-approval',
+      'INVALIDATION REPLY APPROVAL': 'badge-invalidation-reply-approval',
       'FOR CLOSING': 'badge-assignee-corrective',
       'FOR CLOSING APPROVAL': 'badge-assignee-corrective-approval',
       'EVIDENCE CHECKING': 'badge-corrective-checking',
       'EVIDENCE CHECKING - ORIGINATOR': 'badge-validation-reply-approval',
-      'IN-VALID APPROVAL - ORIGINATOR': 'badge-validation-reply-approval',
+      'INVALID APPROVAL - ORIGINATOR': 'badge-validation-reply-approval',
       'EVIDENCE CHECKING APPROVAL': 'badge-corrective-checking-approval',
       'EVIDENCE APPROVAL': 'badge-corrective-checking-approval',
       'CLOSED (VALID)': 'badge-closed',
-      'CLOSED (IN-VALID)': 'badge-rejected'
+      'CLOSED (INVALID)': 'badge-rejected'
     };
     const cls = map[t] || 'badge-unknown';
     return `<span class="rcpa-badge ${cls}">${s ? s : 'NO STATUS'}</span>`;
@@ -1544,7 +1544,7 @@
         return;
       }
 
-      // NEW: Force rule for the "FINDINGS IN-VALIDATION REPLY" fieldset
+      // NEW: Force rule for the "FINDINGS INVALIDATION REPLY" fieldset
       if (fs === invalidFs) {
         const blocked = shouldHideInvalidReplyByStatus();
         setSectionVisible(invalidFs, blocked ? false : fieldsetHasContent(invalidFs));
@@ -1804,7 +1804,7 @@
 
     autoHideValidation();
 
-    // ===== Not-Valid (IN-VALIDATION REPLY) =====
+    // ===== Not-Valid (INVALIDATION REPLY) =====
     try {
       const inv = await fetchJSON(`../php-backend/rcpa-view-not-valid.php?rcpa_no=${encodeURIComponent(row.id)}`);
       const hasNV = !!inv;

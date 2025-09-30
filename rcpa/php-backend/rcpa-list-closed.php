@@ -95,15 +95,15 @@ $offset    = ($page - 1) * $page_size;
 $type = trim((string)($_GET['type'] ?? ''));     // rcpa_type filter (optional)
 $q    = trim((string)($_GET['q'] ?? ''));        // free-text query (project/wbs/assignee)
 
-// status filter: '', 'valid', 'invalid', 'CLOSED (VALID)', 'CLOSED (IN-VALID)', 'all'
+// status filter: '', 'valid', 'invalid', 'CLOSED (VALID)', 'CLOSED (INVALID)', 'all'
 $statusParamRaw = trim((string)($_GET['status'] ?? ''));
 $statusNorm = '';
 if ($statusParamRaw !== '') {
     $up = strtoupper($statusParamRaw);
     if ($up === 'VALID' || $up === 'CLOSED (VALID)') {
         $statusNorm = 'CLOSED (VALID)';
-    } elseif ($up === 'INVALID' || $up === 'IN-VALID' || $up === 'CLOSED (IN-VALID)') {
-        $statusNorm = 'CLOSED (IN-VALID)';
+    } elseif ($up === 'INVALID' || $up === 'INVALID' || $up === 'CLOSED (INVALID)') {
+        $statusNorm = 'CLOSED (INVALID)';
     } elseif ($up === 'ALL') {
         $statusNorm = ''; // include both allowed statuses
     } else {
@@ -114,7 +114,7 @@ if ($statusParamRaw !== '') {
 /* ---------------------------
    WHERE builder
 --------------------------- */
-$allowed_statuses = ['CLOSED (VALID)', 'CLOSED (IN-VALID)'];
+$allowed_statuses = ['CLOSED (VALID)', 'CLOSED (INVALID)'];
 
 $where  = [];
 $params = [];

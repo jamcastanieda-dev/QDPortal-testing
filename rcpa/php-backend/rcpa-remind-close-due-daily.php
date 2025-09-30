@@ -2,7 +2,7 @@
 // php-backend/rcpa-remind-close-due-daily.php
 // Runs daily and emails assignee groups when close_due_date is exactly
 // 4, 3, 2, 1 weeks, 2 days, 1 day away, or today (28, 21, 14, 7, 2, 1, 0 days).
-// Emails regardless of status EXCEPT when status is "CLOSED (VALID)" or "CLOSED (IN-VALID)".
+// Emails regardless of status EXCEPT when status is "CLOSED (VALID)" or "CLOSED (INVALID)".
 // NEW: Includes conformance details (Non-conformance / Potential Non-conformance)
 //      only for the statuses listed by the user (see $detailStatuses).
 
@@ -73,7 +73,7 @@ $sql = "
   WHERE r.close_due_date IS NOT NULL
     AND r.close_date IS NULL
     AND DATEDIFF(r.close_due_date, CURDATE()) IN (28, 21, 14, 7, 2, 1, 0)
-    AND r.status NOT IN ('CLOSED (VALID)', 'CLOSED (IN-VALID)')
+    AND r.status NOT IN ('CLOSED (VALID)', 'CLOSED (INVALID)')
   ORDER BY r.id
 ";
 

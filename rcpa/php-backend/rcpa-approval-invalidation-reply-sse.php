@@ -46,7 +46,7 @@ $isQaqms = in_array(strtoupper(trim($dept)), ['QA','QMS'], true);
 $type = trim((string)($_GET['type'] ?? ''));
 
 /* -------- WHERE (mirror rcpa-list-approval-invalidation-reply.php) -------- */
-$allowed_statuses = ['IN-VALIDATION REPLY APPROVAL'];
+$allowed_statuses = ['INVALIDATION REPLY APPROVAL'];
 
 $where  = [];
 $params = [];

@@ -166,7 +166,7 @@
                     <select id="rcpa-filter-status" class="u-line">
                         <option value="">All Closed</option>
                         <option value="valid">Closed (Valid)</option>
-                        <option value="invalid">Closed (In-Valid)</option>
+                        <option value="invalid">Closed (INVALID)</option>
                     </select>
                 </div>
             </header>
@@ -490,7 +490,7 @@
                     </div> -->
                 </fieldset>
 
-                <!-- FINDINGS IN-VALIDATION REPLY (no legend) -->
+                <!-- FINDINGS INVALIDATION REPLY (no legend) -->
                 <fieldset class="validation validation-invalid" id="rcpa-view-invalid-section" hidden>
                     <label class="inline-check checkbox-invalid">
                         <input type="checkbox" id="rcpa-view-findings-not-valid">

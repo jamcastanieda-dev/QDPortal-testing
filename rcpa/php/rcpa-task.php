@@ -220,7 +220,7 @@
                 <button type="button" class="btn-task btn-cta"
                     onclick="window.location.href='rcpa-task-qms-approval-reply-invalid.php'">
                     <i class="fa-solid fa-reply" aria-hidden="true"></i>
-                    <span>IN-VALIDATION REPLY APPROVAL</span>
+                    <span>INVALIDATION REPLY APPROVAL</span>
                     <span class="btn-badge" id="badgeQmsReply" hidden>0</span>
                 </button>
 

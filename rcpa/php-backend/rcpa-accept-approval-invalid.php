@@ -75,7 +75,7 @@ try {
   $sel->close();
 
   // 1) Update status + set reply_date only if NULL
-  $newStatus = 'IN-VALIDATION REPLY';
+  $newStatus = 'INVALIDATION REPLY';
   $sql = "UPDATE rcpa_request
              SET status = ?,
                  reply_date = COALESCE(reply_date, CURDATE())
@@ -159,7 +159,7 @@ try {
   }
 
   // 4) Insert history
-  $activity = 'The Assignee Supervisor/Manager approved the Assignee reply as IN-VALID';
+  $activity = 'The Assignee Supervisor/Manager approved the Assignee reply as INVALID';
   $rcpa_no_str = (string)$id;
   $hist = $conn->prepare("INSERT INTO rcpa_request_history (rcpa_no, name, activity) VALUES (?, ?, ?)");
   if (!$hist) throw new RuntimeException('DB prepare failed (insert rcpa_request_history): ' . $conn->error);
@@ -297,7 +297,7 @@ try {
           <tr>
             <td style="padding:8px 24px 0 24px; color:#374151; font-size:14px; line-height:1.6;">
               Good day,<br>
-              The Assignee Supervisor/Manager has <strong>approved the Assignee reply as IN-VALID</strong> for RCPA <strong>#'.$rcpaNo.'</strong>.<br>
+              The Assignee Supervisor/Manager has <strong>approved the Assignee reply as INVALID</strong> for RCPA <strong>#'.$rcpaNo.'</strong>.<br>
               The request is now in status <strong>'.$statusSafe.'</strong>.
             </td>
           </tr>

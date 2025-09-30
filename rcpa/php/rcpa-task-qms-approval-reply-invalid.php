@@ -138,7 +138,7 @@
         </div>
     </div>
 
-    <h2><span>RCPA IN-VALID APPROVAL</span></h2>
+    <h2><span>RCPA INVALID APPROVAL</span></h2>
 
     <div class="rcpa-container">
 
@@ -155,7 +155,7 @@
                         VALIDATION REPLY APPROVAL
                     </a>
                     <a class="rcpa-tab is-active" aria-current="page">
-                        IN-VALIDATION REPLY APPROVAL
+                        INVALIDATION REPLY APPROVAL
                     </a>
                 </div> -->
 
@@ -396,9 +396,9 @@
                     </label>
                 </fieldset>
 
-                <!-- FINDINGS IN-VALIDATION REPLY (no legend)-->
+                <!-- FINDINGS INVALIDATION REPLY (no legend)-->
                 <fieldset class="validation validation-invalid">
-                    <legend>IN-VALIDATION OF RCPA BY ASSIGNEE</legend>
+                    <legend>INVALIDATION OF RCPA BY ASSIGNEE</legend>
                     <label class="inline-check checkbox-invalid">
                         <input type="checkbox" id="rcpa-view-findings-not-valid">
                         <span>Findings not valid, reason for non-validity</span>
@@ -552,11 +552,11 @@
         </div>
     </div>
 
-    <!-- Approve In-Validation Reply modal -->
+    <!-- Approve INVALIDation Reply modal -->
     <div class="modal-overlay" id="rcpa-approve-modal" hidden>
         <div class="modal-content" id="rcpa-approve-content">
             <button type="button" class="close-btn" id="rcpa-approve-close" aria-label="Close">&times;</button>
-            <h3>Remarks for approving the in-validation reply</h3>
+            <h3>Remarks for approving the INVALIDation reply</h3>
 
             <form id="rcpa-approve-form" novalidate enctype="multipart/form-data">
                 <label class="field" style="display:block;margin-top:8px;">

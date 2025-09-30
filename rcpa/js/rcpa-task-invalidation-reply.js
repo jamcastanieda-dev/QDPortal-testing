@@ -44,19 +44,19 @@
     if (t === 'REJECTED') return `<span class="rcpa-badge badge-rejected">REJECTED</span>`;
     if (t === 'ASSIGNEE PENDING') return `<span class="rcpa-badge badge-assignee-pending">ASSIGNEE PENDING</span>`;
     if (t === 'VALID APPROVAL') return `<span class="rcpa-badge badge-valid-approval">VALID APPROVAL</span>`;
-    if (t === 'IN-VALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">IN-VALID APPROVAL</span>`;
-    if (t === 'IN-VALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">IN-VALIDATION REPLY</span>`;
+    if (t === 'INVALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">INVALID APPROVAL</span>`;
+    if (t === 'INVALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">INVALIDATION REPLY</span>`;
     if (t === 'VALIDATION REPLY') return `<span class="rcpa-badge badge-validation-reply">VALIDATION REPLY</span>`;
     if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
-    if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`; if (t === 'IN-VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">IN-VALIDATION REPLY APPROVAL</span>`;
+    if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`; if (t === 'INVALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">INVALIDATION REPLY APPROVAL</span>`;
     if (t === 'FOR CLOSING') return `<span class="rcpa-badge badge-assignee-corrective">FOR CLOSING</span>`;
     if (t === 'FOR CLOSING APPROVAL') return `<span class="rcpa-badge badge-assignee-corrective-approval">FOR CLOSING APPROVAL</span>`;
     if (t === 'EVIDENCE CHECKING') return `<span class="rcpa-badge badge-corrective-checking">EVIDENCE CHECKING</span>`;
     // if (t === 'EVIDENCE CHECKING APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE CHECKING APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
-    if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
+    if (t === 'CLOSED (INVALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (INVALID)</span>`;
 
-    if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
+    if (t === 'INVALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">INVALID APPROVAL - ORIGINATOR</span>`;
     return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
   }
 
@@ -783,7 +783,7 @@
     setVal('rcpa-view-conformance', row.conformance);
   }
 
-  // IN-VALIDATION section
+  // INVALIDATION section
   function fillNotValid(nv) {
     const hasNV = !!(nv && (nv.reason_non_valid || nv.assignee_name || nv.assignee_supervisor_name || nv.attachment));
     setChecked('rcpa-view-findings-not-valid', hasNV);
@@ -990,8 +990,8 @@
       if (window.Swal) {
         const { isConfirmed } = await Swal.fire({
           icon: 'question',
-          title: 'Approve In-Validation Reply?',
-          text: 'This will set the status to "IN-VALIDATION REPLY APPROVAL".',
+          title: 'Approve INVALIDation Reply?',
+          text: 'This will set the status to "INVALIDATION REPLY APPROVAL".',
           showCancelButton: true,
           confirmButtonText: 'Yes, approve',
           cancelButtonText: 'Cancel',
@@ -1001,7 +1001,7 @@
         if (!isConfirmed) return;
       } else {
         const ok = confirm(
-          'Approve this In-Validation Reply?\n\nThis will set the status to "IN-VALIDATION REPLY APPROVAL".'
+          'Approve this INVALIDation Reply?\n\nThis will set the status to "INVALIDATION REPLY APPROVAL".'
         );
         if (!ok) return;
       }
@@ -1018,18 +1018,18 @@
       if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
 
       const st = document.getElementById('rcpa-view-status');
-      if (st) st.value = 'IN-VALIDATION REPLY APPROVAL';
+      if (st) st.value = 'INVALIDATION REPLY APPROVAL';
 
       if (window.Swal) {
         await Swal.fire({
           icon: 'success',
-          title: 'In-Validation Reply approved',
-          text: 'Status set to "IN-VALIDATION REPLY APPROVAL".',
+          title: 'INVALIDation Reply approved',
+          text: 'Status set to "INVALIDATION REPLY APPROVAL".',
           timer: 1600,
           showConfirmButton: false
         });
       } else {
-        alert('In-Validation Reply approved. Status set to "IN-VALIDATION REPLY APPROVAL".');
+        alert('INVALIDation Reply approved. Status set to "INVALIDATION REPLY APPROVAL".');
       }
 
       document.dispatchEvent(new CustomEvent('rcpa:refresh'));
@@ -1052,7 +1052,7 @@
     openRejectBackModal();
   });
 
-  // Submit Return to Assignee (IN-VALID APPROVAL)
+  // Submit Return to Assignee (INVALID APPROVAL)
   rbForm?.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!currentViewId) { alert('Missing record id.'); return; }
@@ -1086,18 +1086,18 @@
 
       // Reflect new status in the view modal
       const st = document.getElementById('rcpa-view-status');
-      if (st) st.value = 'IN-VALID APPROVAL';
+      if (st) st.value = 'INVALID APPROVAL';
 
       if (window.Swal) {
         Swal.fire({
           icon: 'success',
           title: 'Invalidation Reply rejected',
-          text: 'Status set to "IN-VALID APPROVAL".',
+          text: 'Status set to "INVALID APPROVAL".',
           timer: 1600,
           showConfirmButton: false
         });
       } else {
-        alert('Invalidation Reply rejected. Status set to "IN-VALID APPROVAL".');
+        alert('Invalidation Reply rejected. Status set to "INVALID APPROVAL".');
       }
 
       closeRejectBackModal();

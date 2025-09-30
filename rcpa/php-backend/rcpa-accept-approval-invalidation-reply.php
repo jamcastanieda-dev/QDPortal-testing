@@ -32,8 +32,8 @@ if ($id === null || !ctype_digit((string)$id)) {
 }
 $remarks = trim((string)($_POST['remarks'] ?? ''));
 
-$status   = 'IN-VALID APPROVAL - ORIGINATOR';
-$logType  = 'Approved by QA Manager in in-validation reply approval';
+$status   = 'INVALID APPROVAL - ORIGINATOR';
+$logType  = 'Approved by QA Manager in INVALIDation reply approval';
 
 // -------- Upload handling (optional attachments) --------
 $stamp        = date('Ymd-His');
@@ -159,7 +159,7 @@ try {
   $stmt2->close();
 
   // 3) History entry
-  $activity = 'The in-validation reply approval by QA/QMS Team was approved by QA Supervisor/Manager';
+  $activity = 'The INVALIDation reply approval by QA/QMS Team was approved by QA Supervisor/Manager';
   $historySql = 'INSERT INTO rcpa_request_history (rcpa_no, name, date_time, activity) VALUES (?, ?, CURRENT_TIMESTAMP, ?)';
   $h = $conn->prepare($historySql);
   if (!$h) throw new Exception('Prepare failed (history): ' . $conn->error);

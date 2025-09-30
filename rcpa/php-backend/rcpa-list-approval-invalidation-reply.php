@@ -79,7 +79,7 @@ $q      = trim((string)($_GET['q'] ?? ''));       // free-text query (project/wb
 /* ---------------------------
    WHERE builder
 --------------------------- */
-$allowed_statuses = ['IN-VALIDATION REPLY APPROVAL'];
+$allowed_statuses = ['INVALIDATION REPLY APPROVAL'];
 
 $where  = [];
 $params = [];

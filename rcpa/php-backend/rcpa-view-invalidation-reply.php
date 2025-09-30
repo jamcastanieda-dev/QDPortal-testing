@@ -36,7 +36,7 @@ if (!isset($conn) || !($conn instanceof mysqli)) {
 }
 @$conn->set_charset('utf8mb4');
 
-// 1) Latest IN-VALIDATION row
+// 1) Latest INVALIDATION row
 $sqlNv = "
   SELECT
     rcpa_no,

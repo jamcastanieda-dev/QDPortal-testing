@@ -22,7 +22,7 @@ if ($id === null || !ctype_digit((string)$id)) {
     exit;
 }
 
-$status = 'IN-VALID APPROVAL';
+$status = 'INVALID APPROVAL';
 
 try {
     if (!isset($conn) || !($conn instanceof mysqli)) {
@@ -97,7 +97,7 @@ try {
     $stmt2->close();
 
     // 4) History entry
-    $activity = "The IN-VALIDATION REPLY by Assignee was disapproved by QA/QMS";
+    $activity = "The INVALIDATION REPLY by Assignee was disapproved by QA/QMS";
     $historySql = "INSERT INTO rcpa_request_history (rcpa_no, name, date_time, activity)
                    VALUES (?, ?, CURRENT_TIMESTAMP, ?)";
     $historyStmt = $conn->prepare($historySql);

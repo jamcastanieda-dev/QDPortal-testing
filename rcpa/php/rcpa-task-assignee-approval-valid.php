@@ -155,7 +155,7 @@
                         VALID APPROVAL
                     </a>
                     <a class="rcpa-tab" href="rcpa-task-assignee-approval-invalid.php">
-                        IN-VALID APPROVAL
+                        INVALID APPROVAL
                     </a>
                 </div>
 

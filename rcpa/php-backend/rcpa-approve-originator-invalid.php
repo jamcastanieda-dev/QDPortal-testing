@@ -84,7 +84,7 @@ try {
   $conn->begin_transaction();
 
   // Update status + close_date + no_days_close + hit_close (idempotent on status)
-  $target = 'CLOSED (IN-VALID)';
+  $target = 'CLOSED (INVALID)';
   $upd = $conn->prepare("UPDATE rcpa_request SET status=?, close_date=?, no_days_close=?, hit_close=? WHERE id=?");
   if (!$upd) throw new Exception('Prepare failed: '.$conn->error);
   $upd->bind_param('ssisi', $target, $todayStr, $noDaysClose, $hitClose, $id);
@@ -92,7 +92,7 @@ try {
   $upd->close();
 
   // History
-  $activity = 'Originator approved that the RCPA is CLOSED (IN-VALID)';
+  $activity = 'Originator approved that the RCPA is CLOSED (INVALID)';
   $ins = $conn->prepare("INSERT INTO rcpa_request_history (rcpa_no, name, activity) VALUES (?, ?, ?)");
   if (!$ins) throw new Exception('Prepare failed: '.$conn->error);
   $rcpa_no = (string)$id;

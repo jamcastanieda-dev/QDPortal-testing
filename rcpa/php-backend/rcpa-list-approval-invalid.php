@@ -93,7 +93,7 @@ $q      = trim((string)($_GET['q'] ?? ''));       // free-text query
 /* ---------------------------
    WHERE builder
 --------------------------- */
-$allowed_statuses = ['IN-VALID APPROVAL'];
+$allowed_statuses = ['INVALID APPROVAL'];
 
 $where  = [];
 $params = [];

@@ -87,7 +87,7 @@ try {
 
     // 3) Insert disapproval record
     $json = $attachments ? json_encode($attachments, JSON_UNESCAPED_SLASHES) : null;
-    $disapproveType = "Disapproved by Assignee Supervisor/Manager in in-valid approval";
+    $disapproveType = "Disapproved by Assignee Supervisor/Manager in INVALID approval";
 
     $stmt2 = $conn->prepare('
       INSERT INTO rcpa_disapprove_remarks (rcpa_no, disapprove_type, remarks, attachments, created_at)
@@ -100,7 +100,7 @@ try {
     $stmt2->close();
 
     // 4) History entry (your requested text)
-    $activity = "The in-valid approval by Assignee was disapproved by Assignee Supervisor/Manager";
+    $activity = "The INVALID approval by Assignee was disapproved by Assignee Supervisor/Manager";
     $historySql = "INSERT INTO rcpa_request_history (rcpa_no, name, date_time, activity)
                    VALUES (?, ?, CURRENT_TIMESTAMP, ?)";
     $historyStmt = $conn->prepare($historySql);

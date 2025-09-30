@@ -73,7 +73,7 @@ function build_payload(mysqli $mysqli, string $user_name): array {
     if ($see_all) {
         $sql = "SELECT COUNT(*)
                   FROM rcpa_request
-                 WHERE status IN ('QMS CHECKING','VALIDATION REPLY','IN-VALIDATION REPLY','EVIDENCE CHECKING')";
+                 WHERE status IN ('QMS CHECKING','VALIDATION REPLY','INVALIDATION REPLY','EVIDENCE CHECKING')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($cnt);
@@ -125,7 +125,7 @@ function build_payload(mysqli $mysqli, string $user_name): array {
         }
     }
 
-    // 3) ASSIGNEE APPROVAL (VALID / IN-VALID / FOR CLOSING APPROVAL)
+    // 3) ASSIGNEE APPROVAL (VALID / INVALID / FOR CLOSING APPROVAL)
     $valid_approval = 0;
     $not_valid_approval = 0;
     $for_closing_approval = 0;
@@ -133,10 +133,10 @@ function build_payload(mysqli $mysqli, string $user_name): array {
     if ($see_all) {
         $sql = "SELECT
                     SUM(CASE WHEN status = 'VALID APPROVAL'       THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN status = 'IN-VALID APPROVAL'    THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN status = 'INVALID APPROVAL'    THEN 1 ELSE 0 END),
                     SUM(CASE WHEN status = 'FOR CLOSING APPROVAL' THEN 1 ELSE 0 END)
                 FROM rcpa_request
-                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')";
+                WHERE status IN ('VALID APPROVAL','INVALID APPROVAL','FOR CLOSING APPROVAL')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($v1, $v2, $v3);
@@ -152,10 +152,10 @@ function build_payload(mysqli $mysqli, string $user_name): array {
             // Manager: ignore section
             $sql = "SELECT
                         SUM(CASE WHEN status = 'VALID APPROVAL'       THEN 1 ELSE 0 END),
-                        SUM(CASE WHEN status = 'IN-VALID APPROVAL'    THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN status = 'INVALID APPROVAL'    THEN 1 ELSE 0 END),
                         SUM(CASE WHEN status = 'FOR CLOSING APPROVAL' THEN 1 ELSE 0 END)
                     FROM rcpa_request
-                    WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
+                    WHERE status IN ('VALID APPROVAL','INVALID APPROVAL','FOR CLOSING APPROVAL')
                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('s', $department);
@@ -172,10 +172,10 @@ function build_payload(mysqli $mysqli, string $user_name): array {
             // Non-manager
             $sql = "SELECT
                         SUM(CASE WHEN status = 'VALID APPROVAL'       THEN 1 ELSE 0 END),
-                        SUM(CASE WHEN status = 'IN-VALID APPROVAL'    THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN status = 'INVALID APPROVAL'    THEN 1 ELSE 0 END),
                         SUM(CASE WHEN status = 'FOR CLOSING APPROVAL' THEN 1 ELSE 0 END)
                     FROM rcpa_request
-                    WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
+                    WHERE status IN ('VALID APPROVAL','INVALID APPROVAL','FOR CLOSING APPROVAL')
                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                       AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
             if ($stmt = $mysqli->prepare($sql)) {
@@ -194,14 +194,14 @@ function build_payload(mysqli $mysqli, string $user_name): array {
     $approval_total = $valid_approval + $not_valid_approval + $for_closing_approval;
 
     // 4) QMS APPROVAL (global only for SEE-ALL viewers)
-    $qms_reply_approval    = 0; // IN-VALIDATION REPLY APPROVAL
+    $qms_reply_approval    = 0; // INVALIDATION REPLY APPROVAL
     $qms_evidence_approval = 0; // EVIDENCE APPROVAL
     if ($see_all) {
         $sql = "SELECT
-                    SUM(CASE WHEN status = 'IN-VALIDATION REPLY APPROVAL' THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN status = 'INVALIDATION REPLY APPROVAL' THEN 1 ELSE 0 END),
                     SUM(CASE WHEN status = 'EVIDENCE APPROVAL'            THEN 1 ELSE 0 END)
                 FROM rcpa_request
-                WHERE status IN ('IN-VALIDATION REPLY APPROVAL','EVIDENCE APPROVAL')";
+                WHERE status IN ('INVALIDATION REPLY APPROVAL','EVIDENCE APPROVAL')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($r1, $r2);
@@ -219,7 +219,7 @@ function build_payload(mysqli $mysqli, string $user_name): array {
     if ($see_all) {
         $sql = "SELECT COUNT(*)
                   FROM rcpa_request
-                 WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')";
+                 WHERE status IN ('CLOSED (VALID)','CLOSED (INVALID)')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($cnt);
@@ -231,7 +231,7 @@ function build_payload(mysqli $mysqli, string $user_name): array {
             // Manager: ignore section
             $sql = "SELECT COUNT(*)
                       FROM rcpa_request
-                     WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
+                     WHERE status IN ('CLOSED (VALID)','CLOSED (INVALID)')
                        AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('s', $department);
@@ -244,7 +244,7 @@ function build_payload(mysqli $mysqli, string $user_name): array {
             // Non-manager
             $sql = "SELECT COUNT(*)
                       FROM rcpa_request
-                     WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
+                     WHERE status IN ('CLOSED (VALID)','CLOSED (INVALID)')
                        AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                        AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))";
             if ($stmt = $mysqli->prepare($sql)) {

@@ -62,7 +62,7 @@ try {
         $st2->close();
     }
 
-    // ---------- Findings In-Validation reply ----------
+    // ---------- Findings INVALIDation reply ----------
     $invalidData = [];
     $invalidSql = "SELECT reason_non_valid, assignee_name, assignee_date, assignee_supervisor_name, assignee_supervisor_date, attachment
                    FROM rcpa_not_valid

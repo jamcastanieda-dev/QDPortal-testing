@@ -54,7 +54,7 @@ try {
         $rejStmt->close();
     }
 
-    // Fetch the Findings In-Validation Reply data from `rcpa_not_valid`
+    // Fetch the Findings INVALIDation Reply data from `rcpa_not_valid`
     $invalidData = [];
     $invalidSql = "SELECT reason_non_valid, assignee_name, assignee_date, assignee_supervisor_name, assignee_supervisor_date, attachment
                    FROM rcpa_not_valid

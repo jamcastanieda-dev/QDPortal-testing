@@ -968,21 +968,21 @@
       if (t === 'REJECTED') return `<span class="rcpa-badge badge-rejected">REJECTED</span>`;
       if (t === 'ASSIGNEE PENDING') return `<span class="rcpa-badge badge-assignee-pending">ASSIGNEE PENDING</span>`;
       if (t === 'VALID APPROVAL') return `<span class="rcpa-badge badge-valid-approval">VALID APPROVAL</span>`;
-      if (t === 'IN-VALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">IN-VALID APPROVAL</span>`;
-      if (t === 'IN-VALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">IN-VALIDATION REPLY</span>`;
+      if (t === 'INVALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">INVALID APPROVAL</span>`;
+      if (t === 'INVALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">INVALIDATION REPLY</span>`;
       if (t === 'VALIDATION REPLY') return `<span class="rcpa-badge badge-validation-reply">VALIDATION REPLY</span>`;
       if (t === 'VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-validation-reply-approval">VALIDATION REPLY APPROVAL</span>`;
-      if (t === 'IN-VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">IN-VALIDATION REPLY APPROVAL</span>`;
+      if (t === 'INVALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">INVALIDATION REPLY APPROVAL</span>`;
       if (t === 'FOR CLOSING') return `<span class="rcpa-badge badge-assignee-corrective">FOR CLOSING</span>`;
       if (t === 'FOR CLOSING APPROVAL') return `<span class="rcpa-badge badge-assignee-corrective-approval">FOR CLOSING APPROVAL</span>`;
       if (t === 'EVIDENCE CHECKING') return `<span class="rcpa-badge badge-corrective-checking">EVIDENCE CHECKING</span>`;
       // if (t === 'EVIDENCE CHECKING APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE CHECKING APPROVAL</span>`;
       if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
       if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
-      if (t === 'CLOSED (IN-VALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (IN-VALID)</span>`;
+      if (t === 'CLOSED (INVALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (INVALID)</span>`;
       if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
       if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
-      if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
+      if (t === 'INVALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">INVALID APPROVAL - ORIGINATOR</span>`;
       return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
     }
 
@@ -1174,7 +1174,7 @@
             const needsBlink = (
               s === 'REPLY CHECKING - ORIGINATOR' ||
               s === 'EVIDENCE CHECKING - ORIGINATOR' ||
-              s === 'IN-VALID APPROVAL - ORIGINATOR'
+              s === 'INVALID APPROVAL - ORIGINATOR'
             );
             const rowClass = needsBlink ? 'rcpa-row-alert' : '';
 
@@ -1379,11 +1379,11 @@
       const s = String(statusStr || byId('rcpa-view-status')?.value || '')
         .trim().toUpperCase();
       return new Set([
-        'IN-VALID APPROVAL',
-        'IN-VALIDATION REPLY',
-        'IN-VALIDATION REPLY APPROVAL',
-        'IN-VALID APPROVAL - ORIGINATOR',
-        'CLOSED (IN-VALID)'
+        'INVALID APPROVAL',
+        'INVALIDATION REPLY',
+        'INVALIDATION REPLY APPROVAL',
+        'INVALID APPROVAL - ORIGINATOR',
+        'CLOSED (INVALID)'
       ]).has(s);
     }
     function shouldHideInvalidReplyByStatus(statusStr) {
@@ -2111,7 +2111,7 @@
         const showActionBar =
           statusNow === 'REPLY CHECKING - ORIGINATOR' ||
           statusNow === 'EVIDENCE CHECKING - ORIGINATOR' ||
-          statusNow === 'IN-VALID APPROVAL - ORIGINATOR' ||
+          statusNow === 'INVALID APPROVAL - ORIGINATOR' ||
           statusNow === 'REJECTED'; // NEW
 
         if (actionsBar) actionsBar.hidden = !showActionBar;
@@ -2125,7 +2125,7 @@
         if (
           statusNow === 'REPLY CHECKING - ORIGINATOR' ||
           statusNow === 'EVIDENCE CHECKING - ORIGINATOR' ||
-          statusNow === 'IN-VALID APPROVAL - ORIGINATOR'
+          statusNow === 'INVALID APPROVAL - ORIGINATOR'
         ) {
           if (approveBtn) approveBtn.style.display = '';
           if (disapproveBtn) disapproveBtn.style.display = '';
@@ -2273,7 +2273,7 @@
           fs.hidden = !hasData;
         })();
 
-        // Findings In-Validation Reply
+        // Findings INVALIDation Reply
         (function fillInvalidReply() {
           const fsInvalid = document.querySelector('fieldset.validation-invalid');
           const inv = data.findings_invalid;
@@ -2341,11 +2341,11 @@
         confirmTitle = 'Approve evidence?';
         confirmText = 'This will move the request to EVIDENCE APPROVAL.';
         successText = 'Status updated to EVIDENCE APPROVAL.';
-      } else if (statusNow === 'IN-VALID APPROVAL - ORIGINATOR') {
+      } else if (statusNow === 'INVALID APPROVAL - ORIGINATOR') {
         endpoint = '../php-backend/rcpa-approve-originator-invalid.php';
-        confirmTitle = 'Approve in-valid reply?';
-        confirmText = 'This will move the request to CLOSED (IN-VALID).';
-        successText = 'Status updated to CLOSED (IN-VALID).';
+        confirmTitle = 'Approve INVALID reply?';
+        confirmText = 'This will move the request to CLOSED (INVALID).';
+        successText = 'Status updated to CLOSED (INVALID).';
       } else {
         return;
       }
@@ -2404,9 +2404,9 @@
         confirmTitle = 'Return for more evidence?';
         confirmText = 'This will set the status to EVIDENCE CHECKING and record your reason.';
         successText = 'Status updated to EVIDENCE CHECKING.';
-      } else if (statusNow === 'IN-VALID APPROVAL - ORIGINATOR') {
+      } else if (statusNow === 'INVALID APPROVAL - ORIGINATOR') {
         endpoint = '../php-backend/rcpa-disapprove-originator-invalid.php';
-        confirmTitle = 'Return in-valid reply?';
+        confirmTitle = 'Return INVALID reply?';
         confirmText = 'This will move the request to QMS CHECKING.';
         successText = 'Status updated to QMS CHECKING.';
       } else {

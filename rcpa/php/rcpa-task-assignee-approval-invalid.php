@@ -138,7 +138,7 @@
         </div>
     </div>
 
-    <h2><span>RCPA IN-VALID APPROVAL</span></h2>
+    <h2><span>RCPA INVALID APPROVAL</span></h2>
 
     <div class="rcpa-container">
 
@@ -155,7 +155,7 @@
                         VALID APPROVAL
                     </button>
                     <button type="button" class="rcpa-tab is-active" aria-current="page">
-                        IN-VALID APPROVAL
+                        INVALID APPROVAL
                     </button>
                 </div>
 
@@ -399,9 +399,9 @@
                     </label>
                 </fieldset>
 
-                <!-- FINDINGS IN-VALIDATION REPLY (no legend)-->
+                <!-- FINDINGS INVALIDATION REPLY (no legend)-->
                 <fieldset class="validation validation-invalid">
-                    <legend>IN-VALIDATION OF RCPA BY ASSIGNEE</legend>
+                    <legend>INVALIDATION OF RCPA BY ASSIGNEE</legend>
                     <label class="inline-check checkbox-invalid">
                         <input type="checkbox" id="rcpa-view-findings-not-valid">
                         <span>Findings not valid, reason for non-validity</span>

@@ -146,7 +146,7 @@ try {
   }
 
   // 2) Verify/lock the rcpa_request row, then update status if needed
-  $newStatus = 'IN-VALID APPROVAL';
+  $newStatus = 'INVALID APPROVAL';
 
   $sel = $db->prepare("SELECT status FROM rcpa_request WHERE id=? FOR UPDATE");
   $sel->bind_param('i', $rcpa_no);

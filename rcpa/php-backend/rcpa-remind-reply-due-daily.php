@@ -81,7 +81,7 @@ $sql = "
   WHERE r.reply_due_date IS NOT NULL
     AND r.reply_date IS NULL
     AND DATEDIFF(r.reply_due_date, CURDATE()) IN (2,1,0)
-    AND r.status IN ('ASSIGNEE PENDING','VALID APPROVAL','IN-VALID APPROVAL')
+    AND r.status IN ('ASSIGNEE PENDING','VALID APPROVAL','INVALID APPROVAL')
   ORDER BY r.id
 ";
 

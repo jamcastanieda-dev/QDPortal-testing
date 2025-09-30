@@ -104,7 +104,7 @@ function recompute_all_due_dates(mysqli $conn): array
    * PASS 1: reply_due_date
    * Only for these statuses
    * --------------------------- */
-  $statuses_reply = ['ASSIGNEE PENDING', 'VALID APPROVAL', 'IN-VALID APPROVAL'];
+  $statuses_reply = ['ASSIGNEE PENDING', 'VALID APPROVAL', 'INVALID APPROVAL'];
   $placeholders_r = implode(',', array_fill(0, count($statuses_reply), '?'));
 
   $sql_r = "SELECT id,
@@ -154,7 +154,7 @@ function recompute_all_due_dates(mysqli $conn): array
    * PASS 2: close_due_date
    * For ALL STATUSES EXCEPT these four
    * --------------------------- */
-  $excluded_close = ['FOR APPROVAL MANAGER', 'FOR APPROVAL SUPERVISOR', 'CLOSED (VALID)', 'CLOSED (IN-VALID)'];
+  $excluded_close = ['FOR APPROVAL MANAGER', 'FOR APPROVAL SUPERVISOR', 'CLOSED (VALID)', 'CLOSED (INVALID)'];
   $placeholders_cx = implode(',', array_fill(0, count($excluded_close), '?'));
 
   $sql_c = "SELECT id,

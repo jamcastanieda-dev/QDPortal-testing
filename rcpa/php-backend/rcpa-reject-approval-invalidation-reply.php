@@ -23,7 +23,7 @@ if ($id === null || !ctype_digit((string)$id)) {
     exit;
 }
 
-$status = 'IN-VALIDATION REPLY'; // return to assignee
+$status = 'INVALIDATION REPLY'; // return to assignee
 
 try {
     if (!isset($conn) || !($conn instanceof mysqli)) {
@@ -87,7 +87,7 @@ try {
 
     // 3) Insert disapproval record
     $json = $attachments ? json_encode($attachments, JSON_UNESCAPED_SLASHES) : null;
-    $disapproveType = "Disapproved by QMS/QA Supervisor/Manager in in-validation reply approval";
+    $disapproveType = "Disapproved by QMS/QA Supervisor/Manager in INVALIDation reply approval";
 
     $stmt2 = $conn->prepare('
       INSERT INTO rcpa_disapprove_remarks (rcpa_no, disapprove_type, remarks, attachments, created_at)
@@ -100,7 +100,7 @@ try {
     $stmt2->close();
 
     // 4) History entry (your requested text)
-    $activity = "The in-validation reply approval of QA/QMS team was disapproved by QA/QMS Supervisor/Manager";
+    $activity = "The INVALIDation reply approval of QA/QMS team was disapproved by QA/QMS Supervisor/Manager";
     $historySql = "INSERT INTO rcpa_request_history (rcpa_no, name, date_time, activity)
                    VALUES (?, ?, CURRENT_TIMESTAMP, ?)";
     $historyStmt = $conn->prepare($historySql);

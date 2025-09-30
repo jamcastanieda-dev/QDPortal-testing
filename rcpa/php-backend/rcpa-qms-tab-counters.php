@@ -52,7 +52,7 @@ try {
 
     // Prepare counts
     $qms_checking = 0;
-    $not_valid = 0;           // IN-VALIDATION REPLY
+    $not_valid = 0;           // INVALIDATION REPLY
     $valid = 0;               // VALIDATION REPLY
     $evidence_checking = 0;   // EVIDENCE CHECKING
 
@@ -60,11 +60,11 @@ try {
         // Global view for QA/QMS
         $sql = "SELECT
                     SUM(CASE WHEN status = 'QMS CHECKING'         THEN 1 ELSE 0 END) AS qms_checking,
-                    SUM(CASE WHEN status = 'IN-VALIDATION REPLY'  THEN 1 ELSE 0 END) AS not_valid,
+                    SUM(CASE WHEN status = 'INVALIDATION REPLY'  THEN 1 ELSE 0 END) AS not_valid,
                     SUM(CASE WHEN status = 'VALIDATION REPLY'     THEN 1 ELSE 0 END) AS valid,
                     SUM(CASE WHEN status = 'EVIDENCE CHECKING'    THEN 1 ELSE 0 END) AS evidence_checking
                 FROM rcpa_request
-                WHERE status IN ('QMS CHECKING','IN-VALIDATION REPLY','VALIDATION REPLY','EVIDENCE CHECKING')";
+                WHERE status IN ('QMS CHECKING','INVALIDATION REPLY','VALIDATION REPLY','EVIDENCE CHECKING')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($qc, $nv, $vl, $ev);
@@ -80,11 +80,11 @@ try {
         // Assignee-only view for non-QA/QMS users
         $sql = "SELECT
                     SUM(CASE WHEN status = 'QMS CHECKING'         THEN 1 ELSE 0 END) AS qms_checking,
-                    SUM(CASE WHEN status = 'IN-VALIDATION REPLY'  THEN 1 ELSE 0 END) AS not_valid,
+                    SUM(CASE WHEN status = 'INVALIDATION REPLY'  THEN 1 ELSE 0 END) AS not_valid,
                     SUM(CASE WHEN status = 'VALIDATION REPLY'     THEN 1 ELSE 0 END) AS valid,
                     SUM(CASE WHEN status = 'EVIDENCE CHECKING'    THEN 1 ELSE 0 END) AS evidence_checking
                 FROM rcpa_request
-                WHERE status IN ('QMS CHECKING','IN-VALIDATION REPLY','VALIDATION REPLY','EVIDENCE CHECKING')
+                WHERE status IN ('QMS CHECKING','INVALIDATION REPLY','VALIDATION REPLY','EVIDENCE CHECKING')
                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->bind_param('s', $department);

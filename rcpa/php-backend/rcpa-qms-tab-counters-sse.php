@@ -46,7 +46,7 @@ $where = [];
 $params = [];
 $types  = '';
 
-$statuses = ["'QMS CHECKING'","'IN-VALIDATION REPLY'","'VALIDATION REPLY'","'EVIDENCE CHECKING'"];
+$statuses = ["'QMS CHECKING'","'INVALIDATION REPLY'","'VALIDATION REPLY'","'EVIDENCE CHECKING'"];
 $where[] = "status IN (" . implode(',', $statuses) . ")";
 
 if (!$isQaqms && $dept !== '') {
@@ -64,7 +64,7 @@ $where_sql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 $sql = "
   SELECT
     SUM(CASE WHEN status = 'QMS CHECKING'        THEN 1 ELSE 0 END) AS qms_checking,
-    SUM(CASE WHEN status = 'IN-VALIDATION REPLY' THEN 1 ELSE 0 END) AS not_valid,
+    SUM(CASE WHEN status = 'INVALIDATION REPLY' THEN 1 ELSE 0 END) AS not_valid,
     SUM(CASE WHEN status = 'VALIDATION REPLY'    THEN 1 ELSE 0 END) AS valid,
     SUM(CASE WHEN status = 'EVIDENCE CHECKING'   THEN 1 ELSE 0 END) AS evidence_checking
   FROM rcpa_request

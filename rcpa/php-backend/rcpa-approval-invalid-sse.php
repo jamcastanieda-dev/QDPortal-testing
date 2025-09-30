@@ -72,7 +72,7 @@ $type = trim((string)($_GET['type'] ?? ''));
 /* ---------------------------
    WHERE builder (same as rcpa-list-approval-invalid.php)
 --------------------------- */
-$allowed_statuses = ['IN-VALID APPROVAL'];
+$allowed_statuses = ['INVALID APPROVAL'];
 
 $where  = [];
 $params = [];

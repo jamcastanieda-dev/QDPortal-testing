@@ -78,7 +78,7 @@ try {
         $sql = "
             SELECT COUNT(*)
             FROM rcpa_request
-            WHERE status IN ('QMS CHECKING','VALIDATION REPLY','IN-VALIDATION REPLY','EVIDENCE CHECKING')";
+            WHERE status IN ('QMS CHECKING','VALIDATION REPLY','INVALIDATION REPLY','EVIDENCE CHECKING')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($cnt);
@@ -137,7 +137,7 @@ try {
         }
     }
 
-    // 3) ASSIGNEE APPROVAL (VALID / IN-VALID / FOR CLOSING APPROVAL)
+    // 3) ASSIGNEE APPROVAL (VALID / INVALID / FOR CLOSING APPROVAL)
     $valid_approval = 0;
     $not_valid_approval = 0;
     $for_closing_approval = 0;
@@ -147,10 +147,10 @@ try {
         $sql = "
             SELECT
                 SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END),
-                SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END),
+                SUM(CASE WHEN status = 'INVALID APPROVAL'     THEN 1 ELSE 0 END),
                 SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END)
             FROM rcpa_request
-            WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')";
+            WHERE status IN ('VALID APPROVAL','INVALID APPROVAL','FOR CLOSING APPROVAL')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($v1, $v2, $v3);
@@ -167,10 +167,10 @@ try {
             $sql = "
                 SELECT
                     SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN status = 'INVALID APPROVAL'     THEN 1 ELSE 0 END),
                     SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END)
                 FROM rcpa_request
-                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
+                WHERE status IN ('VALID APPROVAL','INVALID APPROVAL','FOR CLOSING APPROVAL')
                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('s', $department);
@@ -188,10 +188,10 @@ try {
             $sql = "
                 SELECT
                     SUM(CASE WHEN status = 'VALID APPROVAL'        THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN status = 'IN-VALID APPROVAL'     THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN status = 'INVALID APPROVAL'     THEN 1 ELSE 0 END),
                     SUM(CASE WHEN status = 'FOR CLOSING APPROVAL'  THEN 1 ELSE 0 END)
                 FROM rcpa_request
-                WHERE status IN ('VALID APPROVAL','IN-VALID APPROVAL','FOR CLOSING APPROVAL')
+                WHERE status IN ('VALID APPROVAL','INVALID APPROVAL','FOR CLOSING APPROVAL')
                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                   AND (
                         section IS NULL OR TRIM(section) = '' OR
@@ -213,15 +213,15 @@ try {
     $approval_total = $valid_approval + $not_valid_approval + $for_closing_approval;
 
     // 4) QMS APPROVAL (only for see-all users: QMS or QA supervisor/manager) — global
-    $qms_reply_approval    = 0; // IN-VALIDATION REPLY APPROVAL
+    $qms_reply_approval    = 0; // INVALIDATION REPLY APPROVAL
     $qms_evidence_approval = 0; // EVIDENCE APPROVAL
     if ($see_all) {
         $sql = "
             SELECT
-                SUM(CASE WHEN status = 'IN-VALIDATION REPLY APPROVAL' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN status = 'INVALIDATION REPLY APPROVAL' THEN 1 ELSE 0 END),
                 SUM(CASE WHEN status = 'EVIDENCE APPROVAL'           THEN 1 ELSE 0 END)
             FROM rcpa_request
-            WHERE status IN ('IN-VALIDATION REPLY APPROVAL','EVIDENCE APPROVAL')";
+            WHERE status IN ('INVALIDATION REPLY APPROVAL','EVIDENCE APPROVAL')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($r1, $r2);
@@ -240,7 +240,7 @@ try {
         $sql = "
             SELECT COUNT(*)
             FROM rcpa_request
-            WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')";
+            WHERE status IN ('CLOSED (VALID)','CLOSED (INVALID)')";
         if ($stmt = $mysqli->prepare($sql)) {
             $stmt->execute();
             $stmt->bind_result($cnt);
@@ -253,7 +253,7 @@ try {
             $sql = "
                 SELECT COUNT(*)
                 FROM rcpa_request
-                WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
+                WHERE status IN ('CLOSED (VALID)','CLOSED (INVALID)')
                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('s', $department);
@@ -267,7 +267,7 @@ try {
             $sql = "
                 SELECT COUNT(*)
                 FROM rcpa_request
-                WHERE status IN ('CLOSED (VALID)','CLOSED (IN-VALID)')
+                WHERE status IN ('CLOSED (VALID)','CLOSED (INVALID)')
                   AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                   AND (
                         section IS NULL OR TRIM(section) = '' OR
@@ -304,7 +304,7 @@ try {
 
             // QMS Approval (total + breakdown)
             'qms_approval_total' => $qms_approval_total,
-            'qms_reply_approval' => $qms_reply_approval,      // IN-VALIDATION REPLY APPROVAL
+            'qms_reply_approval' => $qms_reply_approval,      // INVALIDATION REPLY APPROVAL
             'qms_closing_approval' => $qms_evidence_approval, // EVIDENCE APPROVAL
 
             // Closed

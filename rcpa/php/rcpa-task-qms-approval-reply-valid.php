@@ -155,7 +155,7 @@
                         VALIDATION REPLY APPROVAL
                     </a>
                     <a class="rcpa-tab" href="rcpa-task-qms-approval-reply-invalid.php">
-                        IN-VALIDATION REPLY APPROVAL
+                        INVALIDATION REPLY APPROVAL
                     </a>
                 </div>
 

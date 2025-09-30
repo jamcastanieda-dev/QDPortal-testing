@@ -50,11 +50,11 @@
         if (t === 'REJECTED') return `<span class="rcpa-badge badge-rejected">REJECTED</span>`;
         if (t === 'ASSIGNEE PENDING') return `<span class="rcpa-badge badge-assignee-pending">ASSIGNEE PENDING</span>`;
         if (t === 'VALID APPROVAL') return `<span class="rcpa-badge badge-valid-approval">VALID APPROVAL</span>`;
-        if (t === 'IN-VALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">IN-VALID APPROVAL</span>`;
-        if (t === 'IN-VALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">IN-VALIDATION REPLY</span>`;
+        if (t === 'INVALID APPROVAL') return `<span class="rcpa-badge badge-invalid-approval">INVALID APPROVAL</span>`;
+        if (t === 'INVALIDATION REPLY') return `<span class="rcpa-badge badge-invalidation-reply">INVALIDATION REPLY</span>`;
         if (t === 'VALIDATION REPLY') return `<span class="rcpa-badge badge-validation-reply">VALIDATION REPLY</span>`;
         if (t === 'VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-validation-reply-approval">VALIDATION REPLY APPROVAL</span>`;
-        if (t === 'IN-VALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">IN-VALIDATION REPLY APPROVAL</span>`;
+        if (t === 'INVALIDATION REPLY APPROVAL') return `<span class="rcpa-badge badge-invalidation-reply-approval">INVALIDATION REPLY APPROVAL</span>`;
         if (t === 'FOR CLOSING') return `<span class="rcpa-badge badge-assignee-corrective">FOR CLOSING</span>`;
         if (t === 'FOR CLOSING APPROVAL') return `<span class="rcpa-badge badge-assignee-corrective-approval">FOR CLOSING APPROVAL</span>`;
         if (t === 'EVIDENCE CHECKING') return `<span class="rcpa-badge badge-corrective-checking">EVIDENCE CHECKING</span>`;
@@ -63,7 +63,7 @@
         if (t === 'CLOSED') return `<span class="rcpa-badge badge-closed">CLOSED</span>`;
         if (t === 'REPLY CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">REPLY CHECKING - ORIGINATOR</span>`;
         if (t === 'EVIDENCE CHECKING - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">EVIDENCE CHECKING - ORIGINATOR</span>`;
-        if (t === 'IN-VALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">IN-VALID APPROVAL - ORIGINATOR</span>`;
+        if (t === 'INVALID APPROVAL - ORIGINATOR') return `<span class="rcpa-badge badge-validation-reply-approval">INVALID APPROVAL - ORIGINATOR</span>`;
         return `<span class="rcpa-badge badge-unknown">NO STATUS</span>`;
     }
 
@@ -935,8 +935,8 @@
             currentViewId = row.id;
             fillViewModal(row);
 
-            // IN-VALID info
-            // IN-VALID info
+            // INVALID info
+            // INVALID info
             try {
                 const nvRes = await fetch(`../php-backend/rcpa-view-invalidation-reply.php?rcpa_no=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
                 if (nvRes.ok) {
@@ -1059,18 +1059,18 @@
             if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
 
             const st = document.getElementById('rcpa-view-status');
-            if (st) st.value = 'IN-VALID APPROVAL - ORIGINATOR';
+            if (st) st.value = 'INVALID APPROVAL - ORIGINATOR';
 
             if (window.Swal) {
                 await Swal.fire({
                     icon: 'success',
-                    title: 'In-Validation Reply approved',
-                    text: 'Status set to "IN-VALID APPROVAL - ORIGINATOR".',
+                    title: 'INVALIDation Reply approved',
+                    text: 'Status set to "INVALID APPROVAL - ORIGINATOR".',
                     timer: 1600,
                     showConfirmButton: false
                 });
             } else {
-                alert('In-Validation Reply approved. Status set to "IN-VALID APPROVAL - ORIGINATOR".');
+                alert('INVALIDation Reply approved. Status set to "INVALID APPROVAL - ORIGINATOR".');
             }
 
             closeApproveModal();
@@ -1124,11 +1124,11 @@
             const data = await res.json();
             if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
 
-            setVal('rcpa-view-status', 'IN-VALIDATION REPLY');
+            setVal('rcpa-view-status', 'INVALIDATION REPLY');
             if (window.Swal) {
-                Swal.fire({ icon: 'success', title: 'Returned to QMS/QA Team', text: 'Status set to "IN-VALIDATION REPLY".', timer: 1600, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Returned to QMS/QA Team', text: 'Status set to "INVALIDATION REPLY".', timer: 1600, showConfirmButton: false });
             } else {
-                alert('Returned to QMS/QA Team. Status set to "IN-VALIDATION REPLY".');
+                alert('Returned to QMS/QA Team. Status set to "INVALIDATION REPLY".');
             }
             closeRejectModal();
             document.dispatchEvent(new CustomEvent('rcpa:refresh'));

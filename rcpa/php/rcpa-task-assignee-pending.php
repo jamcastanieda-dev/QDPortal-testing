@@ -503,7 +503,7 @@
                     </div> -->
                 </fieldset>
 
-                <!-- FINDINGS IN-VALIDATION REPLY (no legend) -->
+                <!-- FINDINGS INVALIDATION REPLY (no legend) -->
                 <fieldset class="validation validation-invalid" hidden>
                     <label class="inline-check checkbox-invalid">
                         <input type="checkbox" id="rcpa-view-findings-not-valid">
@@ -749,7 +749,7 @@
         </div>
     </div>
 
-    <!-- Findings IN-VALIDATION REPLY Modal -->
+    <!-- Findings INVALIDATION REPLY Modal -->
     <div id="rcpa-not-valid-modal" class="modal-overlay" hidden aria-modal="true" role="dialog" aria-labelledby="rcpa-not-valid-title">
         <div class="modal-content">
             <button type="button" class="close-btn" id="rcpa-not-valid-close" aria-label="Close">×</button>

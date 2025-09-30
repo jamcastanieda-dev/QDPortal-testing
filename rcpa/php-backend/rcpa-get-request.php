@@ -230,7 +230,7 @@ $sql = "SELECT
     $row['corrective_evidence_attachments'] = [];
   }
 
-  // --- fetch Findings In-Validation reply ---
+  // --- fetch Findings INVALIDation reply ---
   $findingsInvalid = null;
   $sqlInvalid = "SELECT reason_non_valid, assignee_name, assignee_date, assignee_supervisor_name, assignee_supervisor_date, attachment
                  FROM rcpa_not_valid

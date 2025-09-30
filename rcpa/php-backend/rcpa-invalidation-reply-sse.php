@@ -49,7 +49,7 @@ $is_qaqms = in_array(strtoupper($user_dept ?? ''), ['QA','QMS'], true);
 $type = trim((string)($_GET['type'] ?? '')); // optional rcpa_type filter
 
 /* -------- WHERE (mirror rcpa-list-invalidation-reply.php) -------- */
-$allowed_statuses = ['IN-VALIDATION REPLY'];
+$allowed_statuses = ['INVALIDATION REPLY'];
 
 $where  = [];
 $params = [];
