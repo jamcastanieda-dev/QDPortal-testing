@@ -1672,7 +1672,8 @@
     overlay.removeAttribute('hidden');
     requestAnimationFrame(() => overlay.classList.add('show'));
     document.body.style.overflow = 'hidden';
-    if (!preserve) setTimeout(() => rootCause?.focus(), 0);
+    // Avoid focusing a field that will be locked by Why-Why injection
+    if (!preserve && !rootCauseText) setTimeout(() => rootCause?.focus(), 0);
 
     // helper to lock/unlock the Root Cause textarea
     const lockRootCauseField = (on) => {
@@ -1683,7 +1684,6 @@
       if (on) rootCause.setAttribute('title', 'Locked from Why-Why analysis');
       else rootCause.removeAttribute('title');
     };
-    const norm = (s) => String(s || '').replace(/\r\n/g, '\n').trim();
 
     // ensure label starts clean before fetching
     updateCorrectiveLabel(null);
@@ -1701,14 +1701,17 @@
       }
     } catch { /* non-blocking */ }
 
-    // If we received identified root cause(s) from Why-Why, set & lock when matching
-    if (rootCause && rootCauseText) {
-      if (!preserve || !sameRecord) {
-        rootCause.value = rootCauseText; // populate when not preserving
+    // === FIX: Always refresh and lock Root Cause when coming from Why-Why ===
+    if (rootCause) {
+      if (rootCauseText) {
+        // Always overwrite with the latest selection and lock it
+        rootCause.value = rootCauseText;
+        lockRootCauseField(true);
+      } else {
+        // No incoming Why-Why text: lock based on mode (optional hardening)
+        const mustLock = (mode === 'NC' || mode === 'PNC');
+        lockRootCauseField(mustLock);
       }
-      lockRootCauseField(norm(rootCause.value) === norm(rootCauseText));
-    } else {
-      lockRootCauseField(false);
     }
   }
 
@@ -2043,6 +2046,7 @@
     }
   });
 })();
+
 
 /* ====== INVALIDATION REPLY MODAL: open, validate, submit ====== */
 (function () {

@@ -661,7 +661,7 @@
                     <textarea
                         id="valid-root-cause"
                         placeholder="Describe the root cause…"
-                        style="width:100%; min-height:120px; padding:10px; padding-left:48px; padding-bottom:48px; resize:vertical;"></textarea>
+                        style="width:100%; min-height:120px; padding:10px; padding-left:48px; padding-bottom:48px; resize:vertical;" readonly></textarea>
 
                     <!-- Paperclip inside textarea (bottom-left) -->
                     <i
