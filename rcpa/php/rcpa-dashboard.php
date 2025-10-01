@@ -133,6 +133,10 @@
         .rcpa-table-list td:nth-child(10),
         .rcpa-table-list td:nth-child(13) {text-align: center; /* id, no_days_reply, no_days_close */}
 
+        .rcpa-table-list td:nth-child(2){
+            vertical-align: middle;
+        }
+
         /* Narrow date-only columns:
             9  = reply_received
             11 = reply_date
@@ -141,11 +145,13 @@
             15 = close_due_date
         */
             /* widen col 3 and 4 */
-        .rcpa-table-list thead th:nth-child(3),
-        .rcpa-table-list tbody td:nth-child(3){ min-width: 220px; white-space: nowrap; }
+        /* .rcpa-table-list thead th:nth-child(3),
+        .rcpa-table-list tbody td:nth-child(3){ min-width: 220px; white-space: nowrap; } */
 
         .rcpa-table-list thead th:nth-child(5),
-        .rcpa-table-list tbody td:nth-child(5){ min-width: 160px;     /* adjust as needed */ white-space: nowrap;}
+        .rcpa-table-list tbody td:nth-child(5),
+        .rcpa-table-list thead th:nth-child(7),
+        .rcpa-table-list tbody td:nth-child(7){ min-width: 160px;     /* adjust as needed */ white-space: nowrap; text-align: center;}
 
         .rcpa-table-list thead th:nth-child(9),
         .rcpa-table-list thead th:nth-child(11),
@@ -166,10 +172,17 @@
         .rcpa-table-list thead th:nth-child(15),
         .rcpa-table-list tbody td:nth-child(15){ max-width: 150px;}
 
+        .rcpa-table-list thead th:nth-child(15),
+        .rcpa-table-list tbody td:nth-child(15),
         .rcpa-table-list thead th:nth-child(16),
         .rcpa-table-list tbody td:nth-child(16),
         .rcpa-table-list thead th:nth-child(17),
-        .rcpa-table-list tbody td:nth-child(17) {text-align: center;vertical-align: middle;}
+        .rcpa-table-list tbody td:nth-child(17),
+        .rcpa-table-list thead th:nth-child(18),
+        .rcpa-table-list tbody td:nth-child(18),
+        .rcpa-table-list thead th:nth-child(19),
+        .rcpa-table-list tbody td:nth-child(19){text-align: center;}
+
 
         /* Small status pill */
         .rcpa-pill {display: inline-flex;align-items: center;padding: 2px 8px;border-radius: 999px;border: 1px solid #e2e8f0;background: #f8fafc;font-weight: 800;font-size: 11px;color: #334155;}
@@ -711,8 +724,10 @@
 
             <div class="rcpa-table-wrap">
                 <table class="rcpa-table-list" id="rcpaListTable">
-                   <thead>
+                  <thead>
                         <tr>
+                            <th>Action</th>
+                            <th>History</th>
                             <th>Company</th>
                             <th>RCPA No.</th>
                             <th>Type Of RCPA</th>
@@ -725,15 +740,14 @@
                             <th>No. of Days (5 days Reply)</th>
                             <th>Actual date of reply</th>
                             <th>Due Date (5 days reply)</th>
-                            <th>Status of reply</th>        <!-- NEW -->
+                            <th>Status of reply</th>
                             <th>No. of Days (30 days Closing)</th>
                             <th>Actual date of closing</th>
                             <th>Due date of (30 days closing)</th>
-                            <th>Status of closing</th>      <!-- NEW -->
-                            <th>Action</th>
-                            <th>History</th>
+                            <th>Status of closing</th>
                         </tr>
                     </thead>
+
                     <tbody id="rcpaListTbody">
                         <tr>
                             <td colspan="19" class="rcpa-empty">Loading…</td>

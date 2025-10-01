@@ -1167,53 +1167,53 @@
       return;
     }
     tbody.innerHTML = rows.map(r => `
-    <tr>
-      <!-- BEFORE: <td>${esc(r.originator_department)}</td> -->
-      <td>${companyFromDepartment(r.originator_department)}</td>
-      <td>${esc(r.id)}</td>
-      <td>${esc(r.rcpa_type_label || r.rcpa_type)}</td>
-      <td>${badgeForCategory(r.category || r.category_label)}</td>
-      <td>${esc(r.originator_name)}</td>
-      <td>${esc(
+  <tr>
+    <td>
+      <button type="button" class="rcpa-btn rcpa-view-btn"
+              data-view-id="${esc(r.id)}"
+              aria-label="View RCPA ${esc(r.id)}" title="View">
+        View
+      </button>
+    </td>
+    <td>
+      <button type="button"
+              class="rcpa-history-btn"
+              data-history-id="${esc(r.id)}"
+              aria-label="View history for RCPA ${esc(r.id)}"
+              title="History"
+              style="background:none;border:0;padding:0;margin:0;line-height:1;cursor:pointer;">
+        <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+        <span class="sr-only" style="position:absolute;left:-9999px;">History</span>
+      </button>
+    </td>
+
+    <td>${companyFromDepartment(r.originator_department)}</td>
+    <td>${esc(r.id)}</td>
+    <td>${esc(r.rcpa_type_label || r.rcpa_type)}</td>
+    <td>${badgeForCategory(r.category || r.category_label)}</td>
+    <td>${esc(r.originator_name)}</td>
+    <td>${esc(
       (() => {
         const a = (r.assignee ?? '').trim();
         const s = (r.section ?? '').trim();
         return s ? (a ? `${a} - ${s}` : s) : a;
       })()
-    )
-      }</td>
+    )}</td>
 
-      <td>${fmtDateTime(r.date_request)}</td>
-      <td>${badgeForStatus(r.status)}</td>
-      <td>${fmtYmd(r.reply_received)}</td>
-      <td>${r.no_days_reply ?? ''}</td>
-      <td>${fmtYmd(r.reply_date)}</td>
-      <td>${fmtYmd(r.reply_due_date)}</td>
-      <td>${badgeForHit(r.hit_reply)}</td>
-      <td>${r.no_days_close ?? ''}</td>
-      <td>${fmtYmd(r.close_date)}</td>
-      <td>${fmtYmd(r.close_due_date)}</td>
-      <td>${badgeForHit(r.hit_close)}</td>
-      <td>
-        <button type="button" class="rcpa-btn rcpa-view-btn"
-                data-view-id="${esc(r.id)}"
-                aria-label="View RCPA ${esc(r.id)}" title="View">
-          View
-        </button>
-      </td>
-      <td>
-        <button type="button"
-                class="rcpa-history-btn"
-                data-history-id="${esc(r.id)}"
-                aria-label="View history for RCPA ${esc(r.id)}"
-                title="History"
-                style="background:none;border:0;padding:0;margin:0;line-height:1;cursor:pointer;">
-          <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
-          <span class="sr-only" style="position:absolute;left:-9999px;">History</span>
-        </button>
-      </td>
-    </tr>
-  `).join('');
+    <td>${fmtDateTime(r.date_request)}</td>
+    <td>${badgeForStatus(r.status)}</td>
+    <td>${fmtYmd(r.reply_received)}</td>
+    <td>${r.no_days_reply ?? ''}</td>
+    <td>${fmtYmd(r.reply_date)}</td>
+    <td>${fmtYmd(r.reply_due_date)}</td>
+    <td>${badgeForHit(r.hit_reply)}</td>
+    <td>${r.no_days_close ?? ''}</td>
+    <td>${fmtYmd(r.close_date)}</td>
+    <td>${fmtYmd(r.close_due_date)}</td>
+    <td>${badgeForHit(r.hit_close)}</td>
+  </tr>
+`).join('');
+
   }
 
 

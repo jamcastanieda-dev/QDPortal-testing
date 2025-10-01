@@ -1563,6 +1563,20 @@
   const pncTarget = document.getElementById('valid-pnc-target');
   const pncDone = document.getElementById('valid-pnc-completed');
 
+  // Disallow past dates for Target Date (Corrective)
+  (() => {
+    const pad = n => String(n).padStart(2, '0');
+    const now = new Date();
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+    if (correcTarget) correcTarget.setAttribute('min', today); // #valid-corrective-target
+
+    // OPTIONAL: also enforce for other target fields (uncomment if needed)
+    // if (corrTarget) corrTarget.setAttribute('min', today);   // #valid-correction-target
+    // if (pncTarget) pncTarget.setAttribute('min', today);     // #valid-pnc-target
+  })();
+
+
   // --- Inline "Closing Due date: MMM DD, YYYY" on the Corrective Action label ---
   const correcLabel = document.querySelector('label[for="valid-corrective"]');
   if (correcLabel && !correcLabel.dataset.baseLabel) {
