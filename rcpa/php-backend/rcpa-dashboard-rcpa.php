@@ -1,50 +1,146 @@
 <?php
 // php-backend/rcpa-dashboard-rcpa.php
 header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 date_default_timezone_set('Asia/Manila');
 
-/* ---------- Auth ---------- */
+/* ---------------------------
+   Auth: require cookie
+--------------------------- */
 if (!isset($_COOKIE['user'])) {
   http_response_code(401);
-  echo json_encode(['success'=>false,'error'=>'Not logged in']);
+  echo json_encode(['success' => false, 'error' => 'Not logged in']);
   exit;
 }
 $user = json_decode($_COOKIE['user'], true);
 if (!$user || !is_array($user)) {
   http_response_code(401);
-  echo json_encode(['success'=>false,'error'=>'Invalid user cookie']);
+  echo json_encode(['success' => false, 'error' => 'Invalid user cookie']);
   exit;
 }
+$current_user = $user;
+$user_name = trim((string)($current_user['name'] ?? ''));
 
-/* ---------- DB ---------- */
-require '../../connection.php';
-$db = isset($mysqli) && $mysqli instanceof mysqli ? $mysqli
-   : (isset($conn) && $conn instanceof mysqli ? $conn : null);
-if (!$db) {
+/* ---------------------------
+   DB connection
+--------------------------- */
+require '../../connection.php'; // should define $mysqli, $conn, or $link
+
+if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
+  if (isset($conn) && $conn instanceof mysqli)      $mysqli = $conn;
+  elseif (isset($link) && $link instanceof mysqli)  $mysqli = $link;
+  else {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'DB connection not available']);
+    exit;
+  }
+}
+if (!$mysqli || $mysqli->connect_errno) {
   http_response_code(500);
-  echo json_encode(['success'=>false,'error'=>'DB connection not available']);
+  echo json_encode(['success' => false, 'error' => 'Database connection not available']);
   exit;
 }
-$db->set_charset('utf8mb4');
+$mysqli->set_charset('utf8mb4');
 
-/* ---------- Inputs ---------- */
-$site = trim((string)($_GET['site'] ?? '')); // reserved for future use
-$year = trim((string)($_GET['year'] ?? ''));
+/* ---------------------------
+   Resolve user's department / section / role
+--------------------------- */
+$dept = '';
+$user_section = '';
+$user_role = '';
+if ($user_name !== '') {
+  $sqlDept = "SELECT department, section, role
+              FROM system_users
+              WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
+              LIMIT 1";
+  if ($stmt = $mysqli->prepare($sqlDept)) {
+    $stmt->bind_param('s', $user_name);
+    $stmt->execute();
+    $stmt->bind_result($db_department, $db_section, $db_role);
+    if ($stmt->fetch()) {
+      $dept         = (string)$db_department;
+      $user_section = (string)$db_section;
+      $user_role    = (string)$db_role;
+    }
+    $stmt->close();
+  }
+}
 
+/* ---------------------------
+   Visibility rules
+   - QMS: see all (any role)
+   - QA: see all ONLY if role is supervisor or manager
+   - Others: MUST MATCH (assignee == dept AND section == user's section)
+             (but user can always see their own originated rows)
+--------------------------- */
+$dept_norm = strtoupper(trim($dept));
+$role_norm = strtolower(trim($user_role));
+$see_all   = false;
+
+if ($dept_norm === 'QMS') {
+  $see_all = true;
+} elseif ($dept_norm === 'QA' && ($role_norm === 'manager' || $role_norm === 'supervisor')) {
+  $see_all = true;
+}
+
+/* ---------------------------
+   Inputs
+--------------------------- */
+$year = trim((string)($_GET['year'] ?? '')); // optional filter
+
+/* ---------------------------
+   WHERE builder
+--------------------------- */
 $where  = [];
 $params = [];
 $types  = '';
 
-if ($year !== '') {
-  $where[]  = "YEAR(date_request) = ?";
-  $params[] = (int)$year;
-  $types   .= 'i';
+/* Year filter (SARGable) */
+if ($year !== '' && preg_match('/^\d{4}$/', $year)) {
+  $start = $year . '-01-01 00:00:00';
+  $end   = ((int)$year + 1) . '-01-01 00:00:00';
+  $where[]  = "(date_request >= ? AND date_request < ?)";
+  $params[] = $start;
+  $params[] = $end;
+  $types   .= 'ss';
 }
 
-$where_sql = $where ? ('WHERE '.implode(' AND ', $where)) : '';
+/* Visibility restriction */
+if (!$see_all) {
+  if ($dept !== '' && $user_section !== '') {
+    // STRICT match: assignee == dept AND section == user's section
+    // (user can also see rows they originated)
+    $where[]  = "(
+      (assignee = ? AND LOWER(TRIM(COALESCE(section, ''))) = LOWER(TRIM(?)))
+      OR originator_name = ?
+    )";
+    $params[] = $dept;
+    $params[] = $user_section;
+    $params[] = $user_name;
+    $types   .= 'sss';
+  } elseif ($dept !== '') {
+    // No section on profile: only see dept where section is empty + your own originated rows
+    $where[]  = "(
+      (assignee = ? AND (section IS NULL OR TRIM(section) = ''))
+      OR originator_name = ?
+    )";
+    $params[] = $dept;
+    $params[] = $user_name;
+    $types   .= 'ss';
+  } elseif ($user_name !== '') {
+    $where[]  = "originator_name = ?";
+    $params[] = $user_name;
+    $types   .= 's';
+  } else {
+    $where[] = "1=0"; // no identity info → no visibility
+  }
+}
 
-/* ---------- Query ---------- */
+$where_sql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+
+/* ---------------------------
+   Query
+--------------------------- */
 $sql = "SELECT
           id,
           rcpa_type,
@@ -62,23 +158,24 @@ $sql = "SELECT
           no_days_close,
           close_date,
           close_due_date,
-          hit_reply,            -- NEW
-          hit_close             -- NEW
+          hit_reply,
+          hit_close
         FROM rcpa_request
         $where_sql
         ORDER BY date_request DESC, id DESC
         LIMIT 1000";
 
-$stmt = $db->prepare($sql);
+$stmt = $mysqli->prepare($sql);
 if (!$stmt) {
   http_response_code(500);
-  echo json_encode(['success'=>false,'error'=>'Prepare failed']);
+  echo json_encode(['success' => false, 'error' => 'Prepare failed']);
   exit;
 }
 if ($types !== '') $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $res = $stmt->get_result();
 
+/* Label mapping for client display (kept from original) */
 $label_map = [
   'external' => 'External QMS Audit',
   'internal' => 'Internal Quality Audit',
@@ -116,10 +213,13 @@ while ($r = $res->fetch_assoc()) {
     'close_date'             => $close_date,
     'close_due_date'         => $close_due_date,
 
-    'hit_reply'              => (string)($r['hit_reply'] ?? ''),  // NEW
-    'hit_close'              => (string)($r['hit_close'] ?? ''),  // NEW
+    'hit_reply'              => (string)($r['hit_reply'] ?? ''),
+    'hit_close'              => (string)($r['hit_close'] ?? ''),
   ];
 }
 $stmt->close();
 
-echo json_encode(['success'=>true, 'rows'=>$rows], JSON_UNESCAPED_UNICODE);
+/* ---------------------------
+   Output
+--------------------------- */
+echo json_encode(['success' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE);
