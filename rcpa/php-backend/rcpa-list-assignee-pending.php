@@ -1,5 +1,4 @@
 <?php
-// php-backend/rcpa-list-assignee-pending.php
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 date_default_timezone_set('Asia/Manila');
@@ -64,20 +63,17 @@ if ($user_name !== '') {
 
 /* ---------------------------
    Role/visibility flags
-   - QMS: see all (any role)
-   - QA: see all ONLY if role is supervisor or manager
-   - Others: restricted by dept/section (manager ignores section)
 --------------------------- */
 $dept_norm = strtoupper(trim($dept));
 $role_norm = strtolower(trim($user_role));
 
-$isManager = ($role_norm === 'manager');           // manager: dept-wide (ignore section) if not see-all
+$isManager = ($role_norm === 'manager');
 $see_all   = false;
 
 if ($dept_norm === 'QMS') {
-    $see_all = true; // QMS always see all
+    $see_all = true;
 } elseif ($dept_norm === 'QA' && ($role_norm === 'manager' || $role_norm === 'supervisor')) {
-    $see_all = true; // QA supervisors/managers see all
+    $see_all = true;
 }
 
 /* ---------------------------
@@ -87,16 +83,12 @@ $page      = max(1, (int)($_GET['page'] ?? 1));
 $page_size = min(100, max(1, (int)($_GET['page_size'] ?? 10)));
 $offset    = ($page - 1) * $page_size;
 
-$type   = trim((string)($_GET['type'] ?? ''));    // rcpa_type filter (optional)
-$status = trim((string)($_GET['status'] ?? ''));  // optional, but constrained to allowed list
-$q      = trim((string)($_GET['q'] ?? ''));       // free-text query (project/wbs/assignee)
+$type   = trim((string)($_GET['type'] ?? ''));
+$status = trim((string)($_GET['status'] ?? ''));
+$q      = trim((string)($_GET['q'] ?? ''));
 
 /* ---------------------------
    WHERE builder
-   Visibility if NOT see_all:
-     * MANAGER: (assignee = user's dept) OR (originator_name = user's name)
-     * NON-MANAGER: (assignee = user's dept AND (row.section IS NULL/'' OR row.section = user.section))
-                    OR originator_name = user
 --------------------------- */
 $allowed_statuses = ['ASSIGNEE PENDING'];
 
@@ -129,47 +121,52 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
 } else {
     $placeholders = implode(' OR ', array_fill(0, count($allowed_statuses), 'status = ?'));
     $where[] = "($placeholders)";
-    foreach ($allowed_statuses as $st) {
-        $params[] = $st;
-        $types   .= 's';
-    }
+    foreach ($allowed_statuses as $st) { $params[] = $st; $types .= 's'; }
 }
 
 /* Visibility restriction (role-aware) */
 if (!$see_all) {
     if ($dept !== '') {
         if ($isManager) {
-            // Managers: department-wide (ignore section) OR own originated rows
             $where[]  = "(
                 assignee = ?
                 OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $dept;
             $params[] = $user_name;
-            $types   .= 'ss';
-        } else {
-            // Non-managers: dept + (section empty or matches) OR own originated rows
-            $where[]  = "(
-                assignee = ?
-                AND (
-                    section IS NULL
-                    OR TRIM(section) = ''
-                    OR LOWER(TRIM(section)) = LOWER(TRIM(?))
-                )
-                OR originator_name = ?
-            )";
-            $params[] = $dept;
-            $params[] = $user_section;   // empty means they only see rows with empty section
             $params[] = $user_name;
             $types   .= 'sss';
+        } else {
+            $where[]  = "(
+                (
+                    assignee = ?
+                    AND (
+                        section IS NULL
+                        OR TRIM(section) = ''
+                        OR LOWER(TRIM(section)) = LOWER(TRIM(?))
+                    )
+                )
+                OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
+            )";
+            $params[] = $dept;
+            $params[] = $user_section;
+            $params[] = $user_name;
+            $params[] = $user_name;
+            $types   .= 'ssss';
         }
     } else {
         if ($user_name !== '') {
-            $where[]  = "originator_name = ?";
+            $where[]  = "(
+                originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
+            )";
             $params[] = $user_name;
-            $types   .= 's';
+            $params[] = $user_name;
+            $types   .= 'ss';
         } else {
-            $where[] = "1=0"; // no dept and no name: see nothing
+            $where[] = "1=0";
         }
     }
 }
@@ -192,7 +189,7 @@ $stmt->fetch();
 $stmt->close();
 
 /* ---------------------------
-   Data query
+   Data query  (include assignee_name)
 --------------------------- */
 $sql = "SELECT
             id,
@@ -203,10 +200,11 @@ $sql = "SELECT
             conformance,
             originator_name,
             assignee,
-            section,          -- includes section for UI gating
+            section,
             project_name,
             wbs_number,
-            reply_due_date
+            reply_due_date,
+            assignee_name
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
@@ -240,16 +238,23 @@ while ($r = $res->fetch_assoc()) {
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'reply_due_date'   => $r['reply_due_date'] ? date('Y-m-d', strtotime($r['reply_due_date'])) : null,
+        'assignee_name'    => (string)($r['assignee_name'] ?? ''),
     ];
 }
 $stmt->close();
 
 /* ---------------------------
-   Output
+   Output (NOW includes 'current' block for the front-end)
 --------------------------- */
 echo json_encode([
     'page'      => $page,
     'page_size' => $page_size,
     'total'     => (int)$total,
     'rows'      => $rows,
+    'current'   => [
+        'name'       => $user_name,
+        'department' => $dept,
+        'section'    => $user_section,
+        'role'       => $user_role,
+    ],
 ], JSON_UNESCAPED_UNICODE);

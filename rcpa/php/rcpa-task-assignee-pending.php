@@ -203,6 +203,9 @@
                 <button class="action-btn view-btn" id="view-button">View</button>
                 <button class="action-btn view-btn" id="valid-button">Valid</button>
                 <button class="action-btn view-btn" id="not-valid-button">Not Valid</button>
+
+                <!-- NEW: Assign (shown only for manager/supervisor when dept/section match) -->
+                <button class="action-btn assign-btn" id="assign-button" hidden>Assign</button>
             </div>
 
 
@@ -592,6 +595,26 @@
             </form>
         </div>
     </div>
+
+    <!-- Assign modal -->
+    <div class="modal-overlay" id="rcpa-assign-modal" hidden aria-modal="true" role="dialog" aria-labelledby="rcpa-assign-title">
+        <div class="modal-content" style="width: 30%;">
+            <h3 id="rcpa-assign-title" style="margin-top:0;">Assign a person to reply this RCPA</h3>
+
+            <label for="rcpa-assign-select" style="display:block; font-weight:600; margin:10px 0 6px;">Employee</label>
+            <select id="rcpa-assign-select" class="u-line" style="width:100%;">
+                <option value="">— Select employee —</option>
+            </select>
+            <div id="rcpa-assign-help" class="rcpa-muted" style="margin-top:.5rem; font-size:.9em;"></div>
+
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+                <button type="button" class="rcpa-btn" id="rcpa-assign-submit" disabled>Assign</button>
+            </div>
+        </div>
+    </div>
+
+
+
 
     <div class="modal-overlay" id="rcpa-why-view-modal" hidden aria-modal="true" role="dialog" aria-labelledby="rcpa-why-view-title">
         <div class="modal-content">

@@ -10,22 +10,24 @@
 
   const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
   const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
-  const CURRENT_ROLE = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 role from server
+  const CURRENT_ROLE = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // role from server
 
-  // ✅ only QMS approvers can act across departments
+  // ✅ only QMS approvers can act across departments (visibility), BUT actions still require assignee_name match
   const CAN_OVERRIDE_DEPT = IS_APPROVER && CURRENT_DEPT === 'qms';
 
   const norm = s => (s ?? '').toString().trim().toLowerCase();
+  const normName = (s) => norm(s).replace(/\s+/g, ' ').replace(/[.,]/g, '');
+  const getCurrentUser = () =>
+    normName(window.RCPA_EMPLOYEE_NAME || window.RCPA_USER_NAME || window.RCPA_NAME || window.USER_NAME || '');
 
-  // Returns true if user can act on this row based on dept/section
-  // 🔁 Managers can act for their department regardless of section
+  // Returns true if user can see a hamburger based on dept/section (used only for *visibility* if you keep it),
+  // but the final gate for ACTIONS is assignee_name match.
   const canActOnRow = (rowAssignee, rowSection) => {
-    if (norm(rowAssignee) !== CURRENT_DEPT) return false;
-    if (CURRENT_ROLE === 'manager') return true; // 👈 dept matched; ignore section if manager
-
+    if (norm(rowAssignee) !== CURRENT_DEPT) return CAN_OVERRIDE_DEPT; // only QMS approvers can override dept
+    if (CURRENT_ROLE === 'manager') return true;
     const rs = norm(rowSection);
-    if (!rs) return true;             // no section on row → dept match is enough
-    if (!CURRENT_SECT) return false;  // row has section but user lacks one
+    if (!rs) return true;
+    if (!CURRENT_SECT) return false;
     return rs === CURRENT_SECT;
   };
 
@@ -45,7 +47,7 @@
   let page = 1;
   const pageSize = 10;
   let currentTarget = null; // the currently-open hamburger button
-  let es = null;            // ⚡ SSE handle
+  let es = null;            // SSE handle
 
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
@@ -82,7 +84,6 @@
     if (t === 'FOR CLOSING') return `<span class="rcpa-badge badge-assignee-corrective">FOR CLOSING</span>`;
     if (t === 'FOR CLOSING APPROVAL') return `<span class="rcpa-badge badge-assignee-corrective-approval">FOR CLOSING APPROVAL</span>`;
     if (t === 'EVIDENCE CHECKING') return `<span class="rcpa-badge badge-corrective-checking">EVIDENCE CHECKING</span>`;
-    // if (t === 'EVIDENCE CHECKING APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE CHECKING APPROVAL</span>`;
     if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (INVALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (INVALID)</span>`;
@@ -100,11 +101,13 @@
     return '';
   }
 
-  // Show hamburger if user can act
-  // ✅ only QMS approvers can override department; others must match dept/section (or manager rule)
-  function actionButtonHtml(id, assignee, section) {
+  // === ACTION VISIBILITY RULE ===
+  // Show hamburger ONLY if the logged-in user matches the row's assignee_name (normalized).
+  function actionButtonHtml(id, assignee, section, assigneeName) {
     const safeId = escapeHtml(id ?? '');
-    if (CAN_OVERRIDE_DEPT || canActOnRow(assignee, section)) {
+    const isAssignee = normName(assigneeName) === getCurrentUser();
+
+    if (isAssignee) {
       return `
         <div class="rcpa-actions">
           <button class="rcpa-more" data-id="${safeId}" title="Actions">
@@ -113,6 +116,8 @@
           </button>
         </div>`;
     }
+
+    // Not the assignee → view-only, regardless of dept/role
     return `
       <div class="rcpa-actions">
         <button class="rcpa-view-only action-btn" data-id="${safeId}" title="View">View</button>
@@ -149,16 +154,6 @@
     if (!today || !target) return null;
     return Math.trunc((target - today) / (24 * 60 * 60 * 1000));
   }
-  function renderCloseDue(ymd) {
-    if (!ymd) return '';
-    const base = fmtYmd(ymd);
-    const d = diffDaysFromTodayManila(ymd);
-    if (d === null) return base;
-    const plural = Math.abs(d) === 1 ? 'day' : 'days';
-    return `${base} (${d} ${plural})`;
-  }
-  // Styled close-due cell with thresholds:
-  // >25 days = badge-cat-obs, >7 days = badge-cat-minor, <=7 days = badge-cat-major
   function formatCloseDueCell(ymd) {
     if (!ymd) return '';
     const pretty = fmtYmd(ymd);
@@ -176,8 +171,6 @@
 
     return `<span class="rcpa-badge ${className}">${pretty} (${valueText})</span>`;
   }
-
-  // -------------------------------------------------------
 
   function fmtDate(s) {
     if (!s) return '';
@@ -216,6 +209,15 @@
     }
 
     const data = await res.json();
+
+    // (Optional) hydrate globals if backend sends a `current` block in future
+    if (data && data.current) {
+      if (!window.RCPA_EMPLOYEE_NAME && data.current.name)        window.RCPA_EMPLOYEE_NAME = data.current.name;
+      if (!window.RCPA_ROLE && data.current.role)                 window.RCPA_ROLE = data.current.role;
+      if (!window.RCPA_DEPARTMENT && data.current.department)     window.RCPA_DEPARTMENT = data.current.department;
+      if (!window.RCPA_SECTION && data.current.section)           window.RCPA_SECTION = data.current.section;
+    }
+
     const rows = Array.isArray(data.rows) ? data.rows : [];
 
     if (!rows.length) {
@@ -231,7 +233,7 @@
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
           <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
-          <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section)}</td>
+          <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section, r.assignee_name)}</td>
           <td>
             <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
                data-id="${r.id ?? ''}" role="button" tabindex="0"
@@ -308,7 +310,6 @@
 
   // Open/close hamburger actions + history
   tbody.addEventListener('click', (e) => {
-    // View-only path when user can't act on the row
     const viewOnly = e.target.closest('.rcpa-view-only');
     if (viewOnly) {
       const id = viewOnly.getAttribute('data-id');
@@ -316,7 +317,6 @@
       return;
     }
 
-    // History icon click
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist) {
       const id = hist.getAttribute('data-id');
@@ -351,7 +351,6 @@
     }
   });
 
-  // Top tabs navigation (only if you later add data-href)
   document.querySelector('.rcpa-table-toolbar')?.addEventListener('click', (e) => {
     const tab = e.target.closest('.rcpa-tab[data-href]');
     if (!tab) return;
@@ -366,7 +365,6 @@
     if (e.key === 'Escape') hideActions();
   });
 
-  // Dispatch events for the floating menu buttons
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
   }
@@ -374,28 +372,24 @@
   acceptBtn.addEventListener('click', () => { dispatchAction('accept', actionContainer.dataset.id); hideActions(); });
   rejectBtn.addEventListener('click', () => { dispatchAction('reject', actionContainer.dataset.id); hideActions(); });
 
-  // Pagination + filter
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; load(); } });
   nextBtn.addEventListener('click', () => { page++; load(); });
 
-  // ⚡ Restart SSE when Type filter changes so the server watches the same subset
   fType.addEventListener('change', () => { page = 1; load(); startSse(true); });
 
-  // ⚡ SSE: watch the same filtered subset; on any change, reload silently (no blinking)
   function startSse(restart = false) {
     try { if (restart && es) es.close(); } catch { }
     const qs = new URLSearchParams();
     if (fType.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-assignee-corrective-sse.php?${qs.toString()}`);
     es.addEventListener('rcpa', () => { load(); });
-    es.onerror = () => { /* EventSource auto-reconnects by itself */ };
+    es.onerror = () => { /* auto-reconnect */ };
   }
 
-  // Cleanup on unload
   window.addEventListener('beforeunload', () => { try { es && es.close(); } catch { } });
 
   load();
-  startSse(); // ⚡ start realtime
+  startSse();
 })();
 
 

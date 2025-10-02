@@ -35,14 +35,6 @@ $mysqli->set_charset('utf8mb4');
 
 /* ---------------------------
    Resolve current user's department, section, role
-   Visibility rules:
-     - QMS                 => can see ALL rows (any role)
-     - QA                  => can see ALL rows ONLY if role is 'supervisor' or 'manager'
-     - MANAGER (non see-all)
-                           => department-wide (ignore section) OR own originated rows
-     - Others (non see-all)
-                           => (assignee = user_dept AND (section IS NULL/'' OR section = user_section))
-                              OR originator_name = user_name
 --------------------------- */
 $user_dept = '';
 $user_sect = '';
@@ -125,31 +117,37 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
 if (!$see_all) {
     if ($user_dept !== '') {
         if ($is_manager) {
-            // Managers: department-wide (ignore section) OR own originated rows
             $where[]  = "(
                 assignee = ?
                 OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $user_dept;
             $params[] = $user_name;
-            $types   .= 'ss';
+            $params[] = $user_name; // allow rows assigned to the user by name
+            $types   .= 'sss';
         } else {
-            // Non-managers: dept + (section empty or matches) OR own originated rows
             $where[]  = "(
                 (assignee = ?
                   AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
                 OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $user_dept;
             $params[] = $user_sect;
             $params[] = $user_name;
-            $types   .= 'sss';
+            $params[] = $user_name; // allow rows assigned to the user by name
+            $types   .= 'ssss';
         }
     } else {
         if ($user_name !== '') {
-            $where[]  = "originator_name = ?";
+            $where[]  = "(
+                originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
+            )";
             $params[] = $user_name;
-            $types   .= 's';
+            $params[] = $user_name;
+            $types   .= 'ss';
         } else {
             $where[] = "1=0";
         }
@@ -174,7 +172,7 @@ $stmt->fetch();
 $stmt->close();
 
 /* ---------------------------
-   Data query
+   Data query  (INCLUDES assignee_name)
 --------------------------- */
 $sql = "SELECT
             id,
@@ -188,7 +186,8 @@ $sql = "SELECT
             section,
             project_name,
             wbs_number,
-            close_due_date
+            close_due_date,
+            assignee_name
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
@@ -222,6 +221,7 @@ while ($r = $res->fetch_assoc()) {
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'close_due_date'   => $r['close_due_date'] ? date('Y-m-d', strtotime($r['close_due_date'])) : null,
+        'assignee_name'    => (string)($r['assignee_name'] ?? ''), // ✅ INCLUDED
     ];
 }
 $stmt->close();

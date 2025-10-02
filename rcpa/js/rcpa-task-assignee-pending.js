@@ -1,8 +1,18 @@
 // LIST TABLE
+
 (function () {
-  const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
-  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
-  const CURRENT_ROLE = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 add this
+  // ------------ helpers for normalization -------------
+  const norm = (s) => (s ?? '').toString().trim().toLowerCase();
+  // be lenient for name equality: collapse multiples spaces and remove commas/periods
+  const normName = (s) => norm(s).replace(/\s+/g, ' ').replace(/[.,]/g, '');
+
+  // ------------ dynamic getters (always read latest globals) -------------
+  const getCurrentUser = () =>
+    normName(window.RCPA_EMPLOYEE_NAME || window.RCPA_USER_NAME || window.RCPA_NAME || window.USER_NAME || '');
+  const getCurrentDept = () => norm(window.RCPA_DEPARTMENT || '');
+  const getCurrentSect = () => norm(window.RCPA_SECTION || '');
+  const getCurrentRole = () => norm(window.RCPA_ROLE || '');
+  const isSupOrMgr = () => (getCurrentRole() === 'manager' || getCurrentRole() === 'supervisor');
 
   const tbody = document.querySelector('#rcpa-table tbody');
   const totalEl = document.getElementById('rcpa-total');
@@ -16,28 +26,37 @@
   const viewBtn = document.getElementById('view-button');
   const validBtn = document.getElementById('valid-button');
   const notValidBtn = document.getElementById('not-valid-button');
+  const assignBtn = document.getElementById('assign-button'); // may be hidden depending on role
 
-  const norm = (s) => (s ?? '').toString().trim().toLowerCase();
-
-  // Dept must match AND if row has a section, that must match user's section too
-  const canActOnRow = (rowAssignee, rowSection) => {
-    if (norm(rowAssignee) !== CURRENT_DEPT) return false;
-    // Managers can act for their department regardless of section
-    if (CURRENT_ROLE === 'manager') return true; // 👈 add this
+  // ASSIGN button visibility: sup/mgr + dept/section match
+  const canAssignOnRow = (rowAssignee, rowSection) => {
+    if (!isSupOrMgr()) return false;
+    if (norm(rowAssignee) !== getCurrentDept()) return false;
     const rs = norm(rowSection);
-    if (!rs) return true;                 // no section on row → dept match is enough
-    if (!CURRENT_SECT) return false;      // user has no section but row does → cannot act
-    return rs === CURRENT_SECT;           // both must match
+    if (!rs) return true;
+    if (!getCurrentSect()) return false;
+    return rs === getCurrentSect();
   };
 
+  // Base department/section gate for any actions (used for sup/mgr path)
+  const canActOnRowDeptSect = (rowAssignee, rowSection) => {
+    if (norm(rowAssignee) !== getCurrentDept()) return false;
+    if (getCurrentRole() === 'manager') return true; // managers ignore section
+    const rs = norm(rowSection);
+    if (!rs) return true;
+    if (!getCurrentSect()) return false;
+    return rs === getCurrentSect();
+  };
 
-  let page = 1;
-  const pageSize = 10;
-  let currentTarget = null;
+  const isAssigneeUser = (rowAssigneeName) => normName(rowAssigneeName) === getCurrentUser();
 
-  // ⚡ SSE tracking
-  let lastSeenId = 0;
-  let es = null;
+  // FINAL decision for hamburger visibility
+  // assignee_name match bypasses dept/section gate (shows View/Valid/Not Valid; Assign still role-gated)
+  const shouldShowActions = (rowAssignee, rowSection, assigneeName) => {
+    if (isAssigneeUser(assigneeName)) return true; // assignee gets actions regardless of dept/section
+    if (!canActOnRowDeptSect(rowAssignee, rowSection)) return false;
+    return isSupOrMgr(); // sup/mgr get actions when dept/section pass
+  };
 
   function labelForType(t) {
     const key = (t || '').toLowerCase().trim();
@@ -74,7 +93,6 @@
     if (t === 'FOR CLOSING') return `<span class="rcpa-badge badge-assignee-corrective">FOR CLOSING</span>`;
     if (t === 'FOR CLOSING APPROVAL') return `<span class="rcpa-badge badge-assignee-corrective-approval">FOR CLOSING APPROVAL</span>`;
     if (t === 'EVIDENCE CHECKING') return `<span class="rcpa-badge badge-corrective-checking">EVIDENCE CHECKING</span>`;
-    // if (t === 'EVIDENCE CHECKING APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE CHECKING APPROVAL</span>`;
     if (t === 'EVIDENCE APPROVAL') return `<span class="rcpa-badge badge-corrective-checking-approval">EVIDENCE APPROVAL</span>`;
     if (t === 'CLOSED (VALID)') return `<span class="rcpa-badge badge-closed">CLOSED (VALID)</span>`;
     if (t === 'CLOSED (INVALID)') return `<span class="rcpa-badge badge-rejected">CLOSED (INVALID)</span>`;
@@ -92,12 +110,19 @@
     return '';
   }
 
-  function actionButtonHtml(id, assignee, section) {
+  function actionButtonHtml(id, assignee, section, assigneeName) {
     const safeId = escapeHtml(id ?? '');
-    if (canActOnRow(assignee, section)) {
+    const safeAsg = escapeHtml(assignee || '');
+    const safeSec = escapeHtml(section || '');
+
+    if (shouldShowActions(assignee, section, assigneeName)) {
       return `
         <div class="rcpa-actions">
-          <button class="rcpa-more" data-id="${safeId}" title="Actions">
+          <button class="rcpa-more"
+                  data-id="${safeId}"
+                  data-assignee="${safeAsg}"
+                  data-section="${safeSec}"
+                  title="Actions">
             <i class="fa-solid fa-bars" aria-hidden="true"></i>
             <span class="sr-only">Actions</span>
           </button>
@@ -115,7 +140,7 @@
     if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
     const year = d.getFullYear();
@@ -127,7 +152,7 @@
   }
 
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const m = parseInt(ymd.slice(5, 7), 10) - 1;
     const d = parseInt(ymd.slice(8, 10), 10);
     const y = parseInt(ymd.slice(0, 4), 10);
@@ -160,6 +185,12 @@
     return `<span class="rcpa-badge ${className}">${pretty} (${valueText})</span>`;
   }
 
+  let page = 1;
+  const pageSize = 10;
+  let currentTarget = null;
+  let lastSeenId = 0;
+  let es = null;
+
   async function load() {
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (fType?.value) params.set('type', fType.value);
@@ -180,6 +211,15 @@
     }
 
     const data = await res.json();
+
+    // ✅ NEW: ensure globals are populated BEFORE rendering rows
+    if (data && data.current) {
+      if (!window.RCPA_EMPLOYEE_NAME && data.current.name)        window.RCPA_EMPLOYEE_NAME = data.current.name;
+      if (!window.RCPA_ROLE && data.current.role)                 window.RCPA_ROLE = data.current.role;
+      if (!window.RCPA_DEPARTMENT && data.current.department)     window.RCPA_DEPARTMENT = data.current.department;
+      if (!window.RCPA_SECTION && data.current.section)           window.RCPA_SECTION = data.current.section;
+    }
+
     const rows = Array.isArray(data.rows) ? data.rows : [];
 
     if (!rows.length) {
@@ -195,7 +235,7 @@
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
           <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
-          <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section)}</td>
+          <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section, r.assignee_name)}</td>
           <td>
             <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
                data-id="${r.id ?? ''}" role="button" tabindex="0"
@@ -211,7 +251,6 @@
     prevBtn.disabled = page <= 1;
     nextBtn.disabled = page >= lastPage;
 
-    // Track the highest id we've seen (handy if you ever add resume logic)
     const maxId = rows.reduce((m, r) => Math.max(m, Number(r.id || 0)), lastSeenId);
     if (maxId > lastSeenId) lastSeenId = maxId;
   }
@@ -223,7 +262,7 @@
   nextBtn?.addEventListener('click', () => { page++; load(); });
   fType?.addEventListener('change', () => { page = 1; load(); startSse(true); });
 
-  // icon morph helpers for the floating menu
+  // icon morph helpers
   const switchIcon = (iconElement, newIcon) => {
     if (!iconElement) return;
     iconElement.classList.add('icon-fade-out');
@@ -265,6 +304,13 @@
     actionContainer.dataset.id = id;
     positionActionContainer(target);
     actionContainer.classList.remove('hidden');
+
+    // toggle Assign visibility
+    const rowAssignee = target.dataset.assignee || '';
+    const rowSection = target.dataset.section || '';
+    const showAssign = canAssignOnRow(rowAssignee, rowSection);
+    if (assignBtn) assignBtn.hidden = !showAssign;
+
     const icon = target.querySelector('i.fa-solid');
     switchIcon(icon, 'fa-xmark');
   }
@@ -277,7 +323,7 @@
     currentTarget = null;
   }
 
-  // Open/close hamburger actions + history
+  // open/close hamburger
   tbody.addEventListener('click', (e) => {
     const viewOnly = e.target.closest('.rcpa-view-only');
     if (viewOnly) {
@@ -297,7 +343,6 @@
     if (currentTarget === moreBtn) hideActions(); else showActions(moreBtn, id);
   });
 
-  // Keyboard support for history icon
   tbody.addEventListener('keydown', (e) => {
     const hist = e.target.closest('.icon-rcpa-history');
     if (hist && (e.key === 'Enter' || e.key === ' ')) {
@@ -312,14 +357,10 @@
       hideActions();
     }
   });
-
-  ['scroll', 'resize'].forEach(evt => window.addEventListener(evt, () => {
+  ['scroll','resize'].forEach(evt => window.addEventListener(evt, () => {
     if (currentTarget) positionActionContainer(currentTarget);
   }, { passive: true }));
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') hideActions();
-  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideActions(); });
 
   function dispatchAction(action, id) {
     document.dispatchEvent(new CustomEvent('rcpa:action', { detail: { action, id } }));
@@ -327,24 +368,187 @@
   viewBtn.addEventListener('click', () => { dispatchAction('view', actionContainer.dataset.id); hideActions(); });
   validBtn.addEventListener('click', () => { dispatchAction('valid', actionContainer.dataset.id); hideActions(); });
   notValidBtn.addEventListener('click', () => { dispatchAction('not-valid', actionContainer.dataset.id); hideActions(); });
+  assignBtn?.addEventListener('click', () => { dispatchAction('assign', actionContainer.dataset.id); hideActions(); });
 
-  // ⚡ SSE: refresh whenever count/max changes for this viewer
+  // SSE
   function startSse(restart = false) {
-    if (restart && es) { try { es.close(); } catch { } }
+    if (restart && es) { try { es.close(); } catch {} }
     const qs = new URLSearchParams();
     if (fType?.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-assignee-pending-sse.php?${qs.toString()}`);
-    es.addEventListener('rcpa', () => {
-      // Always refresh on event (covers older ids appearing due to status change)
-      load();
-    });
-    es.onerror = () => { /* EventSource auto-reconnects */ };
+    es.addEventListener('rcpa', () => { load(); });
+    es.onerror = () => {};
   }
 
-  // Initial load + start stream
   load();
   startSse();
 })();
+
+
+
+// ASSIGN MODAL (stand-alone IIFE)
+// ASSIGN MODAL (stand-alone IIFE with dropdown + SweetAlert confirm + save)
+// ASSIGN MODAL (stand-alone IIFE with dropdown + SweetAlert confirm + save)
+(function () {
+  // Use existing modal; if missing, auto-create it (no RCPA No. line)
+  let modal = document.getElementById('rcpa-assign-modal');
+  if (!modal) {
+    const tpl = document.createElement('div');
+    tpl.innerHTML = `
+      <div class="modal-overlay" id="rcpa-assign-modal" hidden aria-modal="true" role="dialog" aria-labelledby="rcpa-assign-title">
+        <div class="modal-content">
+          <h3 id="rcpa-assign-title" style="margin-top:0;">Assign a person to reply this RCPA</h3>
+          <label for="rcpa-assign-select" style="display:block; font-weight:600; margin:10px 0 6px;">Employee</label>
+          <select id="rcpa-assign-select" class="u-line" style="width:100%;">
+            <option value="">— Select employee —</option>
+          </select>
+          <div id="rcpa-assign-help" class="rcpa-muted" style="margin-top:.5rem; font-size:.9em;"></div>
+          <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+            <button type="button" class="rcpa-btn" id="rcpa-assign-submit" disabled>Assign</button>
+          </div>
+        </div>
+      </div>
+    `.trim();
+    document.body.appendChild(tpl.firstElementChild);
+    modal = document.getElementById('rcpa-assign-modal');
+  }
+
+  const selectEl = document.getElementById('rcpa-assign-select');
+  const helpEl   = document.getElementById('rcpa-assign-help');
+  const submitEl = document.getElementById('rcpa-assign-submit');
+
+  let currentId = null;
+
+  function openModal(id) {
+    currentId = id;
+
+    // reset UI
+    if (helpEl) helpEl.textContent = '';
+    if (selectEl) {
+      selectEl.innerHTML = `<option value="">— Select employee —</option>`;
+      selectEl.disabled = true;
+    }
+    submitEl.disabled = true;
+
+    // Load options filtered by the RCPA row's department/section (server enforces perms)
+    fetch(`../php-backend/rcpa-assign-options.php?id=${encodeURIComponent(id)}`, { credentials: 'same-origin' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(data => {
+        const options = Array.isArray(data?.options) ? data.options : [];
+        const current = (data?.current_assignee_name || '').trim();
+
+        if (!options.length) {
+          if (helpEl) helpEl.textContent = 'No employees found for this department/section.';
+          selectEl.disabled = true;
+          submitEl.disabled = true;
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        options.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          if (current && name.toLowerCase() === current.toLowerCase()) opt.selected = true;
+          frag.appendChild(opt);
+        });
+        selectEl.appendChild(frag);
+        selectEl.disabled = false;
+        submitEl.disabled = !selectEl.value;
+
+        if (current && helpEl) helpEl.textContent = `Current assignee: ${current}`;
+      })
+      .catch(err => {
+        console.error(err);
+        if (helpEl) helpEl.textContent = 'Failed to load employees.';
+      });
+
+    // open modal
+    modal.removeAttribute('hidden');
+    requestAnimationFrame(() => modal.classList.add('show'));
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    modal.classList.remove('show');
+    const onEnd = (e) => {
+      if (e.target !== modal || e.propertyName !== 'opacity') return;
+      modal.removeEventListener('transitionend', onEnd);
+      modal.setAttribute('hidden', '');
+      document.body.style.overflow = '';
+      currentId = null;
+    };
+    modal.addEventListener('transitionend', onEnd);
+  }
+
+  // Overlay click / ESC to close (no visible close buttons)
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal && !modal.hidden) closeModal(); });
+
+  // Enable Assign only when a value is selected
+  selectEl.addEventListener('change', () => { submitEl.disabled = !selectEl.value; });
+
+  // Click Assign → confirm → POST → refresh
+  submitEl.addEventListener('click', async () => {
+    const chosen = (selectEl.value || '').trim();
+    if (!currentId || !chosen) return;
+
+    // SweetAlert2 confirm if available, else confirm()
+    const confirmAssign = () => {
+      if (window.Swal && typeof window.Swal.fire === 'function') {
+        return window.Swal.fire({
+          title: 'Confirm assignment',
+          text: `Assign "${chosen}" to reply to this RCPA?`,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'Assign'
+        }).then(r => r.isConfirmed);
+      }
+      return Promise.resolve(confirm(`Assign "${chosen}" to reply to this RCPA?`));
+    };
+
+    if (!(await confirmAssign())) return;
+
+    // lock UI during save
+    submitEl.disabled = true;
+    selectEl.disabled = true;
+
+    try {
+      const res = await fetch('../php-backend/rcpa-assign-set.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: Number(currentId), assignee_name: chosen })
+      });
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || json?.ok !== true) {
+        const msg = json?.error || `Failed to assign (HTTP ${res.status}).`;
+        if (window.Swal?.fire) window.Swal.fire('Error', msg, 'error'); else alert(msg);
+        selectEl.disabled = false;
+        submitEl.disabled = !selectEl.value;
+        return;
+      }
+
+      if (window.Swal?.fire) window.Swal.fire('Assigned', 'Assignee updated successfully.', 'success');
+      closeModal();
+      document.dispatchEvent(new CustomEvent('rcpa:refresh'));
+    } catch (err) {
+      console.error(err);
+      if (window.Swal?.fire) window.Swal.fire('Error', 'Network or server error.', 'error'); else alert('Network or server error.');
+      selectEl.disabled = false;
+      submitEl.disabled = !selectEl.value;
+    }
+  });
+
+  // Listen for 'assign' action from the list IIFE
+  document.addEventListener('rcpa:action', (e) => {
+    const { action, id } = e.detail || {};
+    if (action === 'assign' && id) openModal(id);
+  });
+})();
+
+
 
 // view modal
 (function () {
@@ -1206,8 +1410,8 @@
     const d = new Date(String(s || '').replace(' ', 'T'));
     return isNaN(d) ? '' : d.toISOString().slice(0, 10);
   }
-  function ensureFieldset(){ return document.getElementById('rcpa-status-flow') || null; }
-  function ensureSteps(fs, steps){
+  function ensureFieldset() { return document.getElementById('rcpa-status-flow') || null; }
+  function ensureSteps(fs, steps) {
     const ol = fs.querySelector('#rcpa-flow'); if (!ol) return;
     const have = new Set(Array.from(ol.querySelectorAll('.flow-step')).map(li => li.getAttribute('data-key') || ''));
     steps.forEach(key => {
@@ -1229,7 +1433,7 @@
       if (!steps.includes(k)) li.remove();
     });
   }
-  function matches(text, tests){
+  function matches(text, tests) {
     const s = String(text || '');
     return tests.every(t => t instanceof RegExp ? t.test(s) : (typeof t === 'function' ? t(s) : false));
   }
@@ -1250,7 +1454,7 @@
     INVALIDATION_REPLY_APPROVAL: /the\s+invalidation\s+reply\s+approval\s+by\s+qms\s+team\s+was\s+approved\s+by\s+qa\s+supervisor\/manager\.?/i,
     CLOSED_INVALID_BY_ORIG: /originator\s+approved\s+that\s+the\s+rcpa\s+is\s+closed\s*\(invalid\)\.?/i
   };
-  function stepTests(key){
+  function stepTests(key) {
     const validOrNot = (s) =>
       /the\s+assignee\s+confirmed\s+that\s+the\s+rcpa\s+is\s+valid\.?/i.test(s) ||
       /the\s+assignee\s+confirmed\s+that\s+the\s+rcpa\s+is\s+not\s+valid\.?/i.test(s);
@@ -1281,7 +1485,7 @@
     return [];
   }
 
-  function pickBranch(rows){
+  function pickBranch(rows) {
     const toTs = (s) => { const d = new Date(String(s || '').replace(' ', 'T')); return isNaN(d) ? 0 : d.getTime(); };
     let latestValid = null, latestInvalid = null;
 
@@ -1301,19 +1505,19 @@
     return null;
   }
 
-  function resetStatusFlow(){
+  function resetStatusFlow() {
     const fs = ensureFieldset(); if (!fs) return;
     fs.querySelectorAll('.flow-step').forEach(li => {
-      li.classList.remove('done','next');
+      li.classList.remove('done', 'next');
       li.querySelector('.flow-name').textContent = '—';
       li.querySelector('.flow-date').textContent = '—';
       li.querySelector('.flow-name').removeAttribute('title');
       li.querySelector('.flow-name').removeAttribute('aria-label');
     });
-    fs.querySelector('.rcpa-flow')?.style.setProperty('--progress','0%');
+    fs.querySelector('.rcpa-flow')?.style.setProperty('--progress', '0%');
   }
 
-  async function renderStatusFlow(rcpaNo){
+  async function renderStatusFlow(rcpaNo) {
     const fs = ensureFieldset(); if (!fs) return;
     resetStatusFlow(); if (!rcpaNo) return;
 
@@ -1323,7 +1527,7 @@
     let rows = [];
     try {
       const res = await fetch(`../php-backend/rcpa-history.php?id=${encodeURIComponent(rcpaNo)}`, {
-        credentials:'same-origin', headers:{'Accept':'application/json'}
+        credentials: 'same-origin', headers: { 'Accept': 'application/json' }
       });
       const data = await res.json().catch(() => ({}));
       rows = Array.isArray(data?.rows) ? data.rows : [];
@@ -1341,7 +1545,7 @@
 
     // Latest row per step
     const toTs = (s) => { const d = new Date(String(s || '').replace(' ', 'T')); return isNaN(d) ? 0 : d.getTime(); };
-    const stepData = Object.fromEntries(STEPS.map(k => [k, { name:'—', date:'', ts:0 }]));
+    const stepData = Object.fromEntries(STEPS.map(k => [k, { name: '—', date: '', ts: 0 }]));
     rows.forEach(r => {
       const act = r?.activity || '';
       STEPS.forEach(step => {
@@ -1355,13 +1559,13 @@
 
     // Clamp future (and current) to defaults
     const cutoffIdx = STEPS.indexOf(statusNow);
-    if (cutoffIdx >= 0) STEPS.forEach((k,i) => { if (i > cutoffIdx) stepData[k] = { name:'—', date:'', ts:0 }; });
+    if (cutoffIdx >= 0) STEPS.forEach((k, i) => { if (i > cutoffIdx) stepData[k] = { name: '—', date: '', ts: 0 }; });
 
     // Fill DOM
     const items = fs.querySelectorAll('.flow-step');
     items.forEach(li => {
       const key = li.getAttribute('data-key') || li.querySelector('.flow-label')?.textContent?.trim().toUpperCase();
-      const info = stepData[key] || { name:'—', date:'' };
+      const info = stepData[key] || { name: '—', date: '' };
       const idx = STEPS.indexOf(key);
       const isFuture = (cutoffIdx >= 0 && idx > cutoffIdx);
       const isCurrent = (cutoffIdx >= 0 && idx === cutoffIdx);
@@ -1393,13 +1597,13 @@
 
     // done/next flags — current is NOT done
     let doneCount = 0;
-    for (let i=0;i<STEPS.length;i++){
+    for (let i = 0; i < STEPS.length; i++) {
       if (stepData[STEPS[i]]?.date) doneCount = i + 1; else break;
     }
     if (cutoffIdx >= 0) doneCount = Math.min(doneCount, cutoffIdx);
 
     items.forEach((li, idx) => {
-      li.classList.remove('done','next');
+      li.classList.remove('done', 'next');
       if (idx < doneCount) li.classList.add('done');
       else if (idx === doneCount) li.classList.add('next');
     });
@@ -1412,7 +1616,7 @@
         let pct = 0;
         const nodes = Array.from(flowEl.querySelectorAll('.flow-node'));
         if (nodes.length >= 1 && doneCount > 0) {
-          const centers = nodes.map(n => { const r = n.getBoundingClientRect(); return r.left + r.width/2; });
+          const centers = nodes.map(n => { const r = n.getBoundingClientRect(); return r.left + r.width / 2; });
           const rail = flowEl.getBoundingClientRect();
           const left0 = rail.left;
           const endCenter = centers[centers.length - 1];
