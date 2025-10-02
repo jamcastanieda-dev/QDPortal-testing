@@ -129,7 +129,7 @@ try {
     ";
     $historyStmt = $conn->prepare($historySql);
     if (!$historyStmt) throw new Exception('History insert prepare failed: ' . $conn->error);
-    $activityText = "RCPA has been checked by QMS/QA";
+    $activityText = "RCPA has been checked by QMS";
     $historyStmt->bind_param('iss', $id, $user_name, $activityText);
     if (!$historyStmt->execute()) throw new Exception('History insert execute failed: ' . $historyStmt->error);
     $historyStmt->close();

@@ -100,7 +100,7 @@ try {
     $stmt2->close();
 
     // 4) History entry (your requested text)
-    $activity = "The INVALIDation reply approval of QA/QMS team was disapproved by QA/QMS Supervisor/Manager";
+    $activity = "The invalidation reply approval of QMS team was disapproved by QA Supervisor/Manager";
     $historySql = "INSERT INTO rcpa_request_history (rcpa_no, name, date_time, activity)
                    VALUES (?, ?, CURRENT_TIMESTAMP, ?)";
     $historyStmt = $conn->prepare($historySql);

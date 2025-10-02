@@ -320,6 +320,33 @@
                     </div>
                 </fieldset>
 
+                <!-- STATUS FLOW -->
+                <fieldset id="rcpa-status-flow" aria-live="polite">
+                    <legend>Status Flow</legend>
+                    <ol id="rcpa-flow" class="rcpa-flow">
+                        <li class="flow-step" data-key="REQUESTED">
+                            <div class="flow-top"><span class="flow-name">—</span><span class="flow-date">—</span></div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">REQUESTED</div>
+                        </li>
+                        <li class="flow-step" data-key="APPROVAL">
+                            <div class="flow-top"><span class="flow-name">—</span><span class="flow-date">—</span></div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">APPROVAL</div>
+                        </li>
+                        <li class="flow-step" data-key="QMS CHECKING">
+                            <div class="flow-top"><span class="flow-name">—</span><span class="flow-date">—</span></div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">QMS CHECKING</div>
+                        </li>
+                        <li class="flow-step" data-key="ASSIGNEE PENDING">
+                            <div class="flow-top"><span class="flow-name">—</span><span class="flow-date">—</span></div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">ASSIGNEE PENDING</div>
+                        </li>
+                    </ol>
+                </fieldset>
+
                 <!-- CATEGORY -->
                 <fieldset class="category">
                     <legend>CATEGORY</legend>
@@ -556,7 +583,7 @@
     <div class="modal-overlay" id="rcpa-approve-modal" hidden>
         <div class="modal-content" id="rcpa-approve-content">
             <button type="button" class="close-btn" id="rcpa-approve-close" aria-label="Close">&times;</button>
-            <h3>Remarks for approving the INVALIDation reply</h3>
+            <h3>Remarks for approving the invalidation reply</h3>
 
             <form id="rcpa-approve-form" novalidate enctype="multipart/form-data">
                 <label class="field" style="display:block;margin-top:8px;">

@@ -650,6 +650,102 @@
         return;
       }
       fillViewModal(row);
+      // === Status Flow (fixed to APPROVAL): gray for not-done, defaults, and REQUESTED top text ===
+      (() => {
+        // 0) CSS: only .done is green; everything else stays gray
+        if (!document.getElementById('rcpa-status-flow-enforce')) {
+          const st = document.createElement('style');
+          st.id = 'rcpa-status-flow-enforce';
+          st.textContent = `
+      #rcpa-status-flow .flow-label{ color:#6b7280 !important; }
+      #rcpa-status-flow .flow-step.done .flow-label{ color:#22c55e !important; }
+      #rcpa-status-flow .flow-top{ color:#6b7280 !important; }
+      #rcpa-status-flow .flow-top .flow-date{ color:#9ca3af !important; }
+    `;
+          document.head.appendChild(st);
+        }
+
+        const fs = document.getElementById('rcpa-status-flow');
+        if (!fs) return;
+        const ol = fs.querySelector('#rcpa-flow');
+        if (!ol) return;
+
+        const steps = Array.from(ol.querySelectorAll('.flow-step'));
+        const stepByKey = k => steps.find(li => (li.getAttribute('data-key') || '').toUpperCase() === k);
+
+        // Helpers
+        const nameToInitials = (n) => {
+          const s = String(n || '').trim(); if (!s) return '—';
+          const parts = s.split(/[\s\-\/]+/).filter(Boolean);
+          const letters = parts.map(p => (p.match(/\p{L}/u) || [''])[0].toUpperCase()).filter(Boolean);
+          return letters.join('') || s[0]?.toUpperCase() || '—';
+        };
+        const fmtDateOnly = (s) => {
+          if (!s) return '';
+          const d = new Date(String(s).replace(' ', 'T'));
+          if (!isNaN(d)) return d.toISOString().slice(0, 10);
+          const m = String(s).match(/\d{4}-\d{2}-\d{2}/);
+          return m ? m[0] : '';
+        };
+        const setTop = (li, name, date) => {
+          const nm = li.querySelector('.flow-name');
+          const dt = li.querySelector('.flow-date');
+          if (nm && name != null) { nm.textContent = name; }
+          if (dt && date != null) { dt.textContent = date; }
+        };
+
+        // 1) Normalize classes: REQUESTED = done, APPROVAL = next, others = not-done
+        steps.forEach(li => li.classList.remove('done', 'next'));
+        const req = stepByKey('REQUESTED');
+        const apr = stepByKey('APPROVAL');
+        const qms = stepByKey('QMS CHECKING');
+        const asg = stepByKey('ASSIGNEE PENDING');
+        if (req) req.classList.add('done');
+        if (apr) apr.classList.add('next');
+
+        // 2) Restore REQUESTED top text (initials + date)
+        if (req) {
+          const initials = nameToInitials(row.originator_name);
+          const dateOnly = fmtDateOnly(row.date_request) || '—';
+          setTop(req, initials, dateOnly);
+          const nm = req.querySelector('.flow-name');
+          if (nm) { nm.title = row.originator_name || ''; nm.setAttribute('aria-label', row.originator_name || ''); }
+        }
+
+        // 3) Set defaults for other steps (only if empty or placeholder)
+        const ensureDefault = (li, defName, defDate = '—') => {
+          if (!li) return;
+          const nm = li.querySelector('.flow-name');
+          const dt = li.querySelector('.flow-date');
+          const curName = (nm?.textContent || '').trim();
+          const curDate = (dt?.textContent || '').trim();
+          if (nm && (!curName || curName === '—')) nm.textContent = defName;
+          if (dt && (!curDate || curDate === '—')) dt.textContent = defDate;
+        };
+        ensureDefault(apr, 'Originator Supervisor/Manager', '—');
+        ensureDefault(qms, 'QMS', '—');
+        ensureDefault(asg, 'Assignee', 'TBD');
+
+        // 4) Progress rail: stop ~25% toward APPROVAL
+        requestAnimationFrame(() => {
+          let pct = 0;
+          const nodes = Array.from(ol.querySelectorAll('.flow-node'));
+          if (nodes.length) {
+            const rail = ol.getBoundingClientRect();
+            const centers = nodes.map(n => { const r = n.getBoundingClientRect(); return r.left + r.width / 2; });
+            const left0 = rail.left, end = centers[centers.length - 1];
+            const iReq = steps.indexOf(req), iApr = steps.indexOf(apr);
+            let target = centers[Math.max(0, iReq)] ?? left0;
+            if (iApr > iReq && centers[iApr] != null) {
+              target = target + (centers[iApr] - target) * 0.25;
+              target = Math.min(target, centers[iApr] - 8);
+            }
+            pct = ((target - left0) / (end - left0)) * 100;
+          }
+          ol.style.setProperty('--progress', `${Math.max(0, Math.min(100, pct)).toFixed(2)}%`);
+        });
+      })();
+
       lockViewCheckboxes();
       showModal();
     } catch (err) {

@@ -159,7 +159,7 @@ try {
   $stmt2->close();
 
   // 3) History entry
-  $activity = 'The INVALIDation reply approval by QA/QMS Team was approved by QA Supervisor/Manager';
+  $activity = 'The invalidation reply approval by QMS Team was approved by QA Supervisor/Manager';
   $historySql = 'INSERT INTO rcpa_request_history (rcpa_no, name, date_time, activity) VALUES (?, ?, CURRENT_TIMESTAMP, ?)';
   $h = $conn->prepare($historySql);
   if (!$h) throw new Exception('Prepare failed (history): ' . $conn->error);

@@ -17,7 +17,7 @@
 
 <body>
 
-    <nav id="sidebar"> 
+    <nav id="sidebar">
         <ul class="sidebar-menu-list">
             <?php
             // Decide homepage by privilege (set in rcpa-cookie.php)
@@ -37,20 +37,20 @@
                 <a href="#">Inspection Request <i class="fa-solid fa-caret-right submenu-indicator"></i></a>
                 <ul class="submenu">
                     <?php
-                        $priv = trim($employee_privilege ?? '');
-                        if ($priv === 'QA-Respondent') {
-                            // QA Respondent view
-                            echo '<li class="not-selected"><a href="../../inspection-dashboard-qa.php">Dashboard</a></li>';
-                            echo '<li class="not-selected"><a href="../../inspection-tasks-qa.php">Tasks</a></li>';
-                        } elseif ($priv === 'QA-Head-Inspection') {
-                            // QA Head-Inspection view
-                            echo '<li class="not-selected"><a href="../../inspection-dashboard-qa-head.php">Dashboard</a></li>';
-                            echo '<li class="not-selected"><a href="../../inspection-tasks-qa-head.php">Tasks</a></li>';
-                        } else {
-                            // Default (Initiator) view
-                            echo '<li class="not-selected"><a href="../../inspection-dashboard-initiator.php">Dashboard</a></li>';
-                            echo '<li class="not-selected"><a href="../../inspection-create-initiator.php">Request</a></li>';
-                        }
+                    $priv = trim($employee_privilege ?? '');
+                    if ($priv === 'QA-Respondent') {
+                        // QA Respondent view
+                        echo '<li class="not-selected"><a href="../../inspection-dashboard-qa.php">Dashboard</a></li>';
+                        echo '<li class="not-selected"><a href="../../inspection-tasks-qa.php">Tasks</a></li>';
+                    } elseif ($priv === 'QA-Head-Inspection') {
+                        // QA Head-Inspection view
+                        echo '<li class="not-selected"><a href="../../inspection-dashboard-qa-head.php">Dashboard</a></li>';
+                        echo '<li class="not-selected"><a href="../../inspection-tasks-qa-head.php">Tasks</a></li>';
+                    } else {
+                        // Default (Initiator) view
+                        echo '<li class="not-selected"><a href="../../inspection-dashboard-initiator.php">Dashboard</a></li>';
+                        echo '<li class="not-selected"><a href="../../inspection-create-initiator.php">Request</a></li>';
+                    }
                     ?>
                 </ul>
             </li>
@@ -554,6 +554,53 @@
                     </div>
                 </fieldset>
 
+                <!-- STATUS FLOW -->
+                <fieldset class="status-flow" id="rcpa-status-flow">
+                    <legend>Status Flow</legend>
+
+                    <!-- Green progress set to 75% (first 3 done) -->
+                    <ol class="rcpa-flow" id="rcpa-flow" role="list" aria-label="Status flow" style="--progress: 0%;">
+                        <li class="flow-step done" data-key="REQUESTED">
+
+                            <div class="flow-top">
+                                <span class="flow-name">—</span>
+                                <span class="flow-date">—</span>
+                            </div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">REQUESTED</div>
+                        </li>
+
+                        <li class="flow-step done" data-key="APPROVAL">
+
+                            <div class="flow-top">
+                                <span class="flow-name">—</span>
+                                <span class="flow-date">—</span>
+                            </div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">APPROVAL</div>
+                        </li>
+
+                        <li class="flow-step done" data-key="QMS CHECKING">
+
+                            <div class="flow-top">
+                                <span class="flow-name">—</span>
+                                <span class="flow-date">—</span>
+                            </div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">QMS CHECKING</div>
+                        </li>
+
+                        <li class="flow-step next" data-key="ASSIGNEE PENDING">
+                            <div class="flow-top">
+                                <span class="flow-name">—</span>
+                                <span class="flow-date">TBD</span>
+                            </div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">ASSIGNEE PENDING</div>
+                        </li>
+                    </ol>
+                </fieldset>
+
                 <!-- CATEGORY -->
                 <fieldset class="category">
                     <legend>CATEGORY</legend>
@@ -943,7 +990,6 @@
         </div>
     </div>
 
-    <!-- Simple History Modal -->
     <!-- History Modal -->
     <div id="rcpa-history-modal" class="modal-overlay" aria-hidden="true">
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="rcpa-history-title">

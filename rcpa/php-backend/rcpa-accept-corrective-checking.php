@@ -213,7 +213,7 @@ try {
   }
 
   // Insert request history
-  $activity = 'The QMS/QA accepted the corrective reply for evidence checking (originator)';
+  $activity = 'The QMS accepted the corrective reply for evidence checking (originator)';
   $insH = $conn->prepare("INSERT INTO rcpa_request_history (rcpa_no, name, activity) VALUES (?, ?, ?)");
   if (!$insH) throw new Exception('Prepare failed: '.$conn->error);
   $rcpa_no = (string)$id;

@@ -329,6 +329,33 @@
                     </div>
                 </fieldset>
 
+                <!-- STATUS FLOW -->
+                <fieldset id="rcpa-status-flow" aria-live="polite">
+                    <legend>Status Flow</legend>
+                    <ol id="rcpa-flow" class="rcpa-flow">
+                        <li class="flow-step" data-key="REQUESTED">
+                            <div class="flow-top"><span class="flow-name">—</span><span class="flow-date">—</span></div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">REQUESTED</div>
+                        </li>
+                        <li class="flow-step" data-key="APPROVAL">
+                            <div class="flow-top"><span class="flow-name">—</span><span class="flow-date">—</span></div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">APPROVAL</div>
+                        </li>
+                        <li class="flow-step" data-key="QMS CHECKING">
+                            <div class="flow-top"><span class="flow-name">—</span><span class="flow-date">—</span></div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">QMS CHECKING</div>
+                        </li>
+                        <li class="flow-step" data-key="ASSIGNEE PENDING">
+                            <div class="flow-top"><span class="flow-name">—</span><span class="flow-date">—</span></div>
+                            <div class="flow-node" aria-hidden="true"></div>
+                            <div class="flow-label">ASSIGNEE PENDING</div>
+                        </li>
+                    </ol>
+                </fieldset>
+
                 <!-- CATEGORY -->
                 <fieldset class="category">
                     <legend>CATEGORY</legend>

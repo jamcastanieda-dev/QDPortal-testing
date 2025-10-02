@@ -64,7 +64,7 @@ try {
   }
 
   // 2) History entry
-  $activity = 'The valid reply by Assignee was approved by QA/QMS';
+  $activity = 'The valid reply by Assignee was approved by QMS';
   $historySql = 'INSERT INTO rcpa_request_history (rcpa_no, name, date_time, activity)
                  VALUES (?, ?, CURRENT_TIMESTAMP, ?)';
   $h = $conn->prepare($historySql);

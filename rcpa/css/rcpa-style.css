@@ -2231,3 +2231,71 @@ fieldset.reject-remarks {
   color: red;
   font-weight: bold;
 }
+
+
+  /* === Status Flow (compact + aligned) =================================== */
+#rcpa-status-flow .rcpa-flow{
+--progress:0%;
+--node:26px;           /* circle size */
+--rail-h:3px;          /* rail thickness */
+--rail-y:56px;         /* vertical line where rail passes */
+--label-gap:45px;      /* gap from bottom of node to label */
+--label-minlines:2;    /* reserve height for up to N lines */
+position:relative;
+display:flex;
+justify-content:space-between;
+list-style:none;
+padding:0;
+margin:.25rem 0 0;
+}
+
+/* Rail (gray base + green progress) */
+#rcpa-status-flow .rcpa-flow::before,
+#rcpa-status-flow .rcpa-flow::after{
+content:""; position:absolute; left:0; right:0;
+top:var(--rail-y); height:var(--rail-h);
+}
+#rcpa-status-flow .rcpa-flow::before{ background:#e5ecef; z-index:0; }
+#rcpa-status-flow .rcpa-flow::after { width:var(--progress); background:#58d26a; z-index:2; transition:width .25s ease; }
+
+/* One step */
+#rcpa-status-flow .flow-step{ flex:1 1 0; position:relative; text-align:center; }
+
+/* Top text (name/date) above the rail */
+#rcpa-status-flow .flow-top{
+color:#7f8b96; font-size:.80rem;
+margin-bottom: calc(var(--rail-y) - var(--node)/2 - 8px);
+}
+#rcpa-status-flow .flow-top .flow-date{ display:block; font-size:.74rem; opacity:.85; }
+
+/* Node centered on the rail */
+#rcpa-status-flow .flow-node{
+position:absolute; left:50%;
+top:calc(var(--rail-y) - var(--node)/2); transform:translateX(-50%);
+width:var(--node); height:var(--node); border-radius:50%;
+background:#fff; border:3px solid #e5ecef;
+box-shadow:inset 0 0 0 4px rgba(255,255,255,.65);
+z-index:1;
+}
+#rcpa-status-flow .flow-step.done .flow-node{ background:#58d26a; border-color:#58d26a; box-shadow:inset 0 0 0 4px rgba(255,255,255,.7); }
+#rcpa-status-flow .flow-step.next .flow-node{ background:#fff; border-color:#e5ecef; }
+
+/* Label below the node: consistent gap + min-height so rows align */
+#rcpa-status-flow .flow-label{
+display:block;
+margin-top: calc(var(--node)/2 + var(--label-gap));
+font-weight:700; font-size:.78rem; color:#22c55e;
+line-height:1.15; word-break:break-word; hyphens:auto;
+min-height: calc(var(--label-minlines) * 1.15em); /* keeps baselines aligned */
+/* optional: center multi-line labels more nicely in narrow widths */
+text-wrap: balance;
+}
+#rcpa-status-flow .flow-step.next .flow-label{ color:#aab7c1; }
+
+/* Small screens */
+@media (max-width:720px){
+#rcpa-status-flow .flow-top{ font-size:.85rem; }
+#rcpa-status-flow .flow-top .flow-date{ font-size:.80rem; }
+#rcpa-status-flow .flow-label{ font-size:.90rem; }
+}
+
