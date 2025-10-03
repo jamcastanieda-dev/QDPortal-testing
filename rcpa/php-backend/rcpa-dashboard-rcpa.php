@@ -149,6 +149,7 @@ $sql = "SELECT
           originator_department,
           assignee,
           section,
+          assignee_name,
           status,
           date_request,
           reply_received,
@@ -201,6 +202,7 @@ while ($r = $res->fetch_assoc()) {
     'originator_department'  => (string)($r['originator_department'] ?? ''),
     'assignee'               => (string)($r['assignee'] ?? ''),
     'section'                => (string)($r['section'] ?? ''),
+    'assignee_name'          => (string)($r['assignee_name'] ?? ''),  // <-- add this
     'status'                 => (string)($r['status'] ?? ''),
     'date_request'           => $r['date_request'] ? date('Y-m-d H:i:s', strtotime($r['date_request'])) : null,
 

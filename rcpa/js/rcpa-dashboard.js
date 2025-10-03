@@ -1196,9 +1196,19 @@
       (() => {
         const a = (r.assignee ?? '').trim();
         const s = (r.section ?? '').trim();
-        return s ? (a ? `${a} - ${s}` : s) : a;
+        const an = (r.assignee_name ?? '').trim(); // <-- new data from PHP
+
+        // base: "a - s", or just whichever exists
+        let main = s ? (a ? `${a} - ${s}` : s) : a;
+
+        // append " (assignee_name)" when present
+        if (an) {
+          main = main ? `${main} (${an})` : `(${an})`;
+        }
+        return main;
       })()
     )}</td>
+
 
     <td>${fmtDateTime(r.date_request)}</td>
     <td>${badgeForStatus(r.status)}</td>
@@ -1233,7 +1243,7 @@
           r.rcpa_type_label || r.rcpa_type,
           r.category || r.category_label,
           r.originator_name, r.originator_department,
-          r.assignee, r.section, r.status,
+          r.assignee, r.section, r.status, r.assignee_name,
           r.conformance, r.quarter,
           r.system_applicable_std_violated, r.standard_clause_number,
           r.remarks,

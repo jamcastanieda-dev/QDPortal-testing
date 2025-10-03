@@ -130,6 +130,7 @@
         .rcpa-table-list tbody tr:hover td {background: #f1f5f9;}
 
         .rcpa-table-list td:nth-child(2),
+        .rcpa-table-list th:nth-child(10),
         .rcpa-table-list td:nth-child(10),
         .rcpa-table-list td:nth-child(13) {text-align: center; /* id, no_days_reply, no_days_close */}
 
@@ -148,6 +149,8 @@
         /* .rcpa-table-list thead th:nth-child(3),
         .rcpa-table-list tbody td:nth-child(3){ min-width: 220px; white-space: nowrap; } */
 
+        .rcpa-table-list thead th:nth-child(8),
+        .rcpa-table-list tbody td:nth-child(8),
         .rcpa-table-list thead th:nth-child(5),
         .rcpa-table-list tbody td:nth-child(5),
         .rcpa-table-list thead th:nth-child(7),
