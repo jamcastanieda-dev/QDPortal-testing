@@ -205,7 +205,8 @@ $sql = "SELECT
             section,            -- include for UI gating
             project_name,
             wbs_number,
-            reply_due_date
+            reply_due_date,
+            assignee_name              -- 👈 add this
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
@@ -239,6 +240,7 @@ while ($r = $res->fetch_assoc()) {
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'reply_due_date'   => $r['reply_due_date'] ? date('Y-m-d', strtotime($r['reply_due_date'])) : null,
+        'assignee_name'    => (string)($r['assignee_name'] ?? ''),   // 👈 add this
     ];
 }
 $stmt->close();

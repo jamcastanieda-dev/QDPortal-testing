@@ -172,7 +172,8 @@ $sql = "SELECT
             section,
             project_name,
             wbs_number,
-            close_due_date
+            close_due_date,
+            assignee_name  -- This is already added
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
@@ -206,6 +207,7 @@ while ($r = $res->fetch_assoc()) {
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'close_due_date'   => $r['close_due_date'] ? date('Y-m-d', strtotime($r['close_due_date'])) : null, // NEW
+        'assignee_name'    => (string)($r['assignee_name'] ?? ''),   // 👈 add this
     ];
 }
 

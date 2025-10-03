@@ -89,6 +89,7 @@ $sql = "SELECT
           originator_name,
           assignee,
           section,                -- NEW
+          assignee_name,   
           close_due_date
         FROM rcpa_request
         $whereSql

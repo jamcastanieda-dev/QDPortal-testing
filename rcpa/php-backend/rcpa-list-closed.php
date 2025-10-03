@@ -235,7 +235,8 @@ $sql = "SELECT
             project_name,
             wbs_number,
             close_date,
-            hit_close
+            hit_close,
+            assignee_name              -- 👈 add this
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
@@ -270,6 +271,7 @@ while ($r = $res->fetch_assoc()) {
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'close_date'       => $r['close_date'] ? date('Y-m-d', strtotime($r['close_date'])) : null,
         'hit_close'        => (string)($r['hit_close'] ?? ''),
+        'assignee_name'    => (string)($r['assignee_name'] ?? ''),   // 👈 add this
     ];
 }
 $stmt->close();

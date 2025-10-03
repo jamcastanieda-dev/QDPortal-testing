@@ -200,7 +200,13 @@
           <td>${formatReplyDueCell(r.reply_due_date)}</td>
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
-          <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
+          <td>${(() => {
+          const left = r.section ? `${r.assignee} - ${r.section}` : (r.assignee || '');
+          const right = r.assignee_name ? ` (${r.assignee_name})` : '';
+          return escapeHtml(left + right);
+        })()
+        }</td>
+
           <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section)}</td>
           <td>
             <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
@@ -1425,20 +1431,20 @@
     document.head.appendChild(st);
   }
 
-  const PRE_STEPS = ['REQUESTED','APPROVAL','QMS CHECKING','ASSIGNEE PENDING'];
+  const PRE_STEPS = ['REQUESTED', 'APPROVAL', 'QMS CHECKING', 'ASSIGNEE PENDING'];
   const VALID_CHAIN = [
-    'VALID APPROVAL','VALIDATION REPLY','REPLY CHECKING - ORIGINATOR',
-    'FOR CLOSING','FOR CLOSING APPROVAL',
-    'EVIDENCE CHECKING','EVIDENCE CHECKING - ORIGINATOR',
-    'EVIDENCE APPROVAL','CLOSED (VALID)'
+    'VALID APPROVAL', 'VALIDATION REPLY', 'REPLY CHECKING - ORIGINATOR',
+    'FOR CLOSING', 'FOR CLOSING APPROVAL',
+    'EVIDENCE CHECKING', 'EVIDENCE CHECKING - ORIGINATOR',
+    'EVIDENCE APPROVAL', 'CLOSED (VALID)'
   ];
   const INVALID_CHAIN = [
-    'INVALID APPROVAL','INVALIDATION REPLY','INVALIDATION REPLY APPROVAL',
-    'INVALID APPROVAL - ORIGINATOR','CLOSED (INVALID)'
+    'INVALID APPROVAL', 'INVALIDATION REPLY', 'INVALIDATION REPLY APPROVAL',
+    'INVALID APPROVAL - ORIGINATOR', 'CLOSED (INVALID)'
   ];
 
-  function defaultActorFor(stepKey){
-    switch((stepKey||'').toUpperCase()){
+  function defaultActorFor(stepKey) {
+    switch ((stepKey || '').toUpperCase()) {
       case 'FOR CLOSING':
       case 'ASSIGNEE PENDING': return 'Assignee';
       case 'VALID APPROVAL':
@@ -1456,39 +1462,39 @@
       default: return '';
     }
   }
-  function nameToInitials(name){
-    const s = String(name||'').trim(); if(!s||s==='—') return s;
+  function nameToInitials(name) {
+    const s = String(name || '').trim(); if (!s || s === '—') return s;
     const parts = s.split(/[\s\-\/]+/).filter(Boolean);
     const letters = parts.map(p => (p.match(/\p{L}/u) || [''])[0].toUpperCase()).filter(Boolean);
     return letters.join('') || s.charAt(0).toUpperCase();
   }
-  function fmtDateOnly(s){
-    const m = String(s||'').match(/\d{4}-\d{2}-\d{2}/);
+  function fmtDateOnly(s) {
+    const m = String(s || '').match(/\d{4}-\d{2}-\d{2}/);
     if (m) return m[0];
-    const d = new Date(String(s||'').replace(' ','T'));
-    return isNaN(d) ? '' : d.toISOString().slice(0,10);
+    const d = new Date(String(s || '').replace(' ', 'T'));
+    return isNaN(d) ? '' : d.toISOString().slice(0, 10);
   }
-  function ensureFieldset(){ return document.getElementById('rcpa-status-flow') || null; }
-  function ensureSteps(fs, steps){
-    const ol = fs.querySelector('#rcpa-flow'); if(!ol) return;
+  function ensureFieldset() { return document.getElementById('rcpa-status-flow') || null; }
+  function ensureSteps(fs, steps) {
+    const ol = fs.querySelector('#rcpa-flow'); if (!ol) return;
     const have = new Set(Array.from(ol.querySelectorAll('.flow-step')).map(li => li.getAttribute('data-key') || ''));
-    steps.forEach(key=>{
-      if(have.has(key)) return;
+    steps.forEach(key => {
+      if (have.has(key)) return;
       const li = document.createElement('li');
-      li.className='flow-step'; li.setAttribute('data-key', key);
+      li.className = 'flow-step'; li.setAttribute('data-key', key);
       li.innerHTML = `
         <div class="flow-top"><span class="flow-name">—</span><span class="flow-date">—</span></div>
         <div class="flow-node" aria-hidden="true"></div>
         <div class="flow-label">${key}</div>`;
       ol.appendChild(li);
     });
-    Array.from(ol.querySelectorAll('.flow-step')).forEach(li=>{
+    Array.from(ol.querySelectorAll('.flow-step')).forEach(li => {
       const k = li.getAttribute('data-key') || li.querySelector('.flow-label')?.textContent?.trim().toUpperCase();
       if (!steps.includes(k)) li.remove();
     });
   }
-  function matches(text, tests){
-    const s = String(text||'');
+  function matches(text, tests) {
+    const s = String(text || '');
     return tests.every(t => t instanceof RegExp ? t.test(s) : (typeof t === 'function' ? t(s) : false));
   }
 
@@ -1508,13 +1514,13 @@
     INVALIDATION_REPLY_APPROVAL: /the\s+invalidation\s+reply\s+approval\s+by\s+qms\s+team\s+was\s+approved\s+by\s+qa\s+supervisor\/manager\.?/i,
     CLOSED_INVALID_BY_ORIG: /originator\s+approved\s+that\s+the\s+rcpa\s+is\s+closed\s*\(invalid\)\.?/i
   };
-  function stepTests(key){
+  function stepTests(key) {
     const validOrNot = (s) =>
       /the\s+assignee\s+confirmed\s+that\s+the\s+rcpa\s+is\s+valid\.?/i.test(s) ||
       /the\s+assignee\s+confirmed\s+that\s+the\s+rcpa\s+is\s+not\s+valid\.?/i.test(s);
-    switch(key){
+    switch (key) {
       case 'REQUESTED': return [/requested/i];
-      case 'APPROVAL': return [/approved/i, s=>!(/disapproved/i.test(s))];
+      case 'APPROVAL': return [/approved/i, s => !(/disapproved/i.test(s))];
       case 'QMS CHECKING': return [/(?:\bchecked\b|\bchecking\b)/i, /\bqms\b/i];
       case 'ASSIGNEE PENDING': return [validOrNot];
       // VALID
@@ -1537,11 +1543,11 @@
     return [];
   }
 
-  function pickBranch(rows){
-    const toTs = (s)=>{ const d=new Date(String(s||'').replace(' ','T')); return isNaN(d)?0:d.getTime(); };
-    let latestValid=null, latestInvalid=null;
-    rows.forEach(r=>{
-      const a = String(r?.activity||'');
+  function pickBranch(rows) {
+    const toTs = (s) => { const d = new Date(String(s || '').replace(' ', 'T')); return isNaN(d) ? 0 : d.getTime(); };
+    let latestValid = null, latestInvalid = null;
+    rows.forEach(r => {
+      const a = String(r?.activity || '');
       if (/the\s+assignee\s+confirmed\s+that\s+the\s+rcpa\s+is\s+valid\.?/i.test(a)) {
         if (!latestValid || toTs(r.date_time) > toTs(latestValid.date_time)) latestValid = r;
       }
@@ -1555,21 +1561,21 @@
     return null;
   }
 
-  function resetStatusFlow(){
-    const fs = ensureFieldset(); if(!fs) return;
-    fs.querySelectorAll('.flow-step').forEach(li=>{
-      li.classList.remove('done','next');
-      li.querySelector('.flow-name').textContent='—';
-      li.querySelector('.flow-date').textContent='—';
+  function resetStatusFlow() {
+    const fs = ensureFieldset(); if (!fs) return;
+    fs.querySelectorAll('.flow-step').forEach(li => {
+      li.classList.remove('done', 'next');
+      li.querySelector('.flow-name').textContent = '—';
+      li.querySelector('.flow-date').textContent = '—';
       li.querySelector('.flow-name').removeAttribute('title');
       li.querySelector('.flow-name').removeAttribute('aria-label');
     });
-    fs.querySelector('.rcpa-flow')?.style.setProperty('--progress','0%');
+    fs.querySelector('.rcpa-flow')?.style.setProperty('--progress', '0%');
   }
 
-  async function renderStatusFlow(rcpaNo){
-    const fs = ensureFieldset(); if(!fs) return;
-    resetStatusFlow(); if(!rcpaNo) return;
+  async function renderStatusFlow(rcpaNo) {
+    const fs = ensureFieldset(); if (!fs) return;
+    resetStatusFlow(); if (!rcpaNo) return;
 
     const statusNow = String(document.getElementById('rcpa-view-status')?.value || '').trim().toUpperCase();
 
@@ -1577,9 +1583,9 @@
     let rows = [];
     try {
       const res = await fetch(`../php-backend/rcpa-history.php?id=${encodeURIComponent(rcpaNo)}`, {
-        credentials:'same-origin', headers:{'Accept':'application/json'}
+        credentials: 'same-origin', headers: { 'Accept': 'application/json' }
       });
-      const data = await res.json().catch(()=>({}));
+      const data = await res.json().catch(() => ({}));
       rows = Array.isArray(data?.rows) ? data.rows : [];
     } catch { rows = []; }
 
@@ -1594,28 +1600,28 @@
     ensureSteps(fs, STEPS);
 
     // Latest row per step
-    const toTs = (s)=>{ const d=new Date(String(s||'').replace(' ','T')); return isNaN(d)?0:d.getTime(); };
-    const stepData = Object.fromEntries(STEPS.map(k => [k, {name:'—', date:'', ts:0}]));
-    rows.forEach(r=>{
+    const toTs = (s) => { const d = new Date(String(s || '').replace(' ', 'T')); return isNaN(d) ? 0 : d.getTime(); };
+    const stepData = Object.fromEntries(STEPS.map(k => [k, { name: '—', date: '', ts: 0 }]));
+    rows.forEach(r => {
       const act = r?.activity || '';
-      STEPS.forEach(step=>{
-        const tests = stepTests(step); if(!tests.length) return;
+      STEPS.forEach(step => {
+        const tests = stepTests(step); if (!tests.length) return;
         if (matches(act, tests)) {
           const ts = toTs(r.date_time);
-          if (ts >= (stepData[step].ts || 0)) stepData[step] = { name:r?.name || '—', date:r?.date_time || '', ts };
+          if (ts >= (stepData[step].ts || 0)) stepData[step] = { name: r?.name || '—', date: r?.date_time || '', ts };
         }
       });
     });
 
     // Clamp future to defaults
     const cutoffIdx = STEPS.indexOf(statusNow);
-    if (cutoffIdx >= 0) STEPS.forEach((k,i)=>{ if(i>cutoffIdx) stepData[k]={name:'—',date:'',ts:0}; });
+    if (cutoffIdx >= 0) STEPS.forEach((k, i) => { if (i > cutoffIdx) stepData[k] = { name: '—', date: '', ts: 0 }; });
 
     // Paint DOM
     const items = fs.querySelectorAll('.flow-step');
-    items.forEach(li=>{
+    items.forEach(li => {
       const key = li.getAttribute('data-key') || li.querySelector('.flow-label')?.textContent?.trim().toUpperCase();
-      const info = stepData[key] || { name:'—', date:'' };
+      const info = stepData[key] || { name: '—', date: '' };
       const idx = STEPS.indexOf(key);
       const isFuture = (cutoffIdx >= 0 && idx > cutoffIdx);
       const isCurrent = (cutoffIdx >= 0 && idx === cutoffIdx);
@@ -1645,13 +1651,13 @@
 
     // done/next
     let doneCount = 0;
-    for (let i=0;i<STEPS.length;i++){
-      if (stepData[STEPS[i]]?.date) doneCount = i+1; else break;
+    for (let i = 0; i < STEPS.length; i++) {
+      if (stepData[STEPS[i]]?.date) doneCount = i + 1; else break;
     }
     if (cutoffIdx >= 0) doneCount = Math.min(doneCount, cutoffIdx);
 
-    items.forEach((li, idx)=>{
-      li.classList.remove('done','next');
+    items.forEach((li, idx) => {
+      li.classList.remove('done', 'next');
       if (idx < doneCount) li.classList.add('done');
       else if (idx === doneCount) li.classList.add('next');
     });
@@ -1660,19 +1666,19 @@
     const GAP_TARGET = 0.25, STOP_BEFORE_NEXT_PX = 8;
     const flowEl = fs.querySelector('.rcpa-flow');
     if (flowEl) {
-      requestAnimationFrame(()=>{
+      requestAnimationFrame(() => {
         let pct = 0;
         const nodes = Array.from(flowEl.querySelectorAll('.flow-node'));
         if (nodes.length >= 1 && doneCount > 0) {
-          const centers = nodes.map(n=>{ const r=n.getBoundingClientRect(); return r.left + r.width/2; });
+          const centers = nodes.map(n => { const r = n.getBoundingClientRect(); return r.left + r.width / 2; });
           const rail = flowEl.getBoundingClientRect();
           const left0 = rail.left;
-          const endCenter = centers[centers.length-1];
-          const lastIdx = Math.min(doneCount-1, centers.length-1);
+          const endCenter = centers[centers.length - 1];
+          const lastIdx = Math.min(doneCount - 1, centers.length - 1);
           const lastCenter = centers[lastIdx];
           let targetX = lastCenter;
-          if (lastIdx < centers.length-1) {
-            const nextCenter = centers[lastIdx+1];
+          if (lastIdx < centers.length - 1) {
+            const nextCenter = centers[lastIdx + 1];
             targetX = lastCenter + (nextCenter - lastCenter) * GAP_TARGET;
             targetX = Math.min(targetX, nextCenter - STOP_BEFORE_NEXT_PX);
           }
@@ -1685,7 +1691,7 @@
 
   if (viewModal) {
     viewModal.__renderStatusFlow = renderStatusFlow;
-    viewModal.__clearStatusFlow  = resetStatusFlow;
+    viewModal.__clearStatusFlow = resetStatusFlow;
   }
 })();
 

@@ -7,21 +7,21 @@
     return s === '1' || s === 'true' || s === 'yes' || s === 'on';
   };
 
-  const IS_APPROVER   = toBoolFlag(window.RCPA_IS_APPROVER);
-  const CURRENT_DEPT  = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
-  const CURRENT_SECT  = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
-  const CURRENT_ROLE  = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 manager support
+  const IS_APPROVER = toBoolFlag(window.RCPA_IS_APPROVER);
+  const CURRENT_DEPT = (window.RCPA_DEPARTMENT || '').toString().trim().toLowerCase();
+  const CURRENT_SECT = (window.RCPA_SECTION || '').toString().trim().toLowerCase();
+  const CURRENT_ROLE = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 manager support
 
-  const tbody    = document.querySelector('#rcpa-table tbody');
-  const totalEl  = document.getElementById('rcpa-total');
+  const tbody = document.querySelector('#rcpa-table tbody');
+  const totalEl = document.getElementById('rcpa-total');
   const pageInfo = document.getElementById('rcpa-page-info');
-  const prevBtn  = document.getElementById('rcpa-prev');
-  const nextBtn  = document.getElementById('rcpa-next');
-  const fType    = document.getElementById('rcpa-filter-type');
+  const prevBtn = document.getElementById('rcpa-prev');
+  const nextBtn = document.getElementById('rcpa-next');
+  const fType = document.getElementById('rcpa-filter-type');
 
   // Floating action container elements
   const actionContainer = document.getElementById('action-container');
-  const viewBtn   = document.getElementById('view-button');
+  const viewBtn = document.getElementById('view-button');
   const acceptBtn = document.getElementById('accept-button');
   const rejectBtn = document.getElementById('reject-button');
 
@@ -185,7 +185,12 @@
           <td>${formatReplyDueCell(r.reply_due_date)}</td>
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
-          <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
+          <td>${(() => {
+          const left = r.section ? `${r.assignee} - ${r.section}` : (r.assignee || '');
+          const right = r.assignee_name ? ` (${r.assignee_name})` : '';
+          return escapeHtml(left + right);
+        })()
+        }</td>
           <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section)}</td>
           <td>
             <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"

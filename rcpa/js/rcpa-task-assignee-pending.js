@@ -140,7 +140,7 @@
     if (/^0{4}-0{2}-0{2}/.test(str)) return '';
     const d = new Date(str.replace(' ', 'T'));
     if (isNaN(d)) return str;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[d.getMonth()];
     const day = String(d.getDate()).padStart(2, '0');
     const year = d.getFullYear();
@@ -152,7 +152,7 @@
   }
 
   function formatYmdPretty(ymd) {
-    const mnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mnames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const m = parseInt(ymd.slice(5, 7), 10) - 1;
     const d = parseInt(ymd.slice(8, 10), 10);
     const y = parseInt(ymd.slice(0, 4), 10);
@@ -214,10 +214,10 @@
 
     // ✅ NEW: ensure globals are populated BEFORE rendering rows
     if (data && data.current) {
-      if (!window.RCPA_EMPLOYEE_NAME && data.current.name)        window.RCPA_EMPLOYEE_NAME = data.current.name;
-      if (!window.RCPA_ROLE && data.current.role)                 window.RCPA_ROLE = data.current.role;
-      if (!window.RCPA_DEPARTMENT && data.current.department)     window.RCPA_DEPARTMENT = data.current.department;
-      if (!window.RCPA_SECTION && data.current.section)           window.RCPA_SECTION = data.current.section;
+      if (!window.RCPA_EMPLOYEE_NAME && data.current.name) window.RCPA_EMPLOYEE_NAME = data.current.name;
+      if (!window.RCPA_ROLE && data.current.role) window.RCPA_ROLE = data.current.role;
+      if (!window.RCPA_DEPARTMENT && data.current.department) window.RCPA_DEPARTMENT = data.current.department;
+      if (!window.RCPA_SECTION && data.current.section) window.RCPA_SECTION = data.current.section;
     }
 
     const rows = Array.isArray(data.rows) ? data.rows : [];
@@ -234,7 +234,13 @@
           <td>${formatReplyDueCell(r.reply_due_date)}</td>
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
-          <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
+          <td>${(() => {
+          const left = r.section ? `${r.assignee} - ${r.section}` : (r.assignee || '');
+          const right = r.assignee_name ? ` (${r.assignee_name})` : '';
+          return escapeHtml(left + right);
+        })()
+        }</td>
+
           <td>${actionButtonHtml(r.id ?? '', r.assignee, r.section, r.assignee_name)}</td>
           <td>
             <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
@@ -357,7 +363,7 @@
       hideActions();
     }
   });
-  ['scroll','resize'].forEach(evt => window.addEventListener(evt, () => {
+  ['scroll', 'resize'].forEach(evt => window.addEventListener(evt, () => {
     if (currentTarget) positionActionContainer(currentTarget);
   }, { passive: true }));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideActions(); });
@@ -372,12 +378,12 @@
 
   // SSE
   function startSse(restart = false) {
-    if (restart && es) { try { es.close(); } catch {} }
+    if (restart && es) { try { es.close(); } catch { } }
     const qs = new URLSearchParams();
     if (fType?.value) qs.set('type', fType.value);
     es = new EventSource(`../php-backend/rcpa-assignee-pending-sse.php?${qs.toString()}`);
     es.addEventListener('rcpa', () => { load(); });
-    es.onerror = () => {};
+    es.onerror = () => { };
   }
 
   load();
@@ -414,7 +420,7 @@
   }
 
   const selectEl = document.getElementById('rcpa-assign-select');
-  const helpEl   = document.getElementById('rcpa-assign-help');
+  const helpEl = document.getElementById('rcpa-assign-help');
   const submitEl = document.getElementById('rcpa-assign-submit');
 
   let currentId = null;

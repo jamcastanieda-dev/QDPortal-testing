@@ -184,23 +184,30 @@
       tbody.innerHTML = `<tr><td colspan="10" class="rcpa-empty">No records.</td></tr>`;
     } else {
       tbody.innerHTML = rows.map(r => `
-        <tr>
-          <td>${r.id ?? ''}</td>
-          <td>${labelForType(r.rcpa_type)}</td>
-          <td>${badgeForCategory(r.category || r.cetegory)}</td>
-          <td>${fmtDate(r.date_request)}</td>
-          <td>${formatCloseDueCell(r.close_due_date)}</td>
-          <td>${badgeForStatus(r.status)}</td>
-          <td>${escapeHtml(r.originator_name)}</td>
-          <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
-          <td>${actionButtonHtml(r.id ?? '')}</td>
-          <td>
-            <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
-              data-id="${r.id ?? ''}" role="button" tabindex="0"
-              title="View history"></i>
-          </td>
-        </tr>
-      `).join('');
+  <tr>
+    <td>${r.id ?? ''}</td>
+    <td>${labelForType(r.rcpa_type)}</td>
+    <td>${badgeForCategory(r.category || r.cetegory)}</td>
+    <td>${fmtDate(r.date_request)}</td>
+    <td>${formatCloseDueCell(r.close_due_date)}</td>
+    <td>${badgeForStatus(r.status)}</td>
+    <td>${escapeHtml(r.originator_name)}</td>
+    <td>${escapeHtml(
+        (() => {
+          const assignee = r?.section ? `${r.assignee} - ${r.section}` : r?.assignee;
+          const assigneeName = r?.assignee_name ? ` (${r.assignee_name})` : '';  // Display assignee_name
+          return assignee + assigneeName;
+        })()
+      )}</td>
+    <td>${actionButtonHtml(r.id ?? '')}</td>
+    <td>
+      <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"
+         data-id="${r.id ?? ''}" role="button" tabindex="0"
+         title="View history"></i>
+    </td>
+  </tr>
+`).join('');
+
     }
 
     const total = Number(data.total || 0);

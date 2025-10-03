@@ -195,7 +195,13 @@
           <td>${formatCloseDueCell(r.close_due_date)}</td>
           <td>${badgeForStatus(r.status)}</td>
           <td>${escapeHtml(r.originator_name)}</td>
-          <td>${escapeHtml(r.section ? `${r.assignee} - ${r.section}` : (r.assignee || ''))}</td>
+          <td>${(() => {
+          const left = r.section ? `${r.assignee} - ${r.section}` : (r.assignee || '');
+          const right = r.assignee_name ? ` (${r.assignee_name})` : '';
+          return escapeHtml(left + right);
+        })()
+        }</td>
+
           <td>${actionButtonHtml(r.id ?? '')}</td>
           <td>
             <i class="fa-solid fa-clock-rotate-left icon-rcpa-history"

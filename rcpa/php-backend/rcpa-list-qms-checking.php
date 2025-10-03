@@ -158,7 +158,8 @@ $sql = "SELECT
             assignee,
             section,          -- 👈 add this
             project_name,
-            wbs_number
+            wbs_number,
+            assignee_name  -- Add assignee_name
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
@@ -192,6 +193,7 @@ while ($r = $res->fetch_assoc()) {
         'section'          => (string)($r['section'] ?? ''),   // 👈 add this
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
+        'assignee_name'    => (string)($r['assignee_name'] ?? ''),  // Add assignee_name here
     ];
 }
 $stmt->close();
