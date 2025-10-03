@@ -390,11 +390,7 @@
   startSse();
 })();
 
-
-
-// ASSIGN MODAL (stand-alone IIFE)
-// ASSIGN MODAL (stand-alone IIFE with dropdown + SweetAlert confirm + save)
-// ASSIGN MODAL (stand-alone IIFE with dropdown + SweetAlert confirm + save)
+// ASSIGN MODAL (stand-alone IIFE with dropdown + SweetAlert confirm + save + loading)
 (function () {
   // Use existing modal; if missing, auto-create it (no RCPA No. line)
   let modal = document.getElementById('rcpa-assign-modal');
@@ -425,6 +421,20 @@
 
   let currentId = null;
 
+  // ---- SweetAlert helpers ----
+  const showLoading = (title = 'Loading…') => {
+    if (window.Swal?.fire) {
+      window.Swal.fire({
+        title,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => window.Swal.showLoading()
+      });
+    }
+  };
+  const closeLoading = () => { if (window.Swal?.close) window.Swal.close(); };
+
   function openModal(id) {
     currentId = id;
 
@@ -436,7 +446,13 @@
     }
     submitEl.disabled = true;
 
+    // open modal first (so users see context), then show loading
+    modal.removeAttribute('hidden');
+    requestAnimationFrame(() => modal.classList.add('show'));
+    document.body.style.overflow = 'hidden';
+
     // Load options filtered by the RCPA row's department/section (server enforces perms)
+    showLoading('Loading employees…');
     fetch(`../php-backend/rcpa-assign-options.php?id=${encodeURIComponent(id)}`, { credentials: 'same-origin' })
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then(data => {
@@ -467,12 +483,11 @@
       .catch(err => {
         console.error(err);
         if (helpEl) helpEl.textContent = 'Failed to load employees.';
+        if (window.Swal?.fire) window.Swal.fire('Error', 'Failed to load employees.', 'error');
+      })
+      .finally(() => {
+        closeLoading();
       });
-
-    // open modal
-    modal.removeAttribute('hidden');
-    requestAnimationFrame(() => modal.classList.add('show'));
-    document.body.style.overflow = 'hidden';
   }
 
   function closeModal() {
@@ -515,9 +530,10 @@
 
     if (!(await confirmAssign())) return;
 
-    // lock UI during save
+    // lock UI during save and show SweetAlert loading
     submitEl.disabled = true;
     selectEl.disabled = true;
+    showLoading('Assigning…');
 
     try {
       const res = await fetch('../php-backend/rcpa-assign-set.php', {
@@ -530,17 +546,20 @@
 
       if (!res.ok || json?.ok !== true) {
         const msg = json?.error || `Failed to assign (HTTP ${res.status}).`;
+        closeLoading();
         if (window.Swal?.fire) window.Swal.fire('Error', msg, 'error'); else alert(msg);
         selectEl.disabled = false;
         submitEl.disabled = !selectEl.value;
         return;
       }
 
+      closeLoading();
       if (window.Swal?.fire) window.Swal.fire('Assigned', 'Assignee updated successfully.', 'success');
       closeModal();
       document.dispatchEvent(new CustomEvent('rcpa:refresh'));
     } catch (err) {
       console.error(err);
+      closeLoading();
       if (window.Swal?.fire) window.Swal.fire('Error', 'Network or server error.', 'error'); else alert('Network or server error.');
       selectEl.disabled = false;
       submitEl.disabled = !selectEl.value;
@@ -553,8 +572,6 @@
     if (action === 'assign' && id) openModal(id);
   });
 })();
-
-
 
 // view modal
 (function () {
