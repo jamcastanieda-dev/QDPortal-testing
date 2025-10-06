@@ -294,7 +294,7 @@ foreach ($rows as $r) {
   $badgeText = ($daysLeft === 0) ? 'Close due today' : ('Close due in ' . $label);
 
   // Preheader
-  $preheader = 'RCPA #'.(int)$id.' • '.$badgeText.' • Close due: '.$closeDueTxt;
+  $preheader = 'RCPA #'.(int)$id.' - '.$badgeText.' - Close due: '.$closeDueTxt;
 
   $htmlBody = '
 <!doctype html><html lang="en"><head><meta charset="utf-8"></head>

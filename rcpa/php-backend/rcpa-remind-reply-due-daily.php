@@ -282,7 +282,8 @@ foreach ($rows as $r) {
   $badgeText = ($daysLeft === 0) ? 'Due today' : ('Due in ' . $label);
 
   // Preheader
-  $preheader = 'RCPA #'.(int)$id.' • '.$badgeText.' • Due date: '.$replyDueTxt;
+  $preheader = 'RCPA #'.(int)$id.' - '.$badgeText.' - Due date: '.$replyDueTxt;
+
 
   $htmlBody = '
 <!doctype html><html lang="en"><head><meta charset="utf-8"></head>
