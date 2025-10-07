@@ -245,6 +245,67 @@ try {
 
   $historyStmt->close();
 
+  // --- Also add an approval history entry when the current user is a manager/supervisor ---
+  $userRole = strtolower(trim((string)($current_user['role'] ?? '')));
+
+  if ($userRole === '') {
+    // Try to resolve the role from DB using whatever identifier we have
+    $resolvedRole = null;
+
+    if (!empty($current_user['email'])) {
+      if ($stmtRole = $conn->prepare("SELECT role FROM system_users WHERE email = ? LIMIT 1")) {
+        $stmtRole->bind_param('s', $current_user['email']);
+        $stmtRole->execute();
+        $resRole = $stmtRole->get_result();
+        if ($resRole && ($r = $resRole->fetch_assoc())) {
+          $resolvedRole = $r['role'] ?? null;
+        }
+        $stmtRole->close();
+      }
+    } elseif (!empty($current_user['employee_id'])) {
+      if ($stmtRole = $conn->prepare("SELECT role FROM system_users WHERE employee_id = ? LIMIT 1")) {
+        $emp = (string)$current_user['employee_id']; // keep leading zeros
+        $stmtRole->bind_param('s', $emp);
+        $stmtRole->execute();
+        $resRole = $stmtRole->get_result();
+        if ($resRole && ($r = $resRole->fetch_assoc())) {
+          $resolvedRole = $r['role'] ?? null;
+        }
+        $stmtRole->close();
+      }
+    } else {
+      // Fallback to name
+      if ($stmtRole = $conn->prepare("SELECT role FROM system_users WHERE employee_name = ? LIMIT 1")) {
+        $name = (string)$user_name;
+        $stmtRole->bind_param('s', $name);
+        $stmtRole->execute();
+        $resRole = $stmtRole->get_result();
+        if ($resRole && ($r = $resRole->fetch_assoc())) {
+          $resolvedRole = $r['role'] ?? null;
+        }
+        $stmtRole->close();
+      }
+    }
+
+    if ($resolvedRole !== null) {
+      $userRole = strtolower(trim((string)$resolvedRole));
+    }
+  }
+
+  if (in_array($userRole, ['manager', 'supervisor'], true)) {
+    $historyStmt2 = $conn->prepare($historySql);
+    if (!$historyStmt2) {
+      throw new Exception('History (approval) insert prepare failed: ' . $conn->error);
+    }
+
+    $activityText2 = "RCPA has been approved";
+    $historyStmt2->bind_param('iss', $newId, $user_name, $activityText2);
+
+    if (!$historyStmt2->execute()) {
+      throw new Exception('History (approval) insert execute failed: ' . $historyStmt2->error);
+    }
+    $historyStmt2->close();
+  }
 
 
   echo json_encode(['ok' => true, 'id' => $newId]);
