@@ -34,16 +34,22 @@ $mysqli->set_charset('utf8mb4');
 $dept = '';
 $user_section = '';
 $user_role = '';
+$user_email = '';
 if ($user_name !== '') {
-  $sql = "SELECT department, section, role FROM system_users WHERE LOWER(TRIM(employee_name))=LOWER(TRIM(?)) LIMIT 1";
+  // Include the caller's email so we can CC them.
+  $sql = "SELECT department, section, role, TRIM(email)
+            FROM system_users
+           WHERE LOWER(TRIM(employee_name)) = LOWER(TRIM(?))
+           LIMIT 1";
   if ($st = $mysqli->prepare($sql)) {
     $st->bind_param('s', $user_name);
     $st->execute();
-    $st->bind_result($d, $s, $r);
+    $st->bind_result($d, $s, $r, $e);
     if ($st->fetch()) {
-      $dept = (string)$d;
+      $dept         = (string)$d;
       $user_section = (string)$s;
-      $user_role = (string)$r;
+      $user_role    = (string)$r;
+      $user_email   = (string)$e;
     }
     $st->close();
   }
@@ -96,11 +102,19 @@ if ($rcpa_sect !== '' && $norm($rcpa_sect) !== $norm($user_section)) {
 
 // Validate selected assignee belongs to same dept/section
 if ($rcpa_sect === '') {
-  $sqlChk = "SELECT 1 FROM system_users WHERE UPPER(TRIM(employee_name))=UPPER(TRIM(?)) AND UPPER(TRIM(department))=UPPER(TRIM(?)) AND (section IS NULL OR TRIM(section)='') LIMIT 1";
+  $sqlChk = "SELECT 1 FROM system_users
+              WHERE UPPER(TRIM(employee_name))=UPPER(TRIM(?))
+                AND UPPER(TRIM(department))=UPPER(TRIM(?))
+                AND (section IS NULL OR TRIM(section)='')
+              LIMIT 1";
   $st = $mysqli->prepare($sqlChk);
   $st->bind_param('ss', $assignee_name, $rcpa_dept);
 } else {
-  $sqlChk = "SELECT 1 FROM system_users WHERE UPPER(TRIM(employee_name))=UPPER(TRIM(?)) AND UPPER(TRIM(department))=UPPER(TRIM(?)) AND LOWER(TRIM(section))=LOWER(TRIM(?)) LIMIT 1";
+  $sqlChk = "SELECT 1 FROM system_users
+              WHERE UPPER(TRIM(employee_name))=UPPER(TRIM(?))
+                AND UPPER(TRIM(department))=UPPER(TRIM(?))
+                AND LOWER(TRIM(section))=LOWER(TRIM(?))
+              LIMIT 1";
   $st = $mysqli->prepare($sqlChk);
   $st->bind_param('sss', $assignee_name, $rcpa_dept, $rcpa_sect);
 }
@@ -165,54 +179,21 @@ try {
     }
   }
 
-  // 2) Build CC = every email in the same dept/section (assignee removed later)
-  $ccRaw = [];
-  if (!empty($assignee_dept)) {
-    if ($assignee_section === '') {
-      $sqlRec = "SELECT TRIM(email)
-                   FROM system_users
-                  WHERE email IS NOT NULL AND TRIM(email) <> ''
-                    AND UPPER(TRIM(department)) = UPPER(TRIM(?))
-                    AND (section IS NULL OR TRIM(section)='')";
-      $stR = $mysqli->prepare($sqlRec);
-      if ($stR) $stR->bind_param('s', $assignee_dept);
-    } else {
-      $sqlRec = "SELECT TRIM(email)
-                   FROM system_users
-                  WHERE email IS NOT NULL AND TRIM(email) <> ''
-                    AND UPPER(TRIM(department)) = UPPER(TRIM(?))
-                    AND LOWER(TRIM(section))    = LOWER(TRIM(?))";
-      $stR = $mysqli->prepare($sqlRec);
-      if ($stR) $stR->bind_param('ss', $assignee_dept, $assignee_section);
-    }
-    if (isset($stR) && $stR && $stR->execute()) {
-      $stR->bind_result($em);
-      while ($stR->fetch()) { $ccRaw[] = (string)$em; }
-      $stR->close();
-    }
-  }
-
-  // 3) Clean and split: To = assignee email; CC = others in dept/section (assignee removed)
-  $cleanList = function (array $arr): array {
-    $out = [];
-    foreach ($arr as $e) {
-      $e = strtolower(trim((string)$e));
-      if ($e === '' || $e === '-' || !filter_var($e, FILTER_VALIDATE_EMAIL)) continue;
-      $out[$e] = true;
-    }
-    return array_values(array_keys($out));
-  };
-
+  // 2) Build recipients
   $assignee_email = strtolower(trim((string)$assignee_email));
   $hasAssigneeTo  = filter_var($assignee_email, FILTER_VALIDATE_EMAIL);
 
-  // Remove assignee from CC list
-  $ccRecipients = $cleanList(array_filter($ccRaw, fn($e) => strtolower(trim((string)$e)) !== $assignee_email));
+  // CC only the current user (if they have a valid email and it's not the same as assignee)
+  $caller_email = strtolower(trim((string)$user_email));
+  $ccRecipients = [];
+  if (filter_var($caller_email, FILTER_VALIDATE_EMAIL) && $caller_email !== $assignee_email) {
+    $ccRecipients = [$caller_email];
+  }
 
   if ($hasAssigneeTo) {
     $toRecipients = [$assignee_email];
 
-    // 4) Compose message
+    // 3) Compose message
     $safeHeader = function (string $s): string { return preg_replace('/[\r\n]+/', ' ', $s); };
     $deptDisplay = trim($assignee_dept . ($assignee_section !== '' ? ' - ' . $assignee_section : ''));
     $portalUrl   = 'http://rti10517/qdportal/login.php'; // TODO: move to config/env
@@ -312,7 +293,7 @@ try {
       $portalUrl
     );
 
-    // SEND: To = assignee; CC = rest of dept/section
+    // SEND: To = assignee; CC = current user (only)
     sendEmailNotification($toRecipients, $subject, $htmlBody, $altBody, $ccRecipients);
   } else {
     // No valid assignee email; skip sending (or implement a fallback here)

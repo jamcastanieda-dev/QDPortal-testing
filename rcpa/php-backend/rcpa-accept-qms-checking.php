@@ -139,38 +139,69 @@ try {
     require_once __DIR__ . '/../../send-email.php';
 
     // ---- helper: fetch & clean emails for a dept[/section] ----
-    $getEmailsByDeptSection = function (mysqli $db, string $dept, ?string $section = null): array {
+    // Behavior:
+    // 1) Try to get only supervisors (case-insensitive).
+    // 2) If none found, fallback to all users in the dept/section EXCEPT role 'manager' (case-insensitive).
+    $getEmailsByDeptSection = function (mysqli $db, string $dept, ?string $section = null, bool $supervisorsOnly = false): array {
       $emails = [];
+      $dept = trim($dept);
+      $section = $section !== null ? trim($section) : null;
+      if ($dept === '') return $emails;
 
-      if ($section !== null && $section !== '') {
-        $sql = "SELECT TRIM(email) AS email
-                          FROM system_users
-                         WHERE TRIM(department) = ?
-                           AND TRIM(section)    = ?
-                           AND email IS NOT NULL
-                           AND TRIM(email) <> ''";
-        $stmt = $db->prepare($sql);
-        if ($stmt) $stmt->bind_param('ss', $dept, $section);
+      if ($supervisorsOnly) {
+        if ($section !== null && $section !== '') {
+          $sql = "SELECT TRIM(email) AS email
+                    FROM system_users
+                   WHERE TRIM(department) = ?
+                     AND TRIM(section)    = ?
+                     AND LOWER(TRIM(role)) = 'supervisor'
+                     AND email IS NOT NULL
+                     AND TRIM(email) <> ''";
+          $stmt = $db->prepare($sql);
+          if ($stmt) $stmt->bind_param('ss', $dept, $section);
+        } else {
+          $sql = "SELECT TRIM(email) AS email
+                    FROM system_users
+                   WHERE TRIM(department) = ?
+                     AND LOWER(TRIM(role)) = 'supervisor'
+                     AND email IS NOT NULL
+                     AND TRIM(email) <> ''";
+          $stmt = $db->prepare($sql);
+          if ($stmt) $stmt->bind_param('s', $dept);
+        }
       } else {
-        $sql = "SELECT TRIM(email) AS email
-                          FROM system_users
-                         WHERE TRIM(department) = ?
-                           AND email IS NOT NULL
-                           AND TRIM(email) <> ''";
-        $stmt = $db->prepare($sql);
-        if ($stmt) $stmt->bind_param('s', $dept);
+        if ($section !== null && $section !== '') {
+          $sql = "SELECT TRIM(email) AS email
+                    FROM system_users
+                   WHERE TRIM(department) = ?
+                     AND TRIM(section)    = ?
+                     AND LOWER(TRIM(role)) <> 'manager'
+                     AND email IS NOT NULL
+                     AND TRIM(email) <> ''";
+          $stmt = $db->prepare($sql);
+          if ($stmt) $stmt->bind_param('ss', $dept, $section);
+        } else {
+          $sql = "SELECT TRIM(email) AS email
+                    FROM system_users
+                   WHERE TRIM(department) = ?
+                     AND LOWER(TRIM(role)) <> 'manager'
+                     AND email IS NOT NULL
+                     AND TRIM(email) <> ''";
+          $stmt = $db->prepare($sql);
+          if ($stmt) $stmt->bind_param('s', $dept);
+        }
       }
 
       if (isset($stmt) && $stmt && $stmt->execute()) {
         $stmt->bind_result($email);
         while ($stmt->fetch()) {
           $e = trim((string)$email);
-          // drop placeholders & invalids
           if ($e === '' || $e === '-' || !filter_var($e, FILTER_VALIDATE_EMAIL)) continue;
           $emails[] = strtolower($e);
         }
         $stmt->close();
       }
+
       return array_values(array_unique($emails));
     };
 
@@ -188,13 +219,16 @@ try {
     $assigneeDept    = trim((string)$assigneeDept);
     $assigneeSection = trim((string)$assigneeSection);
 
-    // TO: all matching assignee emails (dept + section when present)
+    // TO: Prefer supervisors; if none, fallback to all (excluding 'manager')
     $toRecipients = [];
     if ($assigneeDept !== '') {
-      $toRecipients = $getEmailsByDeptSection($conn, $assigneeDept, $assigneeSection !== '' ? $assigneeSection : null);
+      $toRecipients = $getEmailsByDeptSection($conn, $assigneeDept, $assigneeSection !== '' ? $assigneeSection : null, true);
+      if (empty($toRecipients)) {
+        $toRecipients = $getEmailsByDeptSection($conn, $assigneeDept, $assigneeSection !== '' ? $assigneeSection : null, false);
+      }
     }
 
-    // CC: all QMS users (cleaned)
+    // CC: all QMS users (cleaned) — unchanged
     $ccRecipients = [];
     if ($qmsStmt = $conn->prepare("SELECT TRIM(email) AS email FROM system_users WHERE TRIM(department) = 'QMS' AND email IS NOT NULL AND TRIM(email) <> ''")) {
       if ($qmsStmt->execute()) {
@@ -336,7 +370,7 @@ try {
       $altBody .= "Assignee's supervisor/manager: please designate a person to respond to this RCPA.\n";
       $altBody .= "Open QD Portal: $portalUrl\n";
 
-      // Send (TO: Assignee dept/section; CC: QMS)
+      // Send (TO: Supervisors if any; else everyone except 'manager'); CC: QMS
       sendEmailNotification($toRecipients, $subject, $htmlBody, $altBody, $ccRecipients);
     }
   } catch (Throwable $mailErr) {

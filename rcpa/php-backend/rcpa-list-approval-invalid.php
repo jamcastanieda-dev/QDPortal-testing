@@ -43,9 +43,10 @@ $mysqli->set_charset('utf8mb4');
      - QMS               => see ALL (any role)
      - QA                => see ALL only if role is 'supervisor' or 'manager'
      - Manager (non see-all)
-                         => (assignee = user's dept) OR (originator_name = user)  [ignore section]
+                         => (assignee = user's dept) OR direct assignee_name match  [ignore section]
      - Others            => (assignee = user's dept AND (section IS NULL/'' OR section = user's section))
-                            OR originator_name = user
+                            OR direct assignee_name match
+   NOTE: Being the originator alone DOES NOT grant visibility here.
 --------------------------- */
 $dept = '';
 $sect = '';
@@ -134,19 +135,19 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
 if (!$see_all) {
     if ($dept !== '') {
         if ($isManager) {
-            // Manager: department-wide (ignore section) OR own originated rows
+            // Manager: department-wide (ignore section) OR direct assignee_name (no originator visibility)
             $where[]  = "(
                 assignee = ?
-                OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $dept;
             $params[] = $user_name;
             $types   .= 'ss';
         } else {
-            // Non-manager: dept + (section empty or matches) OR own originated rows
+            // Non-manager: dept + (section empty or matches) OR direct assignee_name (no originator visibility)
             $where[]  = "(
                 (assignee = ? AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
-                OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $dept;
             $params[] = $sect;
@@ -155,7 +156,8 @@ if (!$see_all) {
         }
     } else {
         if ($user_name !== '') {
-            $where[]  = "originator_name = ?";
+            // No department known: only allow items directly assigned to the user
+            $where[]  = "LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))";
             $params[] = $user_name;
             $types   .= 's';
         } else {
@@ -199,7 +201,7 @@ $sql = "SELECT
             project_name,
             wbs_number,
             reply_due_date,
-            assignee_name              -- 👈 add this
+            assignee_name
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
@@ -233,7 +235,7 @@ while ($r = $res->fetch_assoc()) {
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'reply_due_date'   => $r['reply_due_date'] ? date('Y-m-d', strtotime($r['reply_due_date'])) : null,
-        'assignee_name'    => (string)($r['assignee_name'] ?? ''),   // 👈 add this
+        'assignee_name'    => (string)($r['assignee_name'] ?? ''),
     ];
 }
 $stmt->close();

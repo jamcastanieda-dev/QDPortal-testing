@@ -1376,18 +1376,30 @@
         credentials: 'same-origin'
       });
       const data = await res.json();
+      const finalStatus = (data && data.status) || 'FOR CLOSING APPROVAL';
+const autoApproved = !!(data && data.autoApproved);
+
+const st = document.getElementById('rcpa-view-status');
+if (st) st.value = finalStatus;
+
+if (window.Swal) {
+  Swal.fire({
+    icon: 'success',
+    title: autoApproved ? 'Submitted & Auto-approved' : 'Submitted',
+    text: `Status set to "${finalStatus}".`,
+    timer: 1600,
+    showConfirmButton: false
+  });
+} else {
+  alert(
+    (autoApproved ? 'Submitted & Auto-approved. ' : 'Submitted. ') +
+    `Status set to "${finalStatus}".`
+  );
+}
+
       if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
 
-      // Reflect new status in the view modal
-      const st = document.getElementById('rcpa-view-status');
-      if (st) st.value = 'FOR CLOSING APPROVAL';
-
-      if (window.Swal) {
-        Swal.fire({ icon: 'success', title: 'Submitted', text: 'Status set to "FOR CLOSING APPROVAL".', timer: 1600, showConfirmButton: false });
-      } else {
-        alert('Submitted. Status set to "FOR CLOSING APPROVAL".');
-      }
-
+      
       closeAcceptModal();
       // optionally refresh parent table/list
       document.dispatchEvent(new CustomEvent('rcpa:refresh'));

@@ -1,4 +1,5 @@
 <?php
+// rcpa-list-assignee-pending.php
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 date_default_timezone_set('Asia/Manila');
@@ -128,16 +129,16 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
 if (!$see_all) {
     if ($dept !== '') {
         if ($isManager) {
+            // Managers: department gate OR direct assignee_name match (no originator visibility)
             $where[]  = "(
                 assignee = ?
-                OR originator_name = ?
                 OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $dept;
             $params[] = $user_name;
-            $params[] = $user_name;
-            $types   .= 'sss';
+            $types   .= 'ss';
         } else {
+            // Non-managers: department + (null/blank/equals section) OR direct assignee_name (no originator visibility)
             $where[]  = "(
                 (
                     assignee = ?
@@ -147,24 +148,19 @@ if (!$see_all) {
                         OR LOWER(TRIM(section)) = LOWER(TRIM(?))
                     )
                 )
-                OR originator_name = ?
                 OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $dept;
             $params[] = $user_section;
             $params[] = $user_name;
-            $params[] = $user_name;
-            $types   .= 'ssss';
+            $types   .= 'sss';
         }
     } else {
         if ($user_name !== '') {
-            $where[]  = "(
-                originator_name = ?
-                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
-            )";
+            // No department known: only allow items directly assigned to the user (no originator visibility)
+            $where[]  = "LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))";
             $params[] = $user_name;
-            $params[] = $user_name;
-            $types   .= 'ss';
+            $types   .= 's';
         } else {
             $where[] = "1=0";
         }

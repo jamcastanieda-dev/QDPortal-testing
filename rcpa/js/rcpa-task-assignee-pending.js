@@ -1,5 +1,4 @@
 // LIST TABLE
-
 (function () {
   // ------------ helpers for normalization -------------
   const norm = (s) => (s ?? '').toString().trim().toLowerCase();

@@ -181,7 +181,7 @@ try {
     // Commit DB work first
     $db->commit();
 
-    // ====================== EMAIL: To QMS, CC Assignee (clean + section-aware) =======================
+    // ====================== EMAIL =======================
     try {
         require_once __DIR__ . '/../../send-email.php';
 
@@ -196,20 +196,21 @@ try {
             return array_keys($out);
         };
 
-        // 1) Fetch assignee department/section for CC and display
-        $assigneeDept = ''; $assigneeSection = '';
-        if ($aSel = $db->prepare("SELECT assignee, section FROM rcpa_request WHERE id = ? LIMIT 1")) {
+        // 1) Fetch assignee department/section AND the assigned person's name
+        $assigneeDept = ''; $assigneeSection = ''; $assigneeName = '';
+        if ($aSel = $db->prepare("SELECT assignee, section, COALESCE(assignee_name, '') FROM rcpa_request WHERE id = ? LIMIT 1")) {
             $aSel->bind_param('i', $id);
             if ($aSel->execute()) {
-                $aSel->bind_result($assigneeDept, $assigneeSection);
+                $aSel->bind_result($assigneeDept, $assigneeSection, $assigneeName);
                 $aSel->fetch();
             }
             $aSel->close();
         }
-        $assigneeDept = trim((string)$assigneeDept);
+        $assigneeDept    = trim((string)$assigneeDept);
         $assigneeSection = trim((string)$assigneeSection);
+        $assigneeName    = trim((string)$assigneeName);
 
-        // 2) Build To: all QMS department users (cleaned)
+        // 2) Build To: all QMS department users
         $toRecipients = [];
         if ($qmsStmt = $db->prepare("SELECT TRIM(email) AS email FROM system_users WHERE TRIM(department) = 'QMS' AND email IS NOT NULL AND TRIM(email) <> ''")) {
             if ($qmsStmt->execute()) {
@@ -220,36 +221,112 @@ try {
         }
         $toRecipients = $cleanList($toRecipients);
 
-        // 3) Build CC: assignee users (respect section when present; cleaned)
-        $ccRecipients = [];
+        // 3) CC group A: ONLY supervisors in assignee dept/section (section-aware)
+        $ccSupers = [];
         if ($assigneeDept !== '') {
             if ($assigneeSection !== '') {
-                $ccSql = "SELECT TRIM(email) AS email
-                            FROM system_users
-                           WHERE TRIM(department) = ?
-                             AND TRIM(section)    = ?
-                             AND email IS NOT NULL
-                             AND TRIM(email) <> ''";
-                $ccStmt = $db->prepare($ccSql);
-                if ($ccStmt) $ccStmt->bind_param('ss', $assigneeDept, $assigneeSection);
+                $sqlSup = "SELECT TRIM(email)
+                             FROM system_users
+                            WHERE TRIM(department) = ?
+                              AND TRIM(section)    = ?
+                              AND LOWER(TRIM(role)) = 'supervisor'
+                              AND email IS NOT NULL
+                              AND TRIM(email) <> ''";
+                if ($stS = $db->prepare($sqlSup)) {
+                    $stS->bind_param('ss', $assigneeDept, $assigneeSection);
+                    if ($stS->execute()) {
+                        $stS->bind_result($em); while ($stS->fetch()) $ccSupers[] = $em;
+                    }
+                    $stS->close();
+                }
             } else {
-                $ccSql = "SELECT TRIM(email) AS email
-                            FROM system_users
-                           WHERE TRIM(department) = ?
-                             AND email IS NOT NULL
-                             AND TRIM(email) <> ''";
-                $ccStmt = $db->prepare($ccSql);
-                if ($ccStmt) $ccStmt->bind_param('s', $assigneeDept);
-            }
-            if (isset($ccStmt) && $ccStmt && $ccStmt->execute()) {
-                $ccStmt->bind_result($ccEmail);
-                while ($ccStmt->fetch()) { $ccRecipients[] = $ccEmail; }
-                $ccStmt->close();
+                $sqlSup = "SELECT TRIM(email)
+                             FROM system_users
+                            WHERE TRIM(department) = ?
+                              AND (section IS NULL OR TRIM(section) = '')
+                              AND LOWER(TRIM(role)) = 'supervisor'
+                              AND email IS NOT NULL
+                              AND TRIM(email) <> ''";
+                if ($stS = $db->prepare($sqlSup)) {
+                    $stS->bind_param('s', $assigneeDept);
+                    if ($stS->execute()) {
+                        $stS->bind_result($em); while ($stS->fetch()) $ccSupers[] = $em;
+                    }
+                    $stS->close();
+                }
             }
         }
-        $ccRecipients = $cleanList($ccRecipients);
 
-        // 4) Ensure no overlap between To and CC
+        // 4) CC group B: the specific assigned person (assignee_name), if found in system_users
+        $ccAssignee = [];
+        if ($assigneeName !== '' && $assigneeDept !== '') {
+            if ($assigneeSection !== '') {
+                $sqlAss = "SELECT TRIM(email)
+                             FROM system_users
+                            WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
+                              AND UPPER(TRIM(department))    = UPPER(TRIM(?))
+                              AND LOWER(TRIM(section))       = LOWER(TRIM(?))
+                              AND email IS NOT NULL
+                              AND TRIM(email) <> ''
+                            LIMIT 1";
+                if ($stA = $db->prepare($sqlAss)) {
+                    $stA->bind_param('sss', $assigneeName, $assigneeDept, $assigneeSection);
+                    if ($stA->execute()) { $stA->bind_result($aEmail); if ($stA->fetch()) $ccAssignee[] = $aEmail; }
+                    $stA->close();
+                }
+            } else {
+                $sqlAss = "SELECT TRIM(email)
+                             FROM system_users
+                            WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
+                              AND UPPER(TRIM(department))    = UPPER(TRIM(?))
+                              AND (section IS NULL OR TRIM(section) = '')
+                              AND email IS NOT NULL
+                              AND TRIM(email) <> ''
+                            LIMIT 1";
+                if ($stA = $db->prepare($sqlAss)) {
+                    $stA->bind_param('ss', $assigneeName, $assigneeDept);
+                    if ($stA->execute()) { $stA->bind_result($aEmail); if ($stA->fetch()) $ccAssignee[] = $aEmail; }
+                    $stA->close();
+                }
+            }
+        }
+
+        // 5) Merge CC lists initially (supervisors + assignee_name)
+        $ccList = array_merge($ccSupers, $ccAssignee);
+
+        // 6) FALLBACK: if NO supervisors found, CC everyone in dept/section EXCEPT role = 'manager'
+        if (empty($ccSupers) && $assigneeDept !== '') {
+            if ($assigneeSection !== '') {
+                $sqlNm = "SELECT TRIM(email)
+                           FROM system_users
+                          WHERE TRIM(department) = ?
+                            AND TRIM(section)    = ?
+                            AND LOWER(TRIM(role)) <> 'manager'
+                            AND email IS NOT NULL
+                            AND TRIM(email) <> ''";
+                if ($stNm = $db->prepare($sqlNm)) {
+                    $stNm->bind_param('ss', $assigneeDept, $assigneeSection);
+                    if ($stNm->execute()) { $stNm->bind_result($em); while ($stNm->fetch()) $ccList[] = $em; }
+                    $stNm->close();
+                }
+            } else {
+                $sqlNm = "SELECT TRIM(email)
+                           FROM system_users
+                          WHERE TRIM(department) = ?
+                            AND (section IS NULL OR TRIM(section) = '')
+                            AND LOWER(TRIM(role)) <> 'manager'
+                            AND email IS NOT NULL
+                            AND TRIM(email) <> ''";
+                if ($stNm = $db->prepare($sqlNm)) {
+                    $stNm->bind_param('s', $assigneeDept);
+                    if ($stNm->execute()) { $stNm->bind_result($em); while ($stNm->fetch()) $ccList[] = $em; }
+                    $stNm->close();
+                }
+            }
+        }
+
+        // 7) Clean and dedupe CC; avoid overlap with To
+        $ccRecipients = $cleanList($ccList);
         if (!empty($toRecipients)) {
             $ccRecipients = array_values(array_diff($ccRecipients, $toRecipients));
         }
@@ -258,7 +335,7 @@ try {
             // Display name: "Department - Section" (if section exists)
             $deptDisplay = $assigneeDept . ($assigneeSection !== '' ? ' - ' . $assigneeSection : '');
 
-            // Subject (ASCII hyphen to avoid encoding issues)
+            // Subject
             $subject = sprintf('RCPA #%d assigned to %s - status: %s', (int)$id, $deptDisplay, $newStatus);
 
             // Fixed portal link
@@ -270,7 +347,6 @@ try {
             $statusSafe    = htmlspecialchars($newStatus, ENT_QUOTES, 'UTF-8');
             $portalUrlSafe = htmlspecialchars($portalUrl, ENT_QUOTES, 'UTF-8');
 
-            // --- FIXES: strong preheader hiding + correct line-height ---
             $htmlBody = '
 <!doctype html>
 <html lang="en">
@@ -360,7 +436,7 @@ try {
             $altBody .= "Assignee: " . html_entity_decode($deptDispSafe, ENT_QUOTES, 'UTF-8') . "\n";
             $altBody .= "Open QD Portal: $portalUrl\n";
 
-            // Fire email: To = QMS (cleaned), CC = Assignee dept/section (cleaned)
+            // SEND: To = QMS; CC = supervisors + assignee (fallback: everyone except manager if no supervisors)
             sendEmailNotification($toRecipients, $subject, $htmlBody, $altBody, $ccRecipients);
         }
     } catch (Throwable $mailErr) {

@@ -45,13 +45,11 @@ $mysqli->set_charset('utf8mb4');
      - QMS  => can see ALL rows (any role)
      - QA   => can see ALL rows ONLY if role is 'supervisor' or 'manager'
      - MANAGER (when not see-all)
-             => can see rows where:
-                 * assignee = user's department  (ignore section)
-                 * OR originator_name = user's name
+             => (assignee = user's department) OR (assignee_name = user)
      - Others (when not see-all)
-             => can see rows where:
-                 * (assignee = user's department AND (section is NULL/'' OR section = user's section))
-                   OR originator_name = user's name
+             => ((assignee = user's department) AND (section is NULL/'' OR section = user's section))
+                OR (assignee_name = user)
+   NOTE: Being the originator alone DOES NOT grant visibility here.
 --------------------------- */
 $dept = '';
 $section = '';
@@ -102,7 +100,7 @@ if ($statusParamRaw !== '') {
     $up = strtoupper($statusParamRaw);
     if ($up === 'VALID' || $up === 'CLOSED (VALID)') {
         $statusNorm = 'CLOSED (VALID)';
-    } elseif ($up === 'INVALID' || $up === 'INVALID' || $up === 'CLOSED (INVALID)') {
+    } elseif ($up === 'INVALID' || $up === 'CLOSED (INVALID)') {
         $statusNorm = 'CLOSED (INVALID)';
     } elseif ($up === 'ALL') {
         $statusNorm = ''; // include both allowed statuses
@@ -152,26 +150,26 @@ if ($statusNorm !== '' && in_array($statusNorm, $allowed_statuses, true)) {
     }
 }
 
-/* Visibility restriction (role-aware):
+/* Visibility restriction (role-aware)
    - see_all (QMS, or QA supervisor/manager): no extra restriction
    - Else:
        * If department known:
             Manager:
-              (LOWER(TRIM(assignee)) = LOWER(TRIM(?))) OR originator_name = ?
+              (LOWER(TRIM(assignee)) = LOWER(TRIM(?))) OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             Non-manager:
               (
                 LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                AND (section IS NULL OR section = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
+                AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
               )
-              OR originator_name = ?
-       * If department unknown: only originator_name = user_name
+              OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
+       * If department unknown: only LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
 */
 if (!$see_all) {
     if ($dept !== '') {
         if ($isManager) {
             $where[]  = "(
                 LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $dept;
             $params[] = $user_name;
@@ -182,7 +180,7 @@ if (!$see_all) {
                   LOWER(TRIM(assignee)) = LOWER(TRIM(?))
                   AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?)))
                 )
-                OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $dept;
             $params[] = $section;
@@ -191,7 +189,7 @@ if (!$see_all) {
         }
     } else {
         if ($user_name !== '') {
-            $where[]  = "originator_name = ?";
+            $where[]  = "LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))";
             $params[] = $user_name;
             $types   .= 's';
         } else {
@@ -236,7 +234,7 @@ $sql = "SELECT
             wbs_number,
             close_date,
             hit_close,
-            assignee_name              -- 👈 add this
+            assignee_name
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
@@ -271,7 +269,7 @@ while ($r = $res->fetch_assoc()) {
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'close_date'       => $r['close_date'] ? date('Y-m-d', strtotime($r['close_date'])) : null,
         'hit_close'        => (string)($r['hit_close'] ?? ''),
-        'assignee_name'    => (string)($r['assignee_name'] ?? ''),   // 👈 add this
+        'assignee_name'    => (string)($r['assignee_name'] ?? ''),
     ];
 }
 $stmt->close();

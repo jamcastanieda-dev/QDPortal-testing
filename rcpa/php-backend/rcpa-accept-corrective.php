@@ -29,6 +29,9 @@ try {
   // === Inputs ===
   $rcpa_no = isset($_POST['rcpa_no']) ? (int)$_POST['rcpa_no'] : 0;
   $remarks = trim($_POST['corrective_action_remarks'] ?? '');
+  $autoApproved = false;
+$finalStatus  = 'FOR CLOSING APPROVAL';
+
 
   if ($rcpa_no <= 0 || $remarks === '') {
     http_response_code(422);
@@ -47,6 +50,56 @@ try {
     throw new RuntimeException('Database connection not found from ../../connection.php');
   }
   $mysqli->set_charset('utf8mb4');
+
+  // === Resolve role (from cookie or system_users) ===
+  // Prefer cookie-provided role if available; otherwise look up via your schema (employee_id/email/employee_name)
+  $user_role = strtolower(trim((string)($user['role'] ?? '')));
+  if ($user_role === '') {
+    $role = null;
+
+    // 1) Try employee_id (cookie may have employee_id or id)
+    $empId = null;
+    if (isset($user['employee_id']) && ctype_digit((string)$user['employee_id'])) {
+      $empId = (int)$user['employee_id'];
+    } elseif (isset($user['id']) && ctype_digit((string)$user['id'])) {
+      $empId = (int)$user['id'];
+    }
+    if ($empId !== null) {
+      $stmtR = $mysqli->prepare("SELECT role FROM system_users WHERE employee_id = ? LIMIT 1");
+      $stmtR->bind_param('i', $empId);
+      $stmtR->execute();
+      $stmtR->bind_result($role);
+      if ($stmtR->fetch()) {
+        $user_role = strtolower((string)$role);
+      }
+      $stmtR->close();
+    }
+
+    // 2) Fallback: email
+    if ($user_role === '' && !empty($user['email'])) {
+      $stmtR = $mysqli->prepare("SELECT role FROM system_users WHERE email = ? LIMIT 1");
+      $stmtR->bind_param('s', $user['email']);
+      $stmtR->execute();
+      $stmtR->bind_result($role);
+      if ($stmtR->fetch()) {
+        $user_role = strtolower((string)$role);
+      }
+      $stmtR->close();
+    }
+
+    // 3) Fallback: employee_name (NOT "name")
+    $nameCandidate = $user['employee_name'] ?? ($user['name'] ?? null);
+    if ($user_role === '' && !empty($nameCandidate)) {
+      $stmtR = $mysqli->prepare("SELECT role FROM system_users WHERE employee_name = ? LIMIT 1");
+      $stmtR->bind_param('s', $nameCandidate);
+      $stmtR->execute();
+      $stmtR->bind_result($role);
+      if ($stmtR->fetch()) {
+        $user_role = strtolower((string)$role);
+      }
+      $stmtR->close();
+    }
+  }
 
   // === Handle attachments ===
   $savedFiles = [];
@@ -134,10 +187,62 @@ try {
   $stmt3->execute();
   $stmt3->close();
 
+  // === AUTO-APPROVE WHEN ROLE IS MANAGER OR SUPERVISOR ===
+  if (in_array($user_role, ['manager', 'supervisor'], true)) {
+    // 3a) Read conformance for this request (and lock row) — mirror approval endpoint
+    $conf = null;
+    $sel = $mysqli->prepare("SELECT conformance FROM rcpa_request WHERE id = ? FOR UPDATE");
+    $sel->bind_param('i', $rcpa_no);
+    $sel->execute();
+    $sel->bind_result($conf);
+    if (!$sel->fetch()) {
+      $sel->close();
+      throw new RuntimeException('No matching rcpa_request row found during auto-approval');
+    }
+    $sel->close();
+
+    // 3b) Update status to EVIDENCE CHECKING
+    $newStatus = 'EVIDENCE CHECKING';
+    $upd = $mysqli->prepare("
+        UPDATE rcpa_request
+           SET status = ?
+         WHERE id = ?
+         LIMIT 1
+    ");
+    $upd->bind_param('si', $newStatus, $rcpa_no);
+    $upd->execute();
+    if ($upd->affected_rows < 1) {
+      $upd->close();
+      throw new RuntimeException('Auto-approval update failed: no row updated');
+    }
+    $upd->close();
+    $autoApproved = true;
+$finalStatus  = $newStatus; // 'EVIDENCE CHECKING'
+
+
+    // 3c) History entry mirroring rcpa-accept-approval-corrective.php
+    if ($mysqli->query("SHOW TABLES LIKE 'rcpa_request_history'")->num_rows > 0) {
+      $activity2 = 'The Assignee Supervisor/Manager approved the Assignee corrective action evidence approval';
+      $hist = $mysqli->prepare("
+        INSERT INTO rcpa_request_history (rcpa_no, name, activity)
+        VALUES (?, ?, ?)
+      ");
+      $hist->bind_param('sss', $rcpaNoStr, $user_name, $activity2);
+      $hist->execute();
+      $hist->close();
+    }
+  }
+
   $mysqli->commit();
   $inTxn = false;
 
-  echo json_encode(['success' => true]);
+  echo json_encode([
+  'success'      => true,
+  'status'       => $finalStatus,
+  'autoApproved' => $autoApproved
+]);
+
+  
 } catch (Throwable $e) {
   if ($mysqli && $inTxn) {
     $mysqli->rollback();

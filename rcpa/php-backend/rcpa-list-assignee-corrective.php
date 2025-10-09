@@ -39,10 +39,11 @@ $mysqli->set_charset('utf8mb4');
      - QMS                 => can see ALL rows (any role)
      - QA                  => can see ALL rows ONLY if role is 'supervisor' or 'manager'
      - MANAGER (non see-all)
-                           => department-wide (ignore section) OR own originated rows
+                           => department-wide (ignore section) OR direct assignee_name match
      - Others (non see-all)
                            => (assignee = user_dept AND (section IS NULL/'' OR section = user_section))
-                              OR originator_name = user_name
+                              OR direct assignee_name match
+   NOTE: Being the originator alone DOES NOT grant visibility here.
 --------------------------- */
 $user_dept = '';
 $user_sect = '';
@@ -64,10 +65,10 @@ if ($user_name !== '') {
         $stmt->close();
     }
 }
-$dept_norm = strtoupper(trim($user_dept));
-$role_norm = strtolower(trim($user_role));
+$dept_norm  = strtoupper(trim($user_dept));
+$role_norm  = strtolower(trim($user_role));
 
-$see_all   = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
+$see_all    = ($dept_norm === 'QMS') || ($dept_norm === 'QA' && in_array($role_norm, ['manager','supervisor'], true));
 $is_manager = ($role_norm === 'manager');
 
 /* ---------------------------
@@ -125,20 +126,20 @@ if ($status !== '' && in_array($status, $allowed_statuses, true)) {
 if (!$see_all) {
     if ($user_dept !== '') {
         if ($is_manager) {
-            // Managers: department-wide (ignore section) OR own originated rows
+            // Managers: department-wide (ignore section) OR direct assignee_name (no originator visibility)
             $where[]  = "(
                 assignee = ?
-                OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $user_dept;
             $params[] = $user_name;
             $types   .= 'ss';
         } else {
-            // Non-managers: dept + (section empty or matches) OR own originated rows
+            // Non-managers: dept + (section empty or matches) OR direct assignee_name (no originator visibility)
             $where[]  = "(
                 (assignee = ?
                   AND (section IS NULL OR TRIM(section) = '' OR LOWER(TRIM(section)) = LOWER(TRIM(?))))
-                OR originator_name = ?
+                OR LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))
             )";
             $params[] = $user_dept;
             $params[] = $user_sect;
@@ -147,7 +148,8 @@ if (!$see_all) {
         }
     } else {
         if ($user_name !== '') {
-            $where[]  = "originator_name = ?";
+            // No department known: only allow items directly assigned to the user
+            $where[]  = "LOWER(TRIM(assignee_name)) = LOWER(TRIM(?))";
             $params[] = $user_name;
             $types   .= 's';
         } else {
@@ -189,7 +191,7 @@ $sql = "SELECT
             project_name,
             wbs_number,
             close_due_date,
-            assignee_name              -- 👈 add this
+            assignee_name              -- included for client-side checks
         FROM rcpa_request
         WHERE $where_sql
         ORDER BY date_request DESC, id DESC
@@ -223,7 +225,7 @@ while ($r = $res->fetch_assoc()) {
         'project_name'     => (string)($r['project_name'] ?? ''),
         'wbs_number'       => (string)($r['wbs_number'] ?? ''),
         'close_due_date'   => $r['close_due_date'] ? date('Y-m-d', strtotime($r['close_due_date'])) : null,
-        'assignee_name'    => (string)($r['assignee_name'] ?? ''),   // 👈 add this
+        'assignee_name'    => (string)($r['assignee_name'] ?? ''),
     ];
 }
 $stmt->close();

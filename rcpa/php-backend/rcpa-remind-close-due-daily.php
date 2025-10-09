@@ -3,8 +3,12 @@
 // Runs daily and emails assignee groups when close_due_date is exactly
 // 4, 3, 2, 1 weeks, 2 days, 1 day away, or today (28, 21, 14, 7, 2, 1, 0 days).
 // Emails regardless of status EXCEPT when status is "CLOSED (VALID)" or "CLOSED (INVALID)".
-// NEW: Includes conformance details (Non-conformance / Potential Non-conformance)
-//      only for the statuses listed by the user (see $detailStatuses).
+// Includes conformance details (Non-conformance / Potential Non-conformance)
+//   only for the statuses listed by the user (see $detailStatuses).
+// RECIPIENTS:
+//   TO = supervisors in assignee dept/section + assignee_name (if present);
+//   if NO supervisors exist -> everyone in dept/section EXCEPT role 'manager' + assignee_name (if present).
+//   CC = QMS (deduped).
 
 declare(strict_types=1);
 date_default_timezone_set('Asia/Manila');
@@ -14,31 +18,50 @@ $db = (isset($mysqli) && $mysqli instanceof mysqli) ? $mysqli
    : ((isset($conn) && $conn instanceof mysqli) ? $conn : null);
 if (!$db) { echo "DB connection not found\n"; exit(1); }
 @$db->set_charset('utf8mb4');
+@$db->query("SET time_zone = '+08:00'"); // keep MySQL date math in sync
 
 require_once __DIR__ . '/../../send-email.php';
 
 $sent = 0; $skipped = 0;
 
 /* ---------------------------------------------------
+   Helpers
+--------------------------------------------------- */
+function h(?string $s): string {
+  return htmlspecialchars(trim((string)$s), ENT_QUOTES, 'UTF-8');
+}
+function fmtDate(?string $d): string {
+  if (!$d) return '';
+  $ts = strtotime($d);
+  return $ts ? date('F j, Y', $ts) : '';
+}
+function cleanEmails(array $arr): array {
+  $out = [];
+  foreach ($arr as $e) {
+    $e = strtolower(trim((string)$e));
+    if ($e === '' || $e === '-' || !filter_var($e, FILTER_VALIDATE_EMAIL)) continue;
+    $out[$e] = true;
+  }
+  return array_keys($out);
+}
+
+/* ---------------------------------------------------
    Load QMS CC list once (department = 'QMS')
 --------------------------------------------------- */
 $qmsEmails = [];
-if ($qs = $db->prepare("SELECT email FROM system_users WHERE department = ? AND email IS NOT NULL AND email <> ''")) {
-  $qms = 'QMS';
-  if ($qs->bind_param('s', $qms) && $qs->execute()) {
+if ($qs = $db->prepare("SELECT TRIM(email) FROM system_users WHERE TRIM(department) = 'QMS' AND email IS NOT NULL AND TRIM(email) <> ''")) {
+  if ($qs->execute()) {
     $qs->bind_result($em);
-    while ($qs->fetch()) {
-      $em = trim((string)$em);
-      if ($em !== '') $qmsEmails[] = $em;
-    }
+    while ($qs->fetch()) { $qmsEmails[] = $em; }
   }
   $qs->close();
 }
-$qmsEmails = array_values(array_unique(array_filter($qmsEmails)));
+$qmsEmails = cleanEmails($qmsEmails);
 
 /* ---------------------------------------------------
    Pull rows due at the specified offsets based on close_due_date.
    Join BOTH detail tables (left join). We'll decide which to display later.
+   (Also select r.assignee_name for recipient logic.)
 --------------------------------------------------- */
 $sql = "
   SELECT
@@ -47,6 +70,7 @@ $sql = "
       r.section,
       r.status,
       r.conformance,
+      r.assignee_name,
       r.close_due_date,
       DATEDIFF(r.close_due_date, CURDATE()) AS days_left,
 
@@ -84,7 +108,7 @@ if (!$st->execute()) { $e = $st->error; $st->close(); echo "Execute failed: $e\n
 /* BUFFER the whole result set before issuing other queries */
 $st->store_result();
 $st->bind_result(
-  $id, $dept, $section, $status, $conformance, $due, $days_left,
+  $id, $dept, $section, $status, $conformance, $assignee_name, $due, $days_left,
   $vn_root_cause, $vn_correction, $vn_correction_target_date, $vn_correction_date_completed,
   $vn_corrective, $vn_corrective_target_date, $vn_corrective_date_completed,
   $vp_root_cause, $vp_preventive_action, $vp_preventive_target_date, $vp_preventive_date_completed
@@ -96,6 +120,7 @@ while ($st->fetch()) {
     'section'   => (string)$section,
     'status'    => (string)$status,
     'conf'      => (string)$conformance,
+    'assignee_name' => (string)$assignee_name,
     'due'       => (string)$due,
     'days_left' => (int)$days_left,
 
@@ -117,18 +142,6 @@ $st->free_result();
 $st->close();
 
 /* ---------------------------------------------------
-   Helpers
---------------------------------------------------- */
-function h(?string $s): string {
-  return htmlspecialchars(trim((string)$s), ENT_QUOTES, 'UTF-8');
-}
-function fmtDate(?string $d): string {
-  if (!$d) return '';
-  $ts = strtotime($d);
-  return $ts ? date('F j, Y', $ts) : '';
-}
-
-/* ---------------------------------------------------
    Process each row (idempotent per day & offset)
 --------------------------------------------------- */
 $detailStatuses = [
@@ -148,6 +161,7 @@ foreach ($rows as $r) {
   $section   = trim($r['section']);
   $status    = trim($r['status']);
   $conf      = trim($r['conf']);
+  $assigneeName = trim($r['assignee_name'] ?? '');
   $due       = $r['due'];
   $daysLeft  = (int)$r['days_left'];
 
@@ -176,38 +190,131 @@ foreach ($rows as $r) {
   }
   if ($already) { $skipped++; continue; }
 
-  // Build recipients (assignee dept + optional section)
+  /* -------------------------------------------
+     Build recipients:
+     Primary plan:
+       TO = supervisors in assignee dept/section + the assignee_name (if present)
+     Fallback plan (if NO supervisors found):
+       TO = everyone in dept/section EXCEPT role 'manager' + the assignee_name (if present)
+     CC = QMS (deduped against TO)
+  ------------------------------------------- */
   $to = [];
+  $supervisorEmails = [];
+
+  // Fetch supervisors by dept/section
   if ($dept !== '') {
     if ($section !== '') {
-      $q = $db->prepare("SELECT email FROM system_users WHERE department=? AND section=? AND email IS NOT NULL AND email<>''");
+      $q = $db->prepare("
+        SELECT TRIM(email)
+          FROM system_users
+         WHERE TRIM(department) = ?
+           AND TRIM(section)    = ?
+           AND LOWER(TRIM(role)) = 'supervisor'
+           AND email IS NOT NULL
+           AND TRIM(email) <> ''
+      ");
       if ($q) {
         $q->bind_param('ss', $dept, $section);
-        if ($q->execute()) {
-          $q->bind_result($em);
-          while ($q->fetch()) {
-            $em = trim((string)$em);
-            if ($em !== '') $to[] = $em;
-          }
-        }
+        if ($q->execute()) { $q->bind_result($em); while ($q->fetch()) { $supervisorEmails[] = $em; } }
         $q->close();
       }
     } else {
-      $q = $db->prepare("SELECT email FROM system_users WHERE department=? AND email IS NOT NULL AND email<>''");
+      $q = $db->prepare("
+        SELECT TRIM(email)
+          FROM system_users
+         WHERE TRIM(department) = ?
+           AND (section IS NULL OR TRIM(section) = '')
+           AND LOWER(TRIM(role)) = 'supervisor'
+           AND email IS NOT NULL
+           AND TRIM(email) <> ''
+      ");
       if ($q) {
         $q->bind_param('s', $dept);
-        if ($q->execute()) {
-          $q->bind_result($em);
-          while ($q->fetch()) {
-            $em = trim((string)$em);
-            if ($em !== '') $to[] = $em;
-          }
-        }
+        if ($q->execute()) { $q->bind_result($em); while ($q->fetch()) { $supervisorEmails[] = $em; } }
         $q->close();
       }
     }
   }
-  $to = array_values(array_unique(array_filter($to)));
+
+  // Start TO with supervisors (may be empty)
+  $to = $supervisorEmails;
+
+  // Add the specific assignee_name (if present and matched in system_users)
+  $assigneeEmail = null;
+  if ($assigneeName !== '' && $dept !== '') {
+    if ($section !== '') {
+      $qa = $db->prepare("
+        SELECT TRIM(email)
+          FROM system_users
+         WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
+           AND UPPER(TRIM(department))    = UPPER(TRIM(?))
+           AND LOWER(TRIM(section))       = LOWER(TRIM(?))
+           AND email IS NOT NULL
+           AND TRIM(email) <> ''
+         LIMIT 1
+      ");
+      if ($qa) {
+        $qa->bind_param('sss', $assigneeName, $dept, $section);
+        if ($qa->execute()) { $qa->bind_result($aem); if ($qa->fetch()) $assigneeEmail = $aem; }
+        $qa->close();
+      }
+    } else {
+      $qa = $db->prepare("
+        SELECT TRIM(email)
+          FROM system_users
+         WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
+           AND UPPER(TRIM(department))    = UPPER(TRIM(?))
+           AND (section IS NULL OR TRIM(section) = '')
+           AND email IS NOT NULL
+           AND TRIM(email) <> ''
+         LIMIT 1
+      ");
+      if ($qa) {
+        $qa->bind_param('ss', $assigneeName, $dept);
+        if ($qa->execute()) { $qa->bind_result($aem); if ($qa->fetch()) $assigneeEmail = $aem; }
+        $qa->close();
+      }
+    }
+  }
+  if ($assigneeEmail) { $to[] = $assigneeEmail; }
+
+  // Fallback: if NO supervisors found, include everyone in dept/section EXCEPT 'manager'
+  if (empty($supervisorEmails) && $dept !== '') {
+    if ($section !== '') {
+      $qnm = $db->prepare("
+        SELECT TRIM(email)
+          FROM system_users
+         WHERE TRIM(department) = ?
+           AND TRIM(section)    = ?
+           AND LOWER(TRIM(role)) <> 'manager'
+           AND email IS NOT NULL
+           AND TRIM(email) <> ''
+      ");
+      if ($qnm) {
+        $qnm->bind_param('ss', $dept, $section);
+        if ($qnm->execute()) { $qnm->bind_result($em); while ($qnm->fetch()) { $to[] = $em; } }
+        $qnm->close();
+      }
+    } else {
+      $qnm = $db->prepare("
+        SELECT TRIM(email)
+          FROM system_users
+         WHERE TRIM(department) = ?
+           AND (section IS NULL OR TRIM(section) = '')
+           AND LOWER(TRIM(role)) <> 'manager'
+           AND email IS NOT NULL
+           AND TRIM(email) <> ''
+      ");
+      if ($qnm) {
+        $qnm->bind_param('s', $dept);
+        if ($qnm->execute()) { $qnm->bind_result($em); while ($qnm->fetch()) { $to[] = $em; } }
+        $qnm->close();
+      }
+    }
+  }
+
+  // Cleanup and validate recipient list
+  $to = cleanEmails($to);
   if (!$to) { $skipped++; continue; }
 
   // CC: all QMS, but avoid duplicates with "To"
@@ -274,7 +381,7 @@ foreach ($rows as $r) {
     }
   }
 
-  // Accent colors by urgency (badge only). Keep button in the same blue.
+  // Accent colors by urgency (badge only). Keep button blue.
   if ($daysLeft === 0) {
     $accent      = '#dc2626'; // red
     $accentLight = '#fee2e2';
@@ -367,7 +474,7 @@ foreach ($rows as $r) {
                 <tr>
                   <td>
                     <a href="'.$taskUrlSafe.'" target="_blank"
-                       style="background:'.$buttonColor.'; color:#ffffff; text-decoration:none; padding:12px 18px; border-radius:6px; font-size:14px; display:inline-block;">
+                       style="background:#2563eb; color:#ffffff; text-decoration:none; padding:12px 18px; border-radius:6px; font-size:14px; display:inline-block;">
                       Open QD Portal
                     </a>
                   </td>
@@ -384,8 +491,8 @@ foreach ($rows as $r) {
 
               <!-- Note -->
               <p style="margin:12px 0 0 0; font-size:12px; color:#6b7280;">
-                You are receiving this because you are part of the assignee group for the department/section above.
-                QMS is automatically CC\'d.
+                You are receiving this because you are the <strong>supervisor</strong> for the assignee department/section,
+                the <strong>assigned respondent</strong>, or a <strong>member</strong> of the assignee department/section (when no supervisor exists). QMS is automatically CC\'d.
               </p>
             </td>
           </tr>
