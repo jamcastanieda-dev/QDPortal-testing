@@ -8,6 +8,7 @@
 // RECIPIENTS:
 //   TO = supervisors in assignee dept/section + assignee_name (if present);
 //   if NO supervisors exist -> everyone in dept/section EXCEPT role 'manager' + assignee_name (if present).
+//   Additionally, include the dept/section manager in TO when due is TODAY or IN 1 DAY.
 //   CC = QMS (deduped).
 
 declare(strict_types=1);
@@ -196,6 +197,7 @@ foreach ($rows as $r) {
        TO = supervisors in assignee dept/section + the assignee_name (if present)
      Fallback plan (if NO supervisors found):
        TO = everyone in dept/section EXCEPT role 'manager' + the assignee_name (if present)
+     Additionally: include MANAGER(S) when due is today or in 1 day (<=1).
      CC = QMS (deduped against TO)
   ------------------------------------------- */
   $to = [];
@@ -277,6 +279,43 @@ foreach ($rows as $r) {
     }
   }
   if ($assigneeEmail) { $to[] = $assigneeEmail; }
+
+  // --- Managers: include ONLY when close due is today (0) or in 1 day (1)
+  if ($daysLeft <= 1 && $dept !== '') {
+    $managerEmails = [];
+    if ($section !== '') {
+      $qm = $db->prepare("
+        SELECT TRIM(email)
+          FROM system_users
+         WHERE TRIM(department) = ?
+           AND TRIM(section)    = ?
+           AND LOWER(TRIM(role)) = 'manager'
+           AND email IS NOT NULL
+           AND TRIM(email) <> ''
+      ");
+      if ($qm) {
+        $qm->bind_param('ss', $dept, $section);
+        if ($qm->execute()) { $qm->bind_result($em); while ($qm->fetch()) { $managerEmails[] = $em; } }
+        $qm->close();
+      }
+    } else {
+      $qm = $db->prepare("
+        SELECT TRIM(email)
+          FROM system_users
+         WHERE TRIM(department) = ?
+           AND (section IS NULL OR TRIM(section) = '')
+           AND LOWER(TRIM(role)) = 'manager'
+           AND email IS NOT NULL
+           AND TRIM(email) <> ''
+      ");
+      if ($qm) {
+        $qm->bind_param('s', $dept);
+        if ($qm->execute()) { $qm->bind_result($em); while ($qm->fetch()) { $managerEmails[] = $em; } }
+        $qm->close();
+      }
+    }
+    foreach ($managerEmails as $em) { $to[] = $em; } // deduped later
+  }
 
   // Fallback: if NO supervisors found, include everyone in dept/section EXCEPT 'manager'
   if (empty($supervisorEmails) && $dept !== '') {
@@ -403,6 +442,13 @@ foreach ($rows as $r) {
   // Preheader
   $preheader = 'RCPA #'.(int)$id.' - '.$badgeText.' - Close due: '.$closeDueTxt;
 
+  // Note text: include manager mention for urgent (<=1 day)
+  $noteHtml = ($daysLeft <= 1)
+    ? 'You are receiving this because you are the <strong>supervisor</strong> for the assignee department/section,
+                the <strong>assigned respondent</strong>, a <strong>member</strong> of the assignee department/section (when no supervisor exists), or the <strong>manager</strong> of the assignee department/section (urgent reminders). QMS is automatically CC\'d.'
+    : 'You are receiving this because you are the <strong>supervisor</strong> for the assignee department/section,
+                the <strong>assigned respondent</strong>, or a <strong>member</strong> of the assignee department/section (when no supervisor exists). QMS is automatically CC\'d.';
+
   $htmlBody = '
 <!doctype html><html lang="en"><head><meta charset="utf-8"></head>
 <body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial,Helvetica,sans-serif; color:#111827;">
@@ -491,8 +537,7 @@ foreach ($rows as $r) {
 
               <!-- Note -->
               <p style="margin:12px 0 0 0; font-size:12px; color:#6b7280;">
-                You are receiving this because you are the <strong>supervisor</strong> for the assignee department/section,
-                the <strong>assigned respondent</strong>, or a <strong>member</strong> of the assignee department/section (when no supervisor exists). QMS is automatically CC\'d.
+                '.$noteHtml.'
               </p>
             </td>
           </tr>
