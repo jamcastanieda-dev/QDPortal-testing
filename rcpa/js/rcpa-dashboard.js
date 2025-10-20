@@ -2619,30 +2619,13 @@
 
     /* --------------------- Data loading helpers --------------------- */
     async function loadDepartments() {
-      const res = await fetch(DEPT_API_URL, { credentials: 'same-origin' });
+      const res = await fetch(`${DEPT_API_URL}?year=${encodeURIComponent(YEAR)}`, { credentials: 'same-origin' });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Failed to load departments');
 
-      // Start with what backend returns
-      const raw = Array.isArray(data.departments) ? data.departments : [];
-
-      // Hide plain department if it has one or more sections
-      // Build set of departments that have at least one "Dept - Section" label
-      const deptsWithSections = new Set();
-      raw.forEach(lbl => {
-        const ix = lbl.indexOf(' - ');
-        if (ix > -1) deptsWithSections.add(lbl.slice(0, ix).trim());
-      });
-
-      // Keep: all "Dept - Section" labels; and only those plain "Dept" labels whose dept is NOT in deptsWithSections
-      gradeDepartments = raw.filter(lbl => {
-        const ix = lbl.indexOf(' - ');
-        if (ix === -1) {
-          const dept = lbl.trim();
-          return !deptsWithSections.has(dept);
-        }
-        return true;
-      });
+      // Backend already filters to only those with rcpa_request.
+      // Keep everything returned, including both "Dept" and "Dept - Section".
+      gradeDepartments = Array.isArray(data.departments) ? data.departments : [];
     }
 
     async function loadMetrics() {
@@ -2662,6 +2645,27 @@
         if (dept) names.add(dept);
       });
       return Array.from(names);
+    }
+
+    // NEW: helpers to aggregate “plain + sections” for the right-hand Total column
+    function sectionLabelsForDept(dept) {
+      return gradeDepartments.filter(lbl => lbl.startsWith(dept + ' - '));
+    }
+    function aggAtMonth(metrics, dept, m) {
+      const add = (r, acc) => {
+        if (!r) return;
+        acc.total       += r.total       || 0;
+        acc.reply_total += r.reply_total || 0;
+        acc.reply_hit   += r.reply_hit   || 0;
+        acc.close_total += r.close_total || 0;
+        acc.close_hit   += r.close_hit   || 0;
+      };
+      const acc = { total:0, reply_total:0, reply_hit:0, close_total:0, close_hit:0 };
+      // Plain (no-section only) — metrics[dept] is now no-section if you changed the PHP
+      add(metrics[dept]?.[m], acc);
+      // All sections
+      sectionLabelsForDept(dept).forEach(lbl => add(metrics[lbl]?.[m], acc));
+      return acc;
     }
 
     function addCellRef(m, metric, label, tdEl) { cellIndex.set(`${m}|${metric}|${label}`, tdEl); }
@@ -2845,31 +2849,35 @@
           setCellText(getCell(String(m), 'close_sl', label), slC, true);
         });
 
+        // RIGHTMOST "Total" column (month m): aggregate plain + sections per base dept
         const sumMetrics = ['total', 'reply_hit', 'reply_missed', 'reply_total', 'reply_fill', 'reply_sl', 'close_hit', 'close_missed', 'close_total', 'close_fill', 'close_sl'];
         sumMetrics.forEach(metricKey => {
-          let sum = 0, num = 0, den = 0, isPct = metricKey.endsWith('_fill') || metricKey.endsWith('_sl');
+          const isPct = metricKey.endsWith('_fill') || metricKey.endsWith('_sl');
+
           if (isPct) {
+            let num = 0, den = 0;
             if (metricKey === 'reply_fill') {
-              baseDeptNames.forEach(dept => { const r = (metrics[dept] && metrics[dept][m]) || { total: 0, reply_total: 0 }; num += r.reply_total; den += r.total; });
+              baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.reply_total; den += a.total; });
             } else if (metricKey === 'reply_sl') {
-              baseDeptNames.forEach(dept => { const r = (metrics[dept] && metrics[dept][m]) || { reply_total: 0, reply_hit: 0 }; num += r.reply_hit; den += r.reply_total; });
+              baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.reply_hit;   den += a.reply_total; });
             } else if (metricKey === 'close_fill') {
-              baseDeptNames.forEach(dept => { const r = (metrics[dept] && metrics[dept][m]) || { total: 0, close_total: 0 }; num += r.close_total; den += r.total; });
+              baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.close_total; den += a.total; });
             } else if (metricKey === 'close_sl') {
-              baseDeptNames.forEach(dept => { const r = (metrics[dept] && metrics[dept][m]) || { close_total: 0, close_hit: 0 }; num += r.close_hit; den += r.close_total; });
+              baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.close_hit;   den += a.close_total; });
             }
             const pct = percent(num, den);
             setCellText(tableEl.querySelector(`td.col-total[data-month="${m}"][data-metric="${metricKey}_sum"]`), pct, true);
           } else {
+            let sum = 0;
             baseDeptNames.forEach(dept => {
-              const r = (metrics[dept] && metrics[dept][m]) || { total: 0, reply_total: 0, reply_hit: 0, close_total: 0, close_hit: 0 };
-              if (metricKey === 'total') sum += r.total;
-              if (metricKey === 'reply_hit') sum += r.reply_hit;
-              if (metricKey === 'reply_missed') sum += Math.max(0, r.reply_total - r.reply_hit);
-              if (metricKey === 'reply_total') sum += r.reply_total;
-              if (metricKey === 'close_hit') sum += r.close_hit;
-              if (metricKey === 'close_missed') sum += Math.max(0, r.close_total - r.close_hit);
-              if (metricKey === 'close_total') sum += r.close_total;
+              const a = aggAtMonth(metrics, dept, m);
+              if (metricKey === 'total')        sum += a.total;
+              if (metricKey === 'reply_hit')    sum += a.reply_hit;
+              if (metricKey === 'reply_missed') sum += Math.max(0, a.reply_total - a.reply_hit);
+              if (metricKey === 'reply_total')  sum += a.reply_total;
+              if (metricKey === 'close_hit')    sum += a.close_hit;
+              if (metricKey === 'close_missed') sum += Math.max(0, a.close_total - a.close_hit);
+              if (metricKey === 'close_total')  sum += a.close_total;
             });
             setCellText(tableEl.querySelector(`td.col-total[data-month="${m}"][data-metric="${metricKey}_sum"]`), sum, false);
           }
@@ -2878,6 +2886,7 @@
 
       const monthsForYTD = Array.from({ length: (YEAR === now.getFullYear()) ? currentMonth : 12 }, (_, i) => i + 1);
 
+      // Per-column YTD cells (each label keeps its own scope; no change needed)
       labels.forEach(label => {
         let agg = { total: 0, reply_total: 0, reply_hit: 0, close_total: 0, close_hit: 0 };
         monthsForYTD.forEach(m => {
@@ -2902,23 +2911,45 @@
         setCellText(getCell('ytd', 'close_sl', label), percent(agg.close_hit, agg.close_total), true);
       });
 
+      // RIGHTMOST YTD "Total" column (aggregate plain + sections per base dept, across months)
       const ytdSum = (metricKey) => {
-        let num = 0, den = 0, sum = 0;
-        const baseDeptNames = getBaseDeptNames();
-        const monthsForYTD = Array.from({ length: (YEAR === now.getFullYear()) ? currentMonth : 12 }, (_, i) => i + 1);
+        const depts = getBaseDeptNames();
 
-        if (metricKey === 'total') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].total : 0)));
-        if (metricKey === 'reply_hit') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].reply_hit : 0)));
-        if (metricKey === 'reply_missed') baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { reply_total: 0, reply_hit: 0 }; sum += Math.max(0, r.reply_total - r.reply_hit); }));
-        if (metricKey === 'reply_total') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].reply_total : 0)));
-        if (metricKey === 'close_hit') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].close_hit : 0)));
-        if (metricKey === 'close_missed') baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { close_total: 0, close_hit: 0 }; sum += Math.max(0, r.close_total - r.close_hit); }));
-        if (metricKey === 'close_total') baseDeptNames.forEach(d => monthsForYTD.forEach(m => sum += ((metrics[d] && metrics[d][m]) ? metrics[d][m].close_total : 0)));
-        if (metricKey === 'reply_fill') { baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { total: 0, reply_total: 0 }; num += r.reply_total; den += r.total; })); return percent(num, den); }
-        if (metricKey === 'reply_sl') { baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { reply_total: 0, reply_hit: 0 }; num += r.reply_hit; den += r.reply_total; })); return percent(num, den); }
-        if (metricKey === 'close_fill') { baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { total: 0, close_total: 0 }; num += r.close_total; den += r.total; })); return percent(num, den); }
-        if (metricKey === 'close_sl') { baseDeptNames.forEach(d => monthsForYTD.forEach(m => { const r = (metrics[d] && metrics[d][m]) || { close_total: 0, close_hit: 0 }; num += r.close_hit; den += r.close_total; })); return percent(num, den); }
-        return sum;
+        const reduceAcrossMonths = (pick) => {
+          let s = 0;
+          depts.forEach(d => monthsForYTD.forEach(m => { s += pick(aggAtMonth(metrics, d, m)); }));
+          return s;
+        };
+
+        if (metricKey === 'total')        return reduceAcrossMonths(a => a.total);
+        if (metricKey === 'reply_hit')    return reduceAcrossMonths(a => a.reply_hit);
+        if (metricKey === 'reply_missed') return reduceAcrossMonths(a => Math.max(0, a.reply_total - a.reply_hit));
+        if (metricKey === 'reply_total')  return reduceAcrossMonths(a => a.reply_total);
+        if (metricKey === 'close_hit')    return reduceAcrossMonths(a => a.close_hit);
+        if (metricKey === 'close_missed') return reduceAcrossMonths(a => Math.max(0, a.close_total - a.close_hit));
+        if (metricKey === 'close_total')  return reduceAcrossMonths(a => a.close_total);
+
+        if (metricKey === 'reply_fill') {
+          let num = 0, den = 0;
+          depts.forEach(d => monthsForYTD.forEach(m => { const a = aggAtMonth(metrics, d, m); num += a.reply_total; den += a.total; }));
+          return percent(num, den);
+        }
+        if (metricKey === 'reply_sl') {
+          let num = 0, den = 0;
+          depts.forEach(d => monthsForYTD.forEach(m => { const a = aggAtMonth(metrics, d, m); num += a.reply_hit; den += a.reply_total; }));
+          return percent(num, den);
+        }
+        if (metricKey === 'close_fill') {
+          let num = 0, den = 0;
+          depts.forEach(d => monthsForYTD.forEach(m => { const a = aggAtMonth(metrics, d, m); num += a.close_total; den += a.total; }));
+          return percent(num, den);
+        }
+        if (metricKey === 'close_sl') {
+          let num = 0, den = 0;
+          depts.forEach(d => monthsForYTD.forEach(m => { const a = aggAtMonth(metrics, d, m); num += a.close_hit; den += a.close_total; }));
+          return percent(num, den);
+        }
+        return 0;
       };
 
       ['total', 'reply_hit', 'reply_missed', 'reply_total', 'reply_fill', 'reply_sl', 'close_hit', 'close_missed', 'close_total', 'close_fill', 'close_sl'].forEach(metricKey => {
@@ -3389,7 +3420,6 @@
     });
   }
 })();
-
 
 /* ====== HISTORY MODAL ====== */
 (function () {

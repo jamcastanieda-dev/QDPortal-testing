@@ -110,10 +110,16 @@ if (!$see_all) {
   if ($dept !== '' && $user_section !== '') {
     // STRICT match: assignee == dept AND section == user's section
     // (user can also see rows they originated)
+    // Dept must match; section matches user's section OR is NULL/empty (disregard section when row has none)
+    // (user can also see rows they originated)
     $where[]  = "(
-      (assignee = ? AND LOWER(TRIM(COALESCE(section, ''))) = LOWER(TRIM(?)))
-      OR originator_name = ?
-    )";
+  (assignee = ? AND (
+      section IS NULL
+      OR TRIM(section) = ''
+      OR LOWER(TRIM(section)) = LOWER(TRIM(?))
+  ))
+  OR originator_name = ?
+)";
     $params[] = $dept;
     $params[] = $user_section;
     $params[] = $user_name;

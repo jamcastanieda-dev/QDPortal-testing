@@ -929,55 +929,120 @@
   }
 
   // Remarks attachments (originator)
-  function renderAttachments(s, target) {
+  // --- helpers (add near your helpers) ---
+  function getFileNameFromUrl(u) {
+    if (!u) return '';
+    try {
+      // Try common query params first
+      const url = new URL(u, window.location.origin);
+      const qp = url.searchParams;
+      const candidates = ['filename', 'file', 'name', 'download', 'attachment'];
+      for (const k of candidates) {
+        const v = qp.get(k);
+        if (v) return decodeURIComponent(v).split('/').pop();
+      }
+      // Fall back to path segment
+      const base = url.pathname.split('/').pop() || '';
+      return decodeURIComponent(base);
+    } catch {
+      // Not a standard URL (e.g., blob:, data:) – last resort
+      const parts = String(u).split('/').pop().split('?')[0];
+      try { return decodeURIComponent(parts); } catch { return parts; }
+    }
+  }
+  function getExt(name) {
+    const m = String(name || '').match(/\.([A-Za-z0-9]+)(?:$|\?)/);
+    return m ? m[1].toLowerCase() : '';
+  }
+  function isExcelLike(nameOrMime) {
+    const s = String(nameOrMime || '').toLowerCase();
+    return (
+      /\.(xlsx|xls|xlsm|xlsb|xltx|xlt|csv)\b/.test(s) ||
+      s.includes('application/vnd.ms-excel') ||
+      s.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+      s.includes('text/csv')
+    );
+  }
+
+  // --- DROP-IN REPLACEMENT ---
+  function renderAttachments(payload, target) {
     if (!target) return;
     target.innerHTML = '';
-    if (s == null || s === '') return;
+    if (payload == null || payload === '') return;
 
+    // Normalize to a list
     let items = [];
     try {
-      const parsed = typeof s === 'string' ? JSON.parse(s) : s;
-      if (Array.isArray(parsed)) items = parsed;
-      else if (parsed && Array.isArray(parsed.files)) items = parsed.files;
+      const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
+      if (Array.isArray(parsed)) {
+        items = parsed;
+      } else if (parsed && Array.isArray(parsed.files)) {
+        items = parsed.files;
+      } else {
+        items = [parsed];
+      }
     } catch {
-      items = String(s).split(/[\n,]+/).map(t => t.trim()).filter(Boolean).map(t => {
-        const parts = t.split('|').map(x => x.trim());
-        if (parts.length >= 2) return { name: parts[0], url: parts[1], size: parts[2] };
-        return { url: t };
-      });
+      // Fallback: split on newlines only (avoid splitting CSV URLs on commas)
+      items = String(payload).split(/\n+/).map(t => t.trim()).filter(Boolean);
     }
 
-    items.forEach(it => {
-      const url = it?.url || it?.href || it?.path || '';
-      let name = it?.name || it?.filename || '';
-      let size = (it?.size ?? it?.bytes) ?? '';
+    if (!items.length) {
+      target.innerHTML = '<div class="rcpa-empty">No attachments</div>';
+      return;
+    }
 
-      if (!name) {
-        if (url) {
-          try { name = decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Attachment'; }
-          catch { name = url.split('/').pop().split('?')[0] || 'Attachment'; }
-        } else { name = 'Attachment'; }
+    items.forEach(raw => {
+      // Accept both object records and plain string URLs
+      const isStr = typeof raw === 'string';
+      const url = isStr
+        ? raw
+        : (raw.url || raw.href || raw.path || raw.file_url || raw.download_url || raw.link || '');
+
+      let name = isStr
+        ? ''
+        : (raw.name || raw.filename || raw.original_name || raw.title || '');
+
+      const sizeRaw = isStr ? '' : (raw.size ?? raw.bytes ?? raw.file_size ?? '');
+
+      // Derive name from URL if missing
+      if (!name && url) name = getFileNameFromUrl(url);
+
+      // If still missing and we can detect Excel, give it a friendly default
+      if (!name && isExcelLike(url)) name = 'Excel file';
+      if (!name) name = 'Attachment';
+
+      // Format size
+      let sizeText = '';
+      if (sizeRaw !== '' && sizeRaw != null) {
+        sizeText = isNaN(sizeRaw) ? escapeHTML(String(sizeRaw)) : escapeHTML(humanSize(sizeRaw));
       }
 
       const safeName = escapeHTML(name);
       const safeUrl = escapeHTML(url);
-      const sizeText = size === '' ? '' : (isNaN(size) ? escapeHTML(String(size)) : escapeHTML(humanSize(size)));
 
-      const linkStart = url ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${safeName}">` : `<span title="${safeName}">`;
+      // Optional: show a tiny badge for Excel
+
+      // No file-type badge
+      const badge = '';
+
+      const linkStart = url
+        ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${safeName}">`
+        : `<span title="${safeName}">`;
       const linkEnd = url ? `</a>` : `</span>`;
 
       const row = document.createElement('div');
       row.className = 'file-chip';
       row.innerHTML = `
-        <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+      <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
         <div class="file-info">
           <div class="name">${linkStart}${safeName}${linkEnd}</div>
           <div class="sub">${sizeText}</div>
         </div>
-      `;
+   `;
       target.appendChild(row);
     });
   }
+
 
   function fillFindingsInValidation(data) {
     const fieldset = document.querySelector('.validation-invalid');

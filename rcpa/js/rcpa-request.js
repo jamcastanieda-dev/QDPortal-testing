@@ -1188,12 +1188,12 @@
   <td>${badgeForStatus(r?.status)}</td>
   <td>${esc(r?.originator_name)}</td>
   <td>${esc(
-  (() => {
-    const assignee = r?.section ? `${r.assignee} - ${r.section}` : r?.assignee;
-    const assigneeName = r?.assignee_name ? ` (${r.assignee_name})` : '';
-    return assignee + assigneeName;
-  })()
-)}</td>
+              (() => {
+                const assignee = r?.section ? `${r.assignee} - ${r.section}` : r?.assignee;
+                const assigneeName = r?.assignee_name ? ` (${r.assignee_name})` : '';
+                return assignee + assigneeName;
+              })()
+            )}</td>
 
   <td><button type="button" class="rcpa-btn rcpa-view" data-id="${esc(id)}">View</button></td>
   <td>

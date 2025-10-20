@@ -66,7 +66,7 @@ try {
     //  - QMS department, OR
     //  - QA department WITH role == manager or supervisor
     $can_qms_view = ($dept_norm === 'qms') ||
-                    ($dept_norm === 'qa' && in_array($role_norm, ['manager','supervisor'], true));
+        ($dept_norm === 'qa' && in_array($role_norm, ['manager', 'supervisor'], true));
 
     // Status lists
     $status_list_all = "(
@@ -122,10 +122,14 @@ try {
             // Non-managers: department + section must match
             // Treat NULL/empty in DB and user section as equivalent using COALESCE
             $sql = "SELECT COUNT(*)
-                      FROM rcpa_request
-                     WHERE status IN $statuses
-                       AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
-                       AND LOWER(TRIM(COALESCE(section, ''))) = LOWER(TRIM(COALESCE(?, '')))";
+          FROM rcpa_request
+         WHERE status IN $statuses
+           AND LOWER(TRIM(assignee)) = LOWER(TRIM(?))
+           AND (
+                section IS NULL
+                OR TRIM(section) = ''
+                OR LOWER(TRIM(section)) = LOWER(TRIM(?))
+           )";
             if ($stmt = $mysqli->prepare($sql)) {
                 $stmt->bind_param('ss', $department, $section);
                 $stmt->execute();

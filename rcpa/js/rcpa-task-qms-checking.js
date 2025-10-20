@@ -670,9 +670,11 @@
     setChecked('rcpa-view-flag-nc', isNC);
 
     // Remarks & Attachments
+    // Remarks & Attachments
     setVal('rcpa-view-remarks', row.remarks);
-    renderAttachments(row.remarks_attachment);
-
+    const attachTarget = document.getElementById('rcpa-view-attach-list');
+    renderAttachments(row.attachments ?? row.remarks_attachment, attachTarget);
+    
     // Standards & Supervision
     setVal('rcpa-view-system', row.system_applicable_std_violated);
     setVal('rcpa-view-clauses', row.standard_clause_number);
@@ -1379,7 +1381,6 @@
 })();
 
 // --- QMS tabs notification badges ---
-// --- QMS tabs notification badges ---
 (function () {
   const ENDPOINT = '../php-backend/rcpa-qms-tab-counters.php';
 
@@ -1525,4 +1526,3 @@
   // Kick off SSE after DOMContentLoaded (so badges exist)
   document.addEventListener('DOMContentLoaded', () => startSse());
 })();
-

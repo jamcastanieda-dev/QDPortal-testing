@@ -1,4 +1,5 @@
 <?php
+// rcpa-assign-options.php
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 date_default_timezone_set('Asia/Manila');
@@ -99,25 +100,35 @@ if ($rcpa_sect !== '' && $norm($rcpa_sect) !== $norm($user_section)) {
 
 /* Fetch employees that match row's dept/section,
    EXCLUDING roles 'manager' and 'supervisor' from options */
+/* Fetch employees that match row's dept/section,
+   EXCLUDING roles 'manager' and 'supervisor' from options.
+   Rule:
+   - If the row has a section, it must match user's section (already enforced above) and options are filtered by that section.
+   - If the row has NO section, options are ANY section within the same department.
+*/
 if ($rcpa_sect === '') {
-  $sqlUsers = "SELECT employee_name FROM system_users
-               WHERE UPPER(TRIM(department)) = UPPER(TRIM(?))
-                 AND (section IS NULL OR TRIM(section) = '')
-                 AND (role IS NULL OR TRIM(role) = '' OR UPPER(TRIM(role)) NOT IN ('MANAGER','SUPERVISOR'))
-               ORDER BY employee_name";
+  // Dept-only; any section allowed
+  $sqlUsers = "SELECT employee_name
+                 FROM system_users
+                WHERE UPPER(TRIM(department)) = UPPER(TRIM(?))
+                  AND (role IS NULL OR TRIM(role) = '' OR UPPER(TRIM(role)) NOT IN ('MANAGER','SUPERVISOR'))
+                ORDER BY employee_name";
   $st = $mysqli->prepare($sqlUsers);
   $st->bind_param('s', $rcpa_dept);
 } else {
-  $sqlUsers = "SELECT employee_name FROM system_users
-               WHERE UPPER(TRIM(department)) = UPPER(TRIM(?))
-                 AND LOWER(TRIM(section)) = LOWER(TRIM(?))
-                 AND (role IS NULL OR TRIM(role) = '' OR UPPER(TRIM(role)) NOT IN ('MANAGER','SUPERVISOR'))
-               ORDER BY employee_name";
+  // Dept + specific section
+  $sqlUsers = "SELECT employee_name
+                 FROM system_users
+                WHERE UPPER(TRIM(department)) = UPPER(TRIM(?))
+                  AND LOWER(TRIM(section)) = LOWER(TRIM(?))
+                  AND (role IS NULL OR TRIM(role) = '' OR UPPER(TRIM(role)) NOT IN ('MANAGER','SUPERVISOR'))
+                ORDER BY employee_name";
   $st = $mysqli->prepare($sqlUsers);
   $st->bind_param('ss', $rcpa_dept, $rcpa_sect);
 }
 $st->execute();
 $res = $st->get_result();
+
 
 $opts = [];
 while ($u = $res->fetch_assoc()) {

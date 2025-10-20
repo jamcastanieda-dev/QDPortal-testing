@@ -143,50 +143,55 @@ try {
     // 1) Try to get only supervisors (case-insensitive).
     // 2) If none found, fallback to all users in the dept/section EXCEPT role 'manager' (case-insensitive).
     $getEmailsByDeptSection = function (mysqli $db, string $dept, ?string $section = null, bool $supervisorsOnly = false): array {
-      $emails = [];
-      $dept = trim($dept);
-      $section = $section !== null ? trim($section) : null;
+      $emails  = [];
+      $dept    = trim((string)$dept);
+      $section = $section !== null ? trim((string)$section) : null;
       if ($dept === '') return $emails;
 
+      // Build SQL depending on filters
       if ($supervisorsOnly) {
         if ($section !== null && $section !== '') {
-          $sql = "SELECT TRIM(email) AS email
-                    FROM system_users
-                   WHERE TRIM(department) = ?
-                     AND TRIM(section)    = ?
-                     AND LOWER(TRIM(role)) = 'supervisor'
-                     AND email IS NOT NULL
-                     AND TRIM(email) <> ''";
+          // Dept + Section (supervisors only)
+          $sql  = "SELECT TRIM(email) AS email
+                 FROM system_users
+                WHERE UPPER(TRIM(department)) = UPPER(TRIM(?))
+                  AND UPPER(TRIM(section))    = UPPER(TRIM(?))
+                  AND LOWER(TRIM(role))       = 'supervisor'
+                  AND email IS NOT NULL
+                  AND TRIM(email) <> ''";
           $stmt = $db->prepare($sql);
           if ($stmt) $stmt->bind_param('ss', $dept, $section);
         } else {
-          $sql = "SELECT TRIM(email) AS email
-                    FROM system_users
-                   WHERE TRIM(department) = ?
-                     AND LOWER(TRIM(role)) = 'supervisor'
-                     AND email IS NOT NULL
-                     AND TRIM(email) <> ''";
+          // Dept-only (ANY section, supervisors only)
+          $sql  = "SELECT TRIM(email) AS email
+                 FROM system_users
+                WHERE UPPER(TRIM(department)) = UPPER(TRIM(?))
+                  AND LOWER(TRIM(role))       = 'supervisor'
+                  AND email IS NOT NULL
+                  AND TRIM(email) <> ''";
           $stmt = $db->prepare($sql);
           if ($stmt) $stmt->bind_param('s', $dept);
         }
       } else {
         if ($section !== null && $section !== '') {
-          $sql = "SELECT TRIM(email) AS email
-                    FROM system_users
-                   WHERE TRIM(department) = ?
-                     AND TRIM(section)    = ?
-                     AND LOWER(TRIM(role)) <> 'manager'
-                     AND email IS NOT NULL
-                     AND TRIM(email) <> ''";
+          // Dept + Section (everyone except managers)
+          $sql  = "SELECT TRIM(email) AS email
+                 FROM system_users
+                WHERE UPPER(TRIM(department)) = UPPER(TRIM(?))
+                  AND UPPER(TRIM(section))    = UPPER(TRIM(?))
+                  AND LOWER(TRIM(role))      <> 'manager'
+                  AND email IS NOT NULL
+                  AND TRIM(email) <> ''";
           $stmt = $db->prepare($sql);
           if ($stmt) $stmt->bind_param('ss', $dept, $section);
         } else {
-          $sql = "SELECT TRIM(email) AS email
-                    FROM system_users
-                   WHERE TRIM(department) = ?
-                     AND LOWER(TRIM(role)) <> 'manager'
-                     AND email IS NOT NULL
-                     AND TRIM(email) <> ''";
+          // Dept-only (ANY section, everyone except managers)
+          $sql  = "SELECT TRIM(email) AS email
+                 FROM system_users
+                WHERE UPPER(TRIM(department)) = UPPER(TRIM(?))
+                  AND LOWER(TRIM(role))      <> 'manager'
+                  AND email IS NOT NULL
+                  AND TRIM(email) <> ''";
           $stmt = $db->prepare($sql);
           if ($stmt) $stmt->bind_param('s', $dept);
         }
@@ -202,8 +207,10 @@ try {
         $stmt->close();
       }
 
+      // De-dup & return
       return array_values(array_unique($emails));
     };
+
 
     // Fetch assignee department/section from this RCPA
     $assigneeDept = '';

@@ -101,19 +101,21 @@ if ($rcpa_sect !== '' && $norm($rcpa_sect) !== $norm($user_section)) {
 }
 
 // Validate selected assignee belongs to same dept/section
+// Validate selected assignee belongs to same dept/section per rules:
+// - If the row has a section: dept + section must match
+// - If the row has NO section: dept match is enough (any section allowed)
 if ($rcpa_sect === '') {
   $sqlChk = "SELECT 1 FROM system_users
-              WHERE UPPER(TRIM(employee_name))=UPPER(TRIM(?))
-                AND UPPER(TRIM(department))=UPPER(TRIM(?))
-                AND (section IS NULL OR TRIM(section)='')
+              WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
+                AND UPPER(TRIM(department))    = UPPER(TRIM(?))
               LIMIT 1";
   $st = $mysqli->prepare($sqlChk);
   $st->bind_param('ss', $assignee_name, $rcpa_dept);
 } else {
   $sqlChk = "SELECT 1 FROM system_users
-              WHERE UPPER(TRIM(employee_name))=UPPER(TRIM(?))
-                AND UPPER(TRIM(department))=UPPER(TRIM(?))
-                AND LOWER(TRIM(section))=LOWER(TRIM(?))
+              WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
+                AND UPPER(TRIM(department))    = UPPER(TRIM(?))
+                AND LOWER(TRIM(section))       = LOWER(TRIM(?))
               LIMIT 1";
   $st = $mysqli->prepare($sqlChk);
   $st->bind_param('sss', $assignee_name, $rcpa_dept, $rcpa_sect);
@@ -127,6 +129,7 @@ if (!$valid) {
   echo json_encode(['error' => 'Selected employee is not in the same department/section']);
   exit;
 }
+
 
 // Update assignee_name
 $sqlUpd = "UPDATE rcpa_request SET assignee_name=? WHERE id=?";
@@ -150,12 +153,12 @@ try {
   $assignee_dept = '';
   $assignee_section = '';
   if ($rcpa_sect === '') {
+    // Dept-only; any section allowed
     $sqlAss = "SELECT TRIM(email), TRIM(department), TRIM(COALESCE(section,'')) 
-                 FROM system_users
-                WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
-                  AND UPPER(TRIM(department))    = UPPER(TRIM(?))
-                  AND (section IS NULL OR TRIM(section) = '')
-                LIMIT 1";
+               FROM system_users
+              WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
+                AND UPPER(TRIM(department))    = UPPER(TRIM(?))
+              LIMIT 1";
     if ($stA = $mysqli->prepare($sqlAss)) {
       $stA->bind_param('ss', $assignee_name, $rcpa_dept);
       $stA->execute();
@@ -164,12 +167,13 @@ try {
       $stA->close();
     }
   } else {
+    // Dept + specific section
     $sqlAss = "SELECT TRIM(email), TRIM(department), TRIM(COALESCE(section,'')) 
-                 FROM system_users
-                WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
-                  AND UPPER(TRIM(department))    = UPPER(TRIM(?))
-                  AND LOWER(TRIM(section))       = LOWER(TRIM(?))
-                LIMIT 1";
+               FROM system_users
+              WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
+                AND UPPER(TRIM(department))    = UPPER(TRIM(?))
+                AND LOWER(TRIM(section))       = LOWER(TRIM(?))
+              LIMIT 1";
     if ($stA = $mysqli->prepare($sqlAss)) {
       $stA->bind_param('sss', $assignee_name, $rcpa_dept, $rcpa_sect);
       $stA->execute();
@@ -178,6 +182,7 @@ try {
       $stA->close();
     }
   }
+
 
   // 2) Build recipients
   $assignee_email = strtolower(trim((string)$assignee_email));
@@ -194,7 +199,9 @@ try {
     $toRecipients = [$assignee_email];
 
     // 3) Compose message
-    $safeHeader = function (string $s): string { return preg_replace('/[\r\n]+/', ' ', $s); };
+    $safeHeader = function (string $s): string {
+      return preg_replace('/[\r\n]+/', ' ', $s);
+    };
     $deptDisplay = trim($assignee_dept . ($assignee_section !== '' ? ' - ' . $assignee_section : ''));
     $portalUrl   = 'http://rti10517/qdportal/login.php'; // TODO: move to config/env
 

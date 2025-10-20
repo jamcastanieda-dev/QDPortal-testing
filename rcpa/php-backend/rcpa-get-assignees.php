@@ -17,13 +17,17 @@ if (isset($mysqli) && $mysqli instanceof mysqli) {
 
 if (!$mysqli || $mysqli->connect_errno) {
   http_response_code(500);
-  echo "<!-- DB connect error: ".($mysqli ? $mysqli->connect_error : 'no mysqli credentials found')." -->";
+  echo "<!-- DB connect error: " . ($mysqli ? $mysqli->connect_error : 'no mysqli credentials found') . " -->";
   exit;
 }
 $mysqli->set_charset('utf8mb4');
 
-function esc($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-function norm($s){
+function esc($s)
+{
+  return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+}
+function norm($s)
+{
   $s = trim((string)$s);
   // treat junk placeholders as empty
   if ($s === '-' || $s === '--' || strtoupper($s) === 'NULL') $s = '';
@@ -70,22 +74,27 @@ $res->free();
  * - If dept has sections → output each "Dept - Section" (unique, sorted)
  * - Else → output single "Dept"
  */
+/* Output:
+ * Always output the bare "Dept" option,
+ * then (if any) each unique "Dept - Section" option.
+ */
 ksort($map, SORT_NATURAL | SORT_FLAG_CASE);
 foreach ($map as $dept => $info) {
-  if (!empty($info['has_section'])) {
+  // Always include the bare department
+  $label = $dept;
+  echo '<option value="' . esc($label) . '" data-type="department" data-dept="' . esc($dept) . '" data-sect="">'
+    . esc($label)
+    . "</option>\n";
+
+  // Then include sections, if any
+  if (!empty($info['sections'])) {
     $sections = array_keys($info['sections']);
     natcasesort($sections);
     foreach ($sections as $sect) {
       $label = $dept . ' - ' . $sect;
       echo '<option value="' . esc($label) . '" data-type="department" data-dept="' . esc($dept) . '" data-sect="' . esc($sect) . '">'
-         . esc($label)
-         . "</option>\n";
+        . esc($label)
+        . "</option>\n";
     }
-  } else {
-    // no sections at all → output bare department
-    $label = $dept;
-    echo '<option value="' . esc($label) . '" data-type="department" data-dept="' . esc($dept) . '" data-sect="">'
-       . esc($label)
-       . "</option>\n";
   }
 }

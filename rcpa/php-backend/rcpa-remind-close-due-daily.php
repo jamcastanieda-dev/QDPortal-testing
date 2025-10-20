@@ -16,27 +16,34 @@ date_default_timezone_set('Asia/Manila');
 
 require_once __DIR__ . '/../../connection.php';
 $db = (isset($mysqli) && $mysqli instanceof mysqli) ? $mysqli
-   : ((isset($conn) && $conn instanceof mysqli) ? $conn : null);
-if (!$db) { echo "DB connection not found\n"; exit(1); }
+  : ((isset($conn) && $conn instanceof mysqli) ? $conn : null);
+if (!$db) {
+  echo "DB connection not found\n";
+  exit(1);
+}
 @$db->set_charset('utf8mb4');
 @$db->query("SET time_zone = '+08:00'"); // keep MySQL date math in sync
 
 require_once __DIR__ . '/../../send-email.php';
 
-$sent = 0; $skipped = 0;
+$sent = 0;
+$skipped = 0;
 
 /* ---------------------------------------------------
    Helpers
 --------------------------------------------------- */
-function h(?string $s): string {
+function h(?string $s): string
+{
   return htmlspecialchars(trim((string)$s), ENT_QUOTES, 'UTF-8');
 }
-function fmtDate(?string $d): string {
+function fmtDate(?string $d): string
+{
   if (!$d) return '';
   $ts = strtotime($d);
   return $ts ? date('F j, Y', $ts) : '';
 }
-function cleanEmails(array $arr): array {
+function cleanEmails(array $arr): array
+{
   $out = [];
   foreach ($arr as $e) {
     $e = strtolower(trim((string)$e));
@@ -53,7 +60,9 @@ $qmsEmails = [];
 if ($qs = $db->prepare("SELECT TRIM(email) FROM system_users WHERE TRIM(department) = 'QMS' AND email IS NOT NULL AND TRIM(email) <> ''")) {
   if ($qs->execute()) {
     $qs->bind_result($em);
-    while ($qs->fetch()) { $qmsEmails[] = $em; }
+    while ($qs->fetch()) {
+      $qmsEmails[] = $em;
+    }
   }
   $qs->close();
 }
@@ -103,16 +112,39 @@ $sql = "
 ";
 
 $rows = [];
-if (!($st = $db->prepare($sql))) { echo "Prepare failed: ".$db->error."\n"; exit(1); }
-if (!$st->execute()) { $e = $st->error; $st->close(); echo "Execute failed: $e\n"; exit(1); }
+if (!($st = $db->prepare($sql))) {
+  echo "Prepare failed: " . $db->error . "\n";
+  exit(1);
+}
+if (!$st->execute()) {
+  $e = $st->error;
+  $st->close();
+  echo "Execute failed: $e\n";
+  exit(1);
+}
 
 /* BUFFER the whole result set before issuing other queries */
 $st->store_result();
 $st->bind_result(
-  $id, $dept, $section, $status, $conformance, $assignee_name, $due, $days_left,
-  $vn_root_cause, $vn_correction, $vn_correction_target_date, $vn_correction_date_completed,
-  $vn_corrective, $vn_corrective_target_date, $vn_corrective_date_completed,
-  $vp_root_cause, $vp_preventive_action, $vp_preventive_target_date, $vp_preventive_date_completed
+  $id,
+  $dept,
+  $section,
+  $status,
+  $conformance,
+  $assignee_name,
+  $due,
+  $days_left,
+  $vn_root_cause,
+  $vn_correction,
+  $vn_correction_target_date,
+  $vn_correction_date_completed,
+  $vn_corrective,
+  $vn_corrective_target_date,
+  $vn_corrective_date_completed,
+  $vp_root_cause,
+  $vp_preventive_action,
+  $vp_preventive_target_date,
+  $vp_preventive_date_completed
 );
 while ($st->fetch()) {
   $rows[] = [
@@ -189,7 +221,10 @@ foreach ($rows as $r) {
     }
     $h->close();
   }
-  if ($already) { $skipped++; continue; }
+  if ($already) {
+    $skipped++;
+    continue;
+  }
 
   /* -------------------------------------------
      Build recipients:
@@ -217,22 +252,32 @@ foreach ($rows as $r) {
       ");
       if ($q) {
         $q->bind_param('ss', $dept, $section);
-        if ($q->execute()) { $q->bind_result($em); while ($q->fetch()) { $supervisorEmails[] = $em; } }
+        if ($q->execute()) {
+          $q->bind_result($em);
+          while ($q->fetch()) {
+            $supervisorEmails[] = $em;
+          }
+        }
         $q->close();
       }
     } else {
       $q = $db->prepare("
-        SELECT TRIM(email)
-          FROM system_users
-         WHERE TRIM(department) = ?
-           AND (section IS NULL OR TRIM(section) = '')
-           AND LOWER(TRIM(role)) = 'supervisor'
-           AND email IS NOT NULL
-           AND TRIM(email) <> ''
-      ");
+  SELECT TRIM(email)
+    FROM system_users
+   WHERE TRIM(department) = ?
+     AND LOWER(TRIM(role)) = 'supervisor'
+     AND email IS NOT NULL
+     AND TRIM(email) <> ''
+");
+
       if ($q) {
         $q->bind_param('s', $dept);
-        if ($q->execute()) { $q->bind_result($em); while ($q->fetch()) { $supervisorEmails[] = $em; } }
+        if ($q->execute()) {
+          $q->bind_result($em);
+          while ($q->fetch()) {
+            $supervisorEmails[] = $em;
+          }
+        }
         $q->close();
       }
     }
@@ -257,28 +302,36 @@ foreach ($rows as $r) {
       ");
       if ($qa) {
         $qa->bind_param('sss', $assigneeName, $dept, $section);
-        if ($qa->execute()) { $qa->bind_result($aem); if ($qa->fetch()) $assigneeEmail = $aem; }
+        if ($qa->execute()) {
+          $qa->bind_result($aem);
+          if ($qa->fetch()) $assigneeEmail = $aem;
+        }
         $qa->close();
       }
     } else {
       $qa = $db->prepare("
-        SELECT TRIM(email)
-          FROM system_users
-         WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
-           AND UPPER(TRIM(department))    = UPPER(TRIM(?))
-           AND (section IS NULL OR TRIM(section) = '')
-           AND email IS NOT NULL
-           AND TRIM(email) <> ''
-         LIMIT 1
-      ");
+  SELECT TRIM(email)
+    FROM system_users
+   WHERE UPPER(TRIM(employee_name)) = UPPER(TRIM(?))
+     AND UPPER(TRIM(department))    = UPPER(TRIM(?))
+     AND email IS NOT NULL
+     AND TRIM(email) <> ''
+   LIMIT 1
+");
+
       if ($qa) {
         $qa->bind_param('ss', $assigneeName, $dept);
-        if ($qa->execute()) { $qa->bind_result($aem); if ($qa->fetch()) $assigneeEmail = $aem; }
+        if ($qa->execute()) {
+          $qa->bind_result($aem);
+          if ($qa->fetch()) $assigneeEmail = $aem;
+        }
         $qa->close();
       }
     }
   }
-  if ($assigneeEmail) { $to[] = $assigneeEmail; }
+  if ($assigneeEmail) {
+    $to[] = $assigneeEmail;
+  }
 
   // --- Managers: include ONLY when close due is today (0) or in 1 day (1)
   if ($daysLeft <= 1 && $dept !== '') {
@@ -295,26 +348,38 @@ foreach ($rows as $r) {
       ");
       if ($qm) {
         $qm->bind_param('ss', $dept, $section);
-        if ($qm->execute()) { $qm->bind_result($em); while ($qm->fetch()) { $managerEmails[] = $em; } }
+        if ($qm->execute()) {
+          $qm->bind_result($em);
+          while ($qm->fetch()) {
+            $managerEmails[] = $em;
+          }
+        }
         $qm->close();
       }
     } else {
       $qm = $db->prepare("
-        SELECT TRIM(email)
-          FROM system_users
-         WHERE TRIM(department) = ?
-           AND (section IS NULL OR TRIM(section) = '')
-           AND LOWER(TRIM(role)) = 'manager'
-           AND email IS NOT NULL
-           AND TRIM(email) <> ''
-      ");
+  SELECT TRIM(email)
+    FROM system_users
+   WHERE TRIM(department) = ?
+     AND LOWER(TRIM(role)) = 'manager'
+     AND email IS NOT NULL
+     AND TRIM(email) <> ''
+");
+
       if ($qm) {
         $qm->bind_param('s', $dept);
-        if ($qm->execute()) { $qm->bind_result($em); while ($qm->fetch()) { $managerEmails[] = $em; } }
+        if ($qm->execute()) {
+          $qm->bind_result($em);
+          while ($qm->fetch()) {
+            $managerEmails[] = $em;
+          }
+        }
         $qm->close();
       }
     }
-    foreach ($managerEmails as $em) { $to[] = $em; } // deduped later
+    foreach ($managerEmails as $em) {
+      $to[] = $em;
+    } // deduped later
   }
 
   // Fallback: if NO supervisors found, include everyone in dept/section EXCEPT 'manager'
@@ -331,22 +396,32 @@ foreach ($rows as $r) {
       ");
       if ($qnm) {
         $qnm->bind_param('ss', $dept, $section);
-        if ($qnm->execute()) { $qnm->bind_result($em); while ($qnm->fetch()) { $to[] = $em; } }
+        if ($qnm->execute()) {
+          $qnm->bind_result($em);
+          while ($qnm->fetch()) {
+            $to[] = $em;
+          }
+        }
         $qnm->close();
       }
     } else {
       $qnm = $db->prepare("
-        SELECT TRIM(email)
-          FROM system_users
-         WHERE TRIM(department) = ?
-           AND (section IS NULL OR TRIM(section) = '')
-           AND LOWER(TRIM(role)) <> 'manager'
-           AND email IS NOT NULL
-           AND TRIM(email) <> ''
-      ");
+  SELECT TRIM(email)
+    FROM system_users
+   WHERE TRIM(department) = ?
+     AND LOWER(TRIM(role)) <> 'manager'
+     AND email IS NOT NULL
+     AND TRIM(email) <> ''
+");
+
       if ($qnm) {
         $qnm->bind_param('s', $dept);
-        if ($qnm->execute()) { $qnm->bind_result($em); while ($qnm->fetch()) { $to[] = $em; } }
+        if ($qnm->execute()) {
+          $qnm->bind_result($em);
+          while ($qnm->fetch()) {
+            $to[] = $em;
+          }
+        }
         $qnm->close();
       }
     }
@@ -354,7 +429,10 @@ foreach ($rows as $r) {
 
   // Cleanup and validate recipient list
   $to = cleanEmails($to);
-  if (!$to) { $skipped++; continue; }
+  if (!$to) {
+    $skipped++;
+    continue;
+  }
 
   // CC: all QMS, but avoid duplicates with "To"
   $cc = array_values(array_diff($qmsEmails, $to));
@@ -406,17 +484,17 @@ foreach ($rows as $r) {
       if ($val !== '') {
         $extraHtmlRows .=
           '<tr>'
-          .'<td style="padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb;">'.h($labelKey).'</td>'
-          .'<td style="padding:6px 10px; border:1px solid #e5e7eb;">'.$val.'</td>'
-          .'</tr>';
-        $extraText .= $labelKey.': '.html_entity_decode($val, ENT_QUOTES, 'UTF-8')."\n";
+          . '<td style="padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb;">' . h($labelKey) . '</td>'
+          . '<td style="padding:6px 10px; border:1px solid #e5e7eb;">' . $val . '</td>'
+          . '</tr>';
+        $extraText .= $labelKey . ': ' . html_entity_decode($val, ENT_QUOTES, 'UTF-8') . "\n";
       }
     }
 
     if ($extraHtmlRows !== '') {
       $extraHtmlRows =
-        '<tr><td colspan="2" style="padding:8px 10px; background:#eef2ff; border:1px solid #e5e7eb;"><strong>Details ('.h($conf).')</strong></td></tr>'
-        .$extraHtmlRows;
+        '<tr><td colspan="2" style="padding:8px 10px; background:#eef2ff; border:1px solid #e5e7eb;"><strong>Details (' . h($conf) . ')</strong></td></tr>'
+        . $extraHtmlRows;
     }
   }
 
@@ -440,7 +518,7 @@ foreach ($rows as $r) {
   $badgeText = ($daysLeft === 0) ? 'Close due today' : ('Close due in ' . $label);
 
   // Preheader
-  $preheader = 'RCPA #'.(int)$id.' - '.$badgeText.' - Close due: '.$closeDueTxt;
+  $preheader = 'RCPA #' . (int)$id . ' - ' . $badgeText . ' - Close due: ' . $closeDueTxt;
 
   // Note text: include manager mention for urgent (<=1 day)
   $noteHtml = ($daysLeft <= 1)
@@ -454,7 +532,7 @@ foreach ($rows as $r) {
 <body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial,Helvetica,sans-serif; color:#111827;">
   <!-- Preheader (hidden) -->
   <div style="display:none; overflow:hidden; line-height:1px; opacity:0; max-height:0; max-width:0;">
-    '.h($preheader).'
+    ' . h($preheader) . '
   </div>
 
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f3f4f6; padding:24px 12px;">
@@ -471,14 +549,14 @@ foreach ($rows as $r) {
                     RCPA Close Reminder
                   </td>
                   <td align="right">
-                    <span style="display:inline-block; padding:6px 10px; font-size:12px; font-weight:bold; color:'.$accentDark.'; background:'.$accentLight.'; border:1px solid '.$accent.'; border-radius:999px;">
-                      '.h($badgeText).'
+                    <span style="display:inline-block; padding:6px 10px; font-size:12px; font-weight:bold; color:' . $accentDark . '; background:' . $accentLight . '; border:1px solid ' . $accent . '; border-radius:999px;">
+                      ' . h($badgeText) . '
                     </span>
                   </td>
                 </tr>
                 <tr>
                   <td colspan="2" style="padding-top:6px; font-size:13px; color:#6b7280;">
-                    RCPA #'.(int)$id.'
+                    RCPA #' . (int)$id . '
                   </td>
                 </tr>
               </table>
@@ -490,36 +568,36 @@ foreach ($rows as $r) {
             <td style="padding:20px;">
               <p style="margin:0 0 12px 0; font-size:14px;">Good day,</p>
               <p style="margin:0 0 18px 0; font-size:14px;">
-                This is a friendly reminder that the closing for <strong>RCPA #'.(int)$id.'</strong> is
-                '.($daysLeft === 0 ? 'due <strong>today</strong>.' : 'due in <strong>'.h($label).'</strong>.').'
+                This is a friendly reminder that the closing for <strong>RCPA #' . (int)$id . '</strong> is
+                ' . ($daysLeft === 0 ? 'due <strong>today</strong>.' : 'due in <strong>' . h($label) . '</strong>.') . '
               </p>
 
               <!-- Key facts table -->
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:14px;">
                 <tr>
                   <td style="width:180px; padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Assignee</td>
-                  <td style="padding:10px; border:1px solid #e5e7eb;"><strong>'.$deptDispSafe.'</strong></td>
+                  <td style="padding:10px; border:1px solid #e5e7eb;"><strong>' . $deptDispSafe . '</strong></td>
                 </tr>
                 <tr>
                   <td style="padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Status</td>
-                  <td style="padding:10px; border:1px solid #e5e7eb;">'.$statusSafe.'</td>
+                  <td style="padding:10px; border:1px solid #e5e7eb;">' . $statusSafe . '</td>
                 </tr>
                 <tr>
                   <td style="padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Conformance</td>
-                  <td style="padding:10px; border:1px solid #e5e7eb;">'.$confSafe.'</td>
+                  <td style="padding:10px; border:1px solid #e5e7eb;">' . $confSafe . '</td>
                 </tr>
                 <tr>
                   <td style="padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Close Due Date</td>
-                  <td style="padding:10px; border:1px solid #e5e7eb;">'.$closeDueSafe.'</td>
+                  <td style="padding:10px; border:1px solid #e5e7eb;">' . $closeDueSafe . '</td>
                 </tr>
-                '.$extraHtmlRows.'
+                ' . $extraHtmlRows . '
               </table>
 
               <!-- CTA -->
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin-top:18px;">
                 <tr>
                   <td>
-                    <a href="'.$taskUrlSafe.'" target="_blank"
+                    <a href="' . $taskUrlSafe . '" target="_blank"
                        style="background:#2563eb; color:#ffffff; text-decoration:none; padding:12px 18px; border-radius:6px; font-size:14px; display:inline-block;">
                       Open QD Portal
                     </a>
@@ -532,12 +610,12 @@ foreach ($rows as $r) {
               <!-- Fallback Link (clickable) -->
               <p style="margin:14px 0 0 0; font-size:12px; color:#6b7280;">
                 If the button doesn\'t work, use this link:<br>
-                <a href="'.$taskUrlSafe.'" target="_blank" style="color:#2563eb; text-decoration:underline;">'.$taskUrlText.'</a>
+                <a href="' . $taskUrlSafe . '" target="_blank" style="color:#2563eb; text-decoration:underline;">' . $taskUrlText . '</a>
               </p>
 
               <!-- Note -->
               <p style="margin:12px 0 0 0; font-size:12px; color:#6b7280;">
-                '.$noteHtml.'
+                ' . $noteHtml . '
               </p>
             </td>
           </tr>
@@ -560,10 +638,10 @@ foreach ($rows as $r) {
     : "RCPA #$id - Close due in $label\n";
 
   $altBody .=
-     "Assignee: $deptDisplay\n"
-    ."Status: $status\n"
-    ."Conformance: $conf\n"
-    ."Close Due Date: $closeDueTxt\n";
+    "Assignee: $deptDisplay\n"
+    . "Status: $status\n"
+    . "Conformance: $conf\n"
+    . "Close Due Date: $closeDueTxt\n";
 
   if ($extraText !== '') {
     $altBody .= "Details ($conf):\n$extraText";
