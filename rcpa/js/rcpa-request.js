@@ -318,6 +318,24 @@
     setChk('cat_minor', cat === 'minor');
     setChk('cat_observation', cat === 'observation');
 
+    // ✅ ensure the read-only NC/PNC flags reflect the data
+    (function syncNcPncFlags() {
+      const ncEl = form.querySelector('input[name="nc_flag"]');
+      const pncEl = form.querySelector('input[name="pnc_flag"]');
+
+      const confRaw = String(rec.conformance || '').toLowerCase();
+      const isPNC = confRaw.startsWith('potential') || cat === 'observation';
+      const isNC = !isPNC && (
+        cat === 'major' || cat === 'minor' ||
+        confRaw.includes('non-conformance') ||
+        confRaw.includes('non conformance') ||
+        confRaw.includes('nonconformance')
+      );
+
+      if (ncEl) ncEl.checked = !!isNC;
+      if (pncEl) pncEl.checked = !!isPNC;
+    })();
+
     // 4) type + type-specific fields
     const typeSel = document.getElementById('rcpa-type');
     const type = String(rec.rcpa_type || '').toLowerCase();
