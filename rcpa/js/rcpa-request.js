@@ -173,6 +173,255 @@
     // hs_month is now a <select>; no default value set here
   }
 
+  /* === modal swap so view doesn't cover edit === */
+  function swapModals(hideEl, showFn) {
+    if (!hideEl) { showFn(); return; }
+    hideEl.classList.remove('show');
+    const finish = () => {
+      hideEl.hidden = true;
+      hideEl.setAttribute('aria-hidden', 'true');
+      hideEl.removeEventListener('transitionend', finish);
+      try { showFn(); } catch { }
+    };
+    const dur = getComputedStyle(hideEl).transitionDuration;
+    if (!dur || dur === '0s') finish(); else hideEl.addEventListener('transitionend', finish);
+  }
+
+  /* --- show a read-only list of existing attachments under the uploader --- */
+  function renderExistingAttachments(raw) {
+    const form = document.querySelector('#rcpa-request-modal form.rcpa-form');
+    const listAfter = document.getElementById('attach_list');
+    if (!form || !listAfter) return;
+
+    // normalize input
+    let files = [];
+    try {
+      if (typeof raw === 'string') {
+        const s = raw.trim();
+        files = s.startsWith('[') ? JSON.parse(s) : s.split(',').map(u => ({ url: u.trim() }));
+      } else if (Array.isArray(raw)) { files = raw; }
+      else if (raw && Array.isArray(raw.files)) { files = raw.files; }
+    } catch { files = []; }
+
+    // host elements
+    let header = document.getElementById('rcpa-existing-attach-title');
+    let list = document.getElementById('rcpa-existing-attach');
+    if (!header) {
+      header = document.createElement('div');
+      header.id = 'rcpa-existing-attach-title';
+      header.className = 'rcpa-muted';
+      header.style.marginTop = '6px';
+      listAfter.parentNode.insertBefore(header, listAfter.nextSibling);
+    }
+    if (!list) {
+      list = document.createElement('div');
+      list.id = 'rcpa-existing-attach';
+      list.className = 'attach-list';
+      header.parentNode.insertBefore(list, header.nextSibling);
+    }
+
+    header.textContent = files.length ? 'Existing attachments:' : 'No existing attachments';
+    list.innerHTML = '';
+    files.forEach(f => {
+      const url = f?.url || '';
+      const name = f?.name || (url ? url.split('/').pop() : 'Attachment');
+      const row = document.createElement('div');
+      row.className = 'file-chip';
+      row.innerHTML = `
+      <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+      <div class="file-info">
+        <div class="name">${url ? `<a href="${url}" target="_blank" rel="noopener">${name}</a>` : name}</div>
+        <div class="sub">${f?.mime || ''} ${f?.size ? `• ${f.size} bytes` : ''}</div>
+      </div>`;
+      list.appendChild(row);
+    });
+
+    // store count for reference (not required in edit, but handy)
+    form.dataset.existingAttachCount = String(files.length || 0);
+  }
+
+  /* --- internal setter by visible option text (Choices.js-compatible) --- */
+  async function setSelectByText(select, text) {
+    if (!select) return;
+    const needle = String(text || '').trim().toLowerCase();
+    if (!needle) return;
+
+    // try native first
+    let match = Array.from(select.options).find(o => (o.textContent || '').trim().toLowerCase() === needle);
+    // fallback: begins-with
+    if (!match) match = Array.from(select.options).find(o => (o.textContent || '').trim().toLowerCase().startsWith(needle));
+    if (!match) return;
+
+    select.value = match.value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    if (select._choices && typeof select._choices.setChoiceByValue === 'function') {
+      select._choices.setChoiceByValue(match.value);
+    }
+  }
+
+  /* --- enter EDIT mode in the create modal, prefilled --- */
+  async function enterEditMode(rec) {
+    const reqModal = document.getElementById('rcpa-request-modal');
+    const form = reqModal?.querySelector('form.rcpa-form');
+    if (!reqModal || !form || !rec) return;
+
+    // mark edit mode + id
+    form.dataset.editingId = String(rec.id || '');
+
+    // open WITHOUT clearing (don’t call showModal(); it resets things)
+    reqModal.hidden = false;
+    reqModal.classList.add('show');
+
+    // 1) buttons: Save + Cancel (red)
+    const submitBtn = document.getElementById('rcpa-submit-request');
+    if (submitBtn) submitBtn.textContent = 'Save';
+    let cancelBtn = document.getElementById('rcpa-cancel-edit');
+    if (!cancelBtn) {
+      cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.id = 'rcpa-cancel-edit';
+      cancelBtn.className = 'rcpa-btn';
+      cancelBtn.style.cssText = 'margin-left:8px;background:#dc2626;color:#fff;';
+      cancelBtn.textContent = 'Cancel';
+      submitBtn?.parentElement?.appendChild(cancelBtn);
+    }
+    cancelBtn.onclick = () => exitEditMode(true, rec.id);
+
+    // 2) attachments NOT required in edit
+    const fileInput = document.getElementById('finding_files');
+    if (fileInput) fileInput.removeAttribute('required');
+    renderExistingAttachments(rec.attachments);
+
+    // 3) basic fields
+    const set = (sel, v) => { const el = form.querySelector(sel); if (el) el.value = v ?? ''; };
+    const setChk = (name, on) => {
+      const el = form.querySelector(`input[name="${name}"]`);
+      if (el) el.checked = !!on;
+    };
+
+    // originator (read-only)
+    set('input[name="originator_name"]', rec.originator_name);
+    set('input[name="originator_dept"]', rec.originator_department);
+    // keep original date on edit
+    const dt = form.querySelector('input[name="originator_date"]');
+    if (dt) dt.value = (rec.date_request || '').replace(' ', 'T');
+
+    // description + refs
+    set('#finding_description', rec.remarks);
+    set('input[name="system_violated"]', rec.system_applicable_std_violated);
+    set('input[name="clause_numbers"]', rec.standard_clause_number);
+
+    // category
+    ['cat_major', 'cat_minor', 'cat_observation'].forEach(n => setChk(n, false));
+    const cat = String(rec.category || '').toLowerCase();
+    setChk('cat_major', cat === 'major');
+    setChk('cat_minor', cat === 'minor');
+    setChk('cat_observation', cat === 'observation');
+
+    // 4) type + type-specific fields
+    const typeSel = document.getElementById('rcpa-type');
+    const type = String(rec.rcpa_type || '').toLowerCase();
+    if (typeSel) {
+      typeSel.value = type || '';
+      // reveal matching block
+      if (typeof updateType === 'function') updateType();
+    }
+    // fill specifics from sem_year / fields
+    const sem = String(rec.sem_year || '').toLowerCase();
+
+    function applySem(prefix) {
+      const pick1 = /1st/.test(sem), pick2 = /2nd/.test(sem);
+      const year = (sem.match(/\b(20\d{2})\b/) || [, ''])[1] || '';
+      const s1 = form.querySelector(`input[name="${prefix}_sem1_pick"]`);
+      const s2 = form.querySelector(`input[name="${prefix}_sem2_pick"]`);
+      const y1 = form.querySelector(`input[name="${prefix}_sem1_year"]`);
+      const y2 = form.querySelector(`input[name="${prefix}_sem2_year"]`);
+      if (s1) s1.checked = !!pick1;
+      if (s2) s2.checked = !!pick2;
+      if (y1) y1.value = pick1 ? year : '';
+      if (y2) y2.value = pick2 ? year : '';
+    }
+
+    if (type === 'external') applySem('external');
+    if (type === 'internal') applySem('internal');
+    if (type === 'unattain') {
+      set('input[name="project_name"]', rec.project_name);
+      set('input[name="wbs_number"]', rec.wbs_number);
+    }
+    if (type === 'online') {
+      const year = (sem.match(/\b(20\d{2})\b/) || [, ''])[1] || rec.sem_year || '';
+      set('input[name="online_year"]', year);
+    }
+    if (type === '5s') {
+      const year = (sem.match(/\b(20\d{2})\b/) || [, ''])[1] || '';
+      const month = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+        .find(m => sem.includes(m));
+      set('input[name="hs_year"]', year);
+      const mSel = form.querySelector('select[name="hs_month"]');
+      if (mSel && month) mSel.value = month.charAt(0).toUpperCase() + month.slice(1);
+    }
+    if (type === 'mgmt') {
+      set('input[name="mgmt_year"]', rec.sem_year || '');
+      const q = String(rec.quarter || '').toLowerCase();
+      ['mgmt_q1', 'mgmt_q2', 'mgmt_q3', 'mgmt_ytd'].forEach(n => setChk(n, false));
+      if (q === 'q1') setChk('mgmt_q1', true);
+      if (q === 'q2') setChk('mgmt_q2', true);
+      if (q === 'q3') setChk('mgmt_q3', true);
+      if (q === 'ytd') setChk('mgmt_ytd', true);
+    }
+
+    // ensure requirements toggle reflects active type
+    if (typeof setTypeRequirements === 'function') setTypeRequirements(type);
+
+    // 5) selects (supervisor + assignee)
+    try { await loadSupervisorOptions(); } catch { }
+    await setSelectByText(document.getElementById('originatorSupervisor'), rec.originator_supervisor_head);
+
+    try { await loadAssigneeOptions(); } catch { }
+    const assigneeLabel = rec.section ? `${rec.assignee} - ${rec.section}` : (rec.assignee || '');
+    await setSelectByText(document.getElementById('assigneeSelect'), assigneeLabel);
+  }
+
+  /* --- leave EDIT mode (restore form + optionally re-open view) --- */
+  function exitEditMode(openViewAfter, id) {
+    const reqModal = document.getElementById('rcpa-request-modal');
+    const form = reqModal?.querySelector('form.rcpa-form');
+    if (!reqModal || !form) return;
+
+    delete form.dataset.editingId;
+
+    // restore buttons
+    const submitBtn = document.getElementById('rcpa-submit-request');
+    if (submitBtn) submitBtn.textContent = 'Submit';
+    const cancelBtn = document.getElementById('rcpa-cancel-edit');
+    if (cancelBtn) cancelBtn.remove();
+
+    // restore attachment requirement for create
+    const fileInput = document.getElementById('finding_files');
+    if (fileInput) fileInput.setAttribute('required', '');
+
+    // remove "existing attachments" panel if present
+    const hdr = document.getElementById('rcpa-existing-attach-title');
+    const lst = document.getElementById('rcpa-existing-attach');
+    if (hdr) hdr.remove();
+    if (lst) lst.remove();
+    form.removeAttribute('data-existing-attach-count');
+
+    // close + reset with your existing helper
+    if (typeof window.__rcpaResetAttachments === 'function') window.__rcpaResetAttachments();
+    try {
+      // your hideModal resets the form for create-next-time
+      if (typeof hideModal === 'function') hideModal();
+      else reqModal.classList.remove('show');
+    } catch { reqModal.classList.remove('show'); }
+
+    // reopen view if requested
+    if (openViewAfter && id && typeof window.__openRcpaView === 'function') {
+      window.__openRcpaView(id);
+    }
+  }
+
+
 
   /* ------------------ Real-time datetime ------------------ */
   let originatorClock = null;
@@ -723,6 +972,7 @@
   }
 
   /* ------------------ Submit RCPA request (SweetAlert CONFIRM + loader) ------------------ */
+  /* ------------------ Submit / Save (create + edit) ------------------ */
   (function initSubmit() {
     const form = document.querySelector('#rcpa-request-modal form.rcpa-form');
     const submitBtn = document.getElementById('rcpa-submit-request');
@@ -731,18 +981,20 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      const isEdit = !!form.dataset.editingId;
+
       // A) Category required (one of the three)
       if (!categorySelected()) {
         swalError('Please choose a Category (Major, Minor, or Observation).', 'fieldset.category input[type="checkbox"]');
         return;
       }
 
-      // B) Assignee required (work with/without Choices.js)
+      // B) Assignee required (works with/without Choices.js)
       const assigneeSel = document.getElementById('assigneeSelect');
       let assigneeVal = '';
       if (assigneeSel) {
         if (assigneeSel._choices && typeof assigneeSel._choices.getValue === 'function') {
-          const v = assigneeSel._choices.getValue(true); // string or array (values only)
+          const v = assigneeSel._choices.getValue(true);
           assigneeVal = Array.isArray(v) ? (v[0] || '') : (v || '');
         } else {
           assigneeVal = assigneeSel.value || '';
@@ -752,29 +1004,32 @@
         swalError('Please select an Assignee (Department).', '#assigneeSelect');
         return;
       }
-      // B1.5) Require at least one attachment
 
       // C) Type-specific requirements (semester/quarter/etc.)
-      if (!validateTypeSpecificOnSubmit(form)) {
-        return;
+      if (!validateTypeSpecificOnSubmit(form)) return;
+
+      // D) Attachment rule:
+      //   - CREATE: at least 1 file
+      //   - EDIT:   not required
+      if (!isEdit) {
+        const filesInput = document.getElementById('finding_files');
+        if (!filesInput || !filesInput.files || filesInput.files.length === 0) {
+          swalError('Please attach at least one evidence file.', 'label[for="finding_files"]');
+          return;
+        }
       }
 
-      const filesInput = document.getElementById('finding_files');
-      if (!filesInput || !filesInput.files || filesInput.files.length === 0) {
-        swalError('Please attach at least one evidence file.', 'label[for="finding_files"]');
-        return;
-      }
-
-      // Native validation first
+      // Native validation
       if (!form.reportValidity()) return;
 
-      // Confirm first
       const confirmResult = await Swal.fire({
         icon: 'question',
-        title: 'Submit RCPA request?',
-        html: 'Please review your details before submitting.',
+        title: isEdit ? 'Save changes?' : 'Submit RCPA request?',
+        html: isEdit
+          ? 'Your updates will be saved. Status remains REJECTED until you Resubmit in the view.'
+          : 'Please review your details before submitting.',
         showCancelButton: true,
-        confirmButtonText: 'Yes, submit',
+        confirmButtonText: isEdit ? 'Save' : 'Yes, submit',
         cancelButtonText: 'Review again',
         reverseButtons: true,
         focusCancel: true,
@@ -783,8 +1038,6 @@
         preConfirm: async () => {
           try {
             const fd = new FormData(form);
-
-            // --- computed fields (same logic as before) ---
             const type = fd.get('rcpa_type');
 
             // sem_year
@@ -832,71 +1085,64 @@
             const dt = (fd.get('originator_date') || '').replace('T', ' ');
             fd.set('date_request_calc', dt);
 
-            // Submit (loader shows because of showLoaderOnConfirm)
-            const res = await fetch('../php-backend/rcpa-submit-request.php', {
-              method: 'POST',
-              body: fd,
-              credentials: 'same-origin'
-            });
+            // endpoint + id
+            const endpoint = isEdit
+              ? '../php-backend/rcpa-update-request.php'
+              : '../php-backend/rcpa-submit-request.php';
+            if (isEdit) fd.set('id', form.dataset.editingId || '');
 
+            const res = await fetch(endpoint, { method: 'POST', body: fd, credentials: 'same-origin' });
             let data;
-            try {
-              data = await res.json();
-            } catch {
-              throw new Error(`Invalid server response (HTTP ${res.status}).`);
-            }
+            try { data = await res.json(); } catch { throw new Error(`Invalid server response (HTTP ${res.status}).`); }
+            if (!res.ok || !data.ok) throw new Error(data?.error || `Submit failed (HTTP ${res.status})`);
 
-            if (!res.ok || !data.ok) {
-              throw new Error(data?.error || `Submit failed (HTTP ${res.status})`);
-            }
-
-            // Return data to the then-handler
             return data;
           } catch (err) {
-            // Show error text inside the modal without closing it
             Swal.showValidationMessage(err.message || 'Something went wrong.');
             return false;
           }
         }
       });
 
-      // If user cancelled or there was a validation message, stop here
       if (!confirmResult.isConfirmed || !confirmResult.value) return;
 
-      // Success modal (or convert to toast if you prefer)
-      const data = confirmResult.value; // { ok: true, id: ... }
+      const data = confirmResult.value;
+
       await Swal.fire({
         icon: 'success',
-        title: 'Submitted!',
-        text: 'RCPA Request created successfully.',
+        title: isEdit ? 'Saved!' : 'Submitted!',
+        text: isEdit ? 'Changes saved. You can now Resubmit from the view screen.' : 'RCPA Request created successfully.',
         confirmButtonText: 'OK',
         allowOutsideClick: false
       });
 
-      refreshRcpaTable();
+      // refresh the list
+      if (typeof refreshRcpaTable === 'function') refreshRcpaTable();
 
-      // Highlight the new row after reload
-      if (data?.id) {
+      // After CREATE, keep your highlight logic (unchanged)
+      if (!isEdit && data?.id) {
         setTimeout(() => {
           const row = document.querySelector(`#rcpa-table tbody tr td:first-child`);
           if (row && row.textContent.trim() === String(data.id)) {
             row.parentElement.classList.add('rcpa-row-new');
-
-            // Optionally stop blinking after 10 seconds
-            setTimeout(() => {
-              row.parentElement.classList.remove('rcpa-row-new');
-            }, 20000);
+            setTimeout(() => row.parentElement.classList.remove('rcpa-row-new'), 20000);
           }
-        }, 500); // wait a bit until table reloads
+        }, 500);
       }
 
-      // Optionally broadcast so other clients update, too
-      if (socket && socket.readyState === WebSocket.OPEN) {
+      // notify others
+      if (window.socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ action: 'rcpa-request' }));
-        alert("sent"); // remove this noisy alert
       }
 
-      // Close & reset modal using your existing helpers
+      // Close edit form + reopen View (for the same id)
+      if (isEdit) {
+        const id = data?.id || form.dataset.editingId;
+        exitEditMode(true, id);
+        return;
+      }
+
+      // CREATE: close & reset as before
       if (typeof window.__rcpaResetAttachments === 'function') window.__rcpaResetAttachments();
       try { hideModal(); } catch {
         form.reset();
@@ -904,6 +1150,7 @@
       }
     });
   })();
+
 
   function labelForType(t) {
     const key = (t || '').toLowerCase();
@@ -1494,6 +1741,37 @@
     const approveBtn = byId('rcpa-approve-btn');
     const disapproveBtn = byId('rcpa-disapprove-btn');
     const resubmitBtn = byId('rcpa-resubmit-btn'); // NEW
+
+    // --- ensure Edit button exists beside Resubmit ---
+    let editBtn = byId('rcpa-edit-btn');
+    if (!editBtn && actionsBar) {
+      editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.id = 'rcpa-edit-btn';
+      editBtn.className = 'rcpa-btn';
+      editBtn.style.marginRight = '8px';
+      editBtn.textContent = 'Edit';
+      actionsBar.insertBefore(editBtn, resubmitBtn || actionsBar.firstChild);
+    }
+    // open the edit form, prefilled, without the two modals overlapping
+    editBtn?.addEventListener('click', async () => {
+      const vm = byId('rcpa-view-modal');
+      const id = parseInt(vm?.dataset.rcpaId || '0', 10);
+      if (!id) return;
+
+      let row = null;
+      try {
+        const r = await fetch(`../php-backend/rcpa-get-request.php?id=${encodeURIComponent(id)}`, {
+          credentials: 'same-origin',
+          headers: { 'Accept': 'application/json' }
+        });
+        const data = await r.json();
+        if (r.ok && data?.ok) row = data.row || null;
+      } catch { }
+
+      swapModals(vm, () => enterEditMode(row || { id }));
+    });
+
 
     // Disapprove form modal (with upload)
     const rejectModal = byId('rcpa-reject-modal');
@@ -2492,6 +2770,10 @@
           if (disapproveBtn) disapproveBtn.style.display = '';
         } else if (statusNow === 'REJECTED') {
           if (resubmitBtn) resubmitBtn.style.display = ''; // NEW
+          if (editBtn) editBtn.style.display = ''; else if (editBtn) editBtn.style.display = 'none';
+          if (statusNow !== 'REJECTED' && editBtn) editBtn.style.display = 'none';
+
+
         }
 
 
@@ -2970,6 +3252,9 @@
         mgmt: 'Management Objective'
       }[key] || (t || ''));
     }
+
+    window.__openRcpaView = openViewForId;
+
   })();
 
 })();
