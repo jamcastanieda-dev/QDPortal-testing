@@ -13,7 +13,7 @@
   const CURRENT_ROLE = (window.RCPA_ROLE || '').toString().trim().toLowerCase(); // 👈 role from server
 
   // ✅ only QMS approvers can act across departments
-  const CAN_OVERRIDE_DEPT = IS_APPROVER && CURRENT_DEPT === 'qms';
+  const CAN_OVERRIDE_DEPT = false; // no cross-department override in the UI
 
   const norm = s => (s ?? '').toString().trim().toLowerCase();
 
@@ -1377,29 +1377,29 @@
       });
       const data = await res.json();
       const finalStatus = (data && data.status) || 'FOR CLOSING APPROVAL';
-const autoApproved = !!(data && data.autoApproved);
+      const autoApproved = !!(data && data.autoApproved);
 
-const st = document.getElementById('rcpa-view-status');
-if (st) st.value = finalStatus;
+      const st = document.getElementById('rcpa-view-status');
+      if (st) st.value = finalStatus;
 
-if (window.Swal) {
-  Swal.fire({
-    icon: 'success',
-    title: autoApproved ? 'Submitted & Auto-approved' : 'Submitted',
-    text: `Status set to "${finalStatus}".`,
-    timer: 1600,
-    showConfirmButton: false
-  });
-} else {
-  alert(
-    (autoApproved ? 'Submitted & Auto-approved. ' : 'Submitted. ') +
-    `Status set to "${finalStatus}".`
-  );
-}
+      if (window.Swal) {
+        Swal.fire({
+          icon: 'success',
+          title: autoApproved ? 'Submitted & Auto-approved' : 'Submitted',
+          text: `Status set to "${finalStatus}".`,
+          timer: 1600,
+          showConfirmButton: false
+        });
+      } else {
+        alert(
+          (autoApproved ? 'Submitted & Auto-approved. ' : 'Submitted. ') +
+          `Status set to "${finalStatus}".`
+        );
+      }
 
       if (!res.ok || !data?.success) throw new Error(data?.error || `HTTP ${res.status}`);
 
-      
+
       closeAcceptModal();
       // optionally refresh parent table/list
       document.dispatchEvent(new CustomEvent('rcpa:refresh'));
@@ -1898,7 +1898,7 @@ if (window.Swal) {
   });
 })();
 
-// rcpa-task-assignee-corrective.js
+// rcpa-task-assignee-corrective.js?v=1.1
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-tab-counters.php';
   const SSE_URL = '../php-backend/rcpa-assignee-tab-counters-sse.php';

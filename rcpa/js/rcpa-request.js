@@ -1769,6 +1769,7 @@
       editBtn.className = 'rcpa-btn';
       editBtn.style.marginRight = '8px';
       editBtn.textContent = 'Edit';
+      editBtn.style.display = 'none';            // ⬅️ hide by default
       actionsBar.insertBefore(editBtn, resubmitBtn || actionsBar.firstChild);
     }
     // open the edit form, prefilled, without the two modals overlapping
@@ -2777,6 +2778,7 @@
         if (approveBtn) approveBtn.style.display = 'none';
         if (disapproveBtn) disapproveBtn.style.display = 'none';
         if (resubmitBtn) resubmitBtn.style.display = 'none';
+        if (editBtn) editBtn.style.display = 'none';   // ⬅️ add this line
 
         // show correct buttons for this status
         if (
@@ -2787,11 +2789,10 @@
           if (approveBtn) approveBtn.style.display = '';
           if (disapproveBtn) disapproveBtn.style.display = '';
         } else if (statusNow === 'REJECTED') {
-          if (resubmitBtn) resubmitBtn.style.display = ''; // NEW
-          if (editBtn) editBtn.style.display = ''; else if (editBtn) editBtn.style.display = 'none';
-          if (statusNow !== 'REJECTED' && editBtn) editBtn.style.display = 'none';
-
-
+          if (resubmitBtn) resubmitBtn.style.display = '';
+          if (editBtn) editBtn.style.display = '';     // ⬅️ show Edit only here
+        } else {
+          if (editBtn) editBtn.style.display = 'none'; // ⬅️ keep Edit hidden otherwise
         }
 
 
