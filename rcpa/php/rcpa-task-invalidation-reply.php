@@ -419,7 +419,7 @@
                 <fieldset class="assignee">
                     <legend>ASSIGNEE</legend>
                     <label class="field">
-                        <span>Department / Person</span>
+                        <span>Department</span>
                         <input class="u-line" type="text" id="rcpa-view-assignee" readonly>
                     </label>
                     <label class="field">
