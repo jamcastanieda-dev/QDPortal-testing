@@ -2230,7 +2230,7 @@
 
     const PRE_STEPS = ['REQUESTED', 'APPROVAL', 'QMS CHECKING', 'ASSIGNEE PENDING'];
     const VALID_CHAIN = [
-      'VALID APPROVAL', 'VALIDATION REPLY', 'REPLY CHECKING - ORIGINATOR',
+      'VALID APPROVAL', 'VALIDATION REPLY',
       'FOR CLOSING', 'FOR CLOSING APPROVAL',
       'EVIDENCE CHECKING', 'EVIDENCE CHECKING - ORIGINATOR',
       'EVIDENCE APPROVAL', 'CLOSED (VALID)'
@@ -2251,7 +2251,7 @@
         case 'VALIDATION REPLY':
         case 'INVALIDATION REPLY':
         case 'EVIDENCE CHECKING': return 'QMS';
-        case 'REPLY CHECKING - ORIGINATOR':
+        // removed: 'REPLY CHECKING - ORIGINATOR'
         case 'EVIDENCE CHECKING - ORIGINATOR':
         case 'INVALID APPROVAL - ORIGINATOR': return 'Originator';
         case 'INVALIDATION REPLY APPROVAL':
@@ -2299,7 +2299,7 @@
       // VALID
       VALID_APPROVAL: /the\s+assignee\s+supervisor\/manager\s+approved\s+the\s+assignee\s+reply\s+as\s+valid\.?/i,
       VALIDATION_REPLY: /the\s+valid\s+reply\s+by\s+assignee\s+was\s+approved\s+by\s+qms\.?/i,
-      REPLY_CHECKING_ORIG: /the\s+originator\s+approved\s+the\s+valid\s+reply\.?/i,
+      REPLY_CHECKING_ORIG: /the\s+originator\s+approved\s+the\s+valid\s+reply\.?/i, // kept for back-compat, mapped into VALIDATION REPLY
       FOR_CLOSING: /the\s+assignee\s+request(?:ed)?\s+approval\s+for\s+corrective\s+action\s+evidence\.?/i,
       FOR_CLOSING_APPROVAL: /the\s+assignee\s+supervisor\/manager\s+approved\s+the\s+assignee\s+corrective\s+action\s+evidence\s+approval\.?/i,
       EVIDENCE_CHECKING: /the\s+qms\s+accepted\s+the\s+corrective\s+reply\s+for\s+evidence\s+checking\s*\(originator\)\.?/i,
@@ -2322,8 +2322,8 @@
         case 'ASSIGNEE PENDING': return [validOrNot];
         // VALID
         case 'VALID APPROVAL': return [PH.VALID_APPROVAL];
-        case 'VALIDATION REPLY': return [PH.VALIDATION_REPLY];
-        case 'REPLY CHECKING - ORIGINATOR': return [PH.REPLY_CHECKING_ORIG];
+        case 'VALIDATION REPLY': return [(s) => PH.VALIDATION_REPLY.test(s) || PH.REPLY_CHECKING_ORIG.test(s)];
+        // removed: 'REPLY CHECKING - ORIGINATOR'
         case 'FOR CLOSING': return [PH.FOR_CLOSING];
         case 'FOR CLOSING APPROVAL': return [PH.FOR_CLOSING_APPROVAL];
         case 'EVIDENCE CHECKING': return [PH.EVIDENCE_CHECKING];
@@ -2374,9 +2374,11 @@
       const fs = ensureFieldset(); if (!fs) return;
       resetStatusFlow(); if (!rcpaNo) return;
 
-      const statusNow = String(document.getElementById('rcpa-view-status')?.value || '').trim().toUpperCase();
+      // Back-compat: map removed step to an existing one
+      const statusRaw = String(document.getElementById('rcpa-view-status')?.value || '').trim().toUpperCase();
+      const statusNow = (statusRaw === 'REPLY CHECKING - ORIGINATOR') ? 'VALIDATION REPLY' : statusRaw;
 
-      // NEW: detect closed states
+      // Detect closed states
       const isClosedValid = statusNow === 'CLOSED (VALID)';
       const isClosedInvalid = statusNow === 'CLOSED (INVALID)';
       const isClosed = isClosedValid || isClosedInvalid;
@@ -2419,7 +2421,7 @@
       const cutoffIdx = STEPS.indexOf(statusNow);
       if (cutoffIdx >= 0) STEPS.forEach((k, i) => { if (i > cutoffIdx) stepData[k] = { name: '—', date: '', ts: 0 }; });
 
-      // NEW: if closed, copy CLOSED's name/date from the specified approval step
+      // If closed, mirror the approval step's info onto CLOSED so it's painted
       if (isClosedValid && stepData['EVIDENCE APPROVAL']?.date) {
         stepData['CLOSED (VALID)'] = { ...stepData['EVIDENCE APPROVAL'] };
       }
@@ -2434,7 +2436,7 @@
         const info = stepData[key] || { name: '—', date: '' };
         const idx = STEPS.indexOf(key);
 
-        // NEW: when closed, don't treat the last step as "current"
+        // When closed, don't treat the last step as "current"
         const isFuture = !isClosed && (cutoffIdx >= 0 && idx > cutoffIdx);
         const isCurrent = !isClosed && (cutoffIdx >= 0 && idx === cutoffIdx);
 
@@ -2466,9 +2468,8 @@
       for (let i = 0; i < STEPS.length; i++) {
         if (stepData[STEPS[i]]?.date) doneCount = i + 1; else break;
       }
-      // NEW: if closed, mark all steps as done so CLOSED is green
       if (isClosed) {
-        doneCount = STEPS.length;
+        doneCount = STEPS.length; // make CLOSED green
       } else if (cutoffIdx >= 0) {
         doneCount = Math.min(doneCount, cutoffIdx);
       }
@@ -2511,6 +2512,7 @@
       viewModal.__clearStatusFlow = resetStatusFlow;
     }
   })();
+
 
   // Tip: ensure view modal is visually above the list modal
   // #rcpaListModal { z-index: 1000; }
@@ -2654,13 +2656,13 @@
     function aggAtMonth(metrics, dept, m) {
       const add = (r, acc) => {
         if (!r) return;
-        acc.total       += r.total       || 0;
+        acc.total += r.total || 0;
         acc.reply_total += r.reply_total || 0;
-        acc.reply_hit   += r.reply_hit   || 0;
+        acc.reply_hit += r.reply_hit || 0;
         acc.close_total += r.close_total || 0;
-        acc.close_hit   += r.close_hit   || 0;
+        acc.close_hit += r.close_hit || 0;
       };
-      const acc = { total:0, reply_total:0, reply_hit:0, close_total:0, close_hit:0 };
+      const acc = { total: 0, reply_total: 0, reply_hit: 0, close_total: 0, close_hit: 0 };
       // Plain (no-section only) — metrics[dept] is now no-section if you changed the PHP
       add(metrics[dept]?.[m], acc);
       // All sections
@@ -2859,11 +2861,11 @@
             if (metricKey === 'reply_fill') {
               baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.reply_total; den += a.total; });
             } else if (metricKey === 'reply_sl') {
-              baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.reply_hit;   den += a.reply_total; });
+              baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.reply_hit; den += a.reply_total; });
             } else if (metricKey === 'close_fill') {
               baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.close_total; den += a.total; });
             } else if (metricKey === 'close_sl') {
-              baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.close_hit;   den += a.close_total; });
+              baseDeptNames.forEach(dept => { const a = aggAtMonth(metrics, dept, m); num += a.close_hit; den += a.close_total; });
             }
             const pct = percent(num, den);
             setCellText(tableEl.querySelector(`td.col-total[data-month="${m}"][data-metric="${metricKey}_sum"]`), pct, true);
@@ -2871,13 +2873,13 @@
             let sum = 0;
             baseDeptNames.forEach(dept => {
               const a = aggAtMonth(metrics, dept, m);
-              if (metricKey === 'total')        sum += a.total;
-              if (metricKey === 'reply_hit')    sum += a.reply_hit;
+              if (metricKey === 'total') sum += a.total;
+              if (metricKey === 'reply_hit') sum += a.reply_hit;
               if (metricKey === 'reply_missed') sum += Math.max(0, a.reply_total - a.reply_hit);
-              if (metricKey === 'reply_total')  sum += a.reply_total;
-              if (metricKey === 'close_hit')    sum += a.close_hit;
+              if (metricKey === 'reply_total') sum += a.reply_total;
+              if (metricKey === 'close_hit') sum += a.close_hit;
               if (metricKey === 'close_missed') sum += Math.max(0, a.close_total - a.close_hit);
-              if (metricKey === 'close_total')  sum += a.close_total;
+              if (metricKey === 'close_total') sum += a.close_total;
             });
             setCellText(tableEl.querySelector(`td.col-total[data-month="${m}"][data-metric="${metricKey}_sum"]`), sum, false);
           }
@@ -2921,13 +2923,13 @@
           return s;
         };
 
-        if (metricKey === 'total')        return reduceAcrossMonths(a => a.total);
-        if (metricKey === 'reply_hit')    return reduceAcrossMonths(a => a.reply_hit);
+        if (metricKey === 'total') return reduceAcrossMonths(a => a.total);
+        if (metricKey === 'reply_hit') return reduceAcrossMonths(a => a.reply_hit);
         if (metricKey === 'reply_missed') return reduceAcrossMonths(a => Math.max(0, a.reply_total - a.reply_hit));
-        if (metricKey === 'reply_total')  return reduceAcrossMonths(a => a.reply_total);
-        if (metricKey === 'close_hit')    return reduceAcrossMonths(a => a.close_hit);
+        if (metricKey === 'reply_total') return reduceAcrossMonths(a => a.reply_total);
+        if (metricKey === 'close_hit') return reduceAcrossMonths(a => a.close_hit);
         if (metricKey === 'close_missed') return reduceAcrossMonths(a => Math.max(0, a.close_total - a.close_hit));
-        if (metricKey === 'close_total')  return reduceAcrossMonths(a => a.close_total);
+        if (metricKey === 'close_total') return reduceAcrossMonths(a => a.close_total);
 
         if (metricKey === 'reply_fill') {
           let num = 0, den = 0;

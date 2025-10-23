@@ -1578,7 +1578,7 @@
 
   const PRE_STEPS = ['REQUESTED', 'APPROVAL', 'QMS CHECKING', 'ASSIGNEE PENDING'];
   const VALID_CHAIN = [
-    'VALID APPROVAL', 'VALIDATION REPLY', 'REPLY CHECKING - ORIGINATOR',
+    'VALID APPROVAL', 'VALIDATION REPLY',
     'FOR CLOSING', 'FOR CLOSING APPROVAL',
     'EVIDENCE CHECKING', 'EVIDENCE CHECKING - ORIGINATOR',
     'EVIDENCE APPROVAL', 'CLOSED (VALID)'
@@ -1599,7 +1599,7 @@
       case 'VALIDATION REPLY':
       case 'INVALIDATION REPLY':
       case 'EVIDENCE CHECKING': return 'QMS';
-      case 'REPLY CHECKING - ORIGINATOR':
+      // removed: 'REPLY CHECKING - ORIGINATOR'
       case 'EVIDENCE CHECKING - ORIGINATOR':
       case 'INVALID APPROVAL - ORIGINATOR': return 'Originator';
       case 'INVALIDATION REPLY APPROVAL':
@@ -1647,7 +1647,7 @@
     // VALID
     VALID_APPROVAL: /the\s+assignee\s+supervisor\/manager\s+approved\s+the\s+assignee\s+reply\s+as\s+valid\.?/i,
     VALIDATION_REPLY: /the\s+valid\s+reply\s+by\s+assignee\s+was\s+approved\s+by\s+qms\.?/i,
-    REPLY_CHECKING_ORIG: /the\s+originator\s+approved\s+the\s+valid\s+reply\.?/i,
+    // removed: REPLY_CHECKING_ORIG
     FOR_CLOSING: /the\s+assignee\s+request(?:ed)?\s+approval\s+for\s+corrective\s+action\s+evidence\.?/i,
     FOR_CLOSING_APPROVAL: /the\s+assignee\s+supervisor\/manager\s+approved\s+the\s+assignee\s+corrective\s+action\s+evidence\s+approval\.?/i,
     EVIDENCE_CHECKING: /the\s+qms\s+accepted\s+the\s+corrective\s+reply\s+for\s+evidence\s+checking\s*\(originator\)\.?/i,
@@ -1671,7 +1671,7 @@
       // VALID
       case 'VALID APPROVAL': return [PH.VALID_APPROVAL];
       case 'VALIDATION REPLY': return [PH.VALIDATION_REPLY];
-      case 'REPLY CHECKING - ORIGINATOR': return [PH.REPLY_CHECKING_ORIG];
+      // removed: 'REPLY CHECKING - ORIGINATOR'
       case 'FOR CLOSING': return [PH.FOR_CLOSING];
       case 'FOR CLOSING APPROVAL': return [PH.FOR_CLOSING_APPROVAL];
       case 'EVIDENCE CHECKING': return [PH.EVIDENCE_CHECKING];
@@ -1722,7 +1722,9 @@
     const fs = ensureFieldset(); if (!fs) return;
     resetStatusFlow(); if (!rcpaNo) return;
 
-    const statusNow = String(document.getElementById('rcpa-view-status')?.value || '').trim().toUpperCase();
+    // Back-compat for removed step
+    const statusRaw = String(document.getElementById('rcpa-view-status')?.value || '').trim().toUpperCase();
+    const statusNow = (statusRaw === 'REPLY CHECKING - ORIGINATOR') ? 'VALIDATION REPLY' : statusRaw;
 
     // Load history rows
     let rows = [];
@@ -1839,6 +1841,7 @@
     viewModal.__clearStatusFlow = resetStatusFlow;
   }
 })();
+
 
 /* ====== HISTORY MODAL ====== */
 (function () {

@@ -611,7 +611,7 @@
     <div class="modal-overlay" id="rcpa-reject-modal" hidden>
         <div class="modal-content" id="rcpa-reject-content">
             <button type="button" class="close-btn" id="rcpa-reject-close" aria-label="Close">&times;</button>
-            <h3>Return to Originator — Reason</h3>
+            <h3>Return to QMS — Reason</h3>
 
             <form id="rcpa-reject-form" novalidate enctype="multipart/form-data">
                 <label class="field" style="display:block;margin-top:8px;">

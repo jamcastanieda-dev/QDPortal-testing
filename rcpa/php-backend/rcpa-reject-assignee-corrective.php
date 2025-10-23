@@ -22,7 +22,7 @@ if ($id === null || !ctype_digit((string)$id)) {
     exit;
 }
 
-$status = 'REPLY CHECKING - ORIGINATOR'; // ← per your requirement
+$status = 'VALIDATION REPLY'; // ← per your requirement
 
 try {
     if (!isset($conn) || !($conn instanceof mysqli)) {
@@ -89,7 +89,7 @@ try {
     // 3) Insert disapproval record (with attachments JSON)
     $json = $attachments ? json_encode($attachments, JSON_UNESCAPED_SLASHES) : null;
 
-    $disapproveType = "Disapproved by Assignee in Assignee Corrective";
+    $disapproveType = "Disapproved by Assignee in FOR CLOSING";
     $stmt2 = $conn->prepare('
       INSERT INTO rcpa_disapprove_remarks (rcpa_no, disapprove_type, remarks, attachments, created_at)
       VALUES (?, ?, ?, ?, NOW())

@@ -31,7 +31,7 @@ if ($id === null || !ctype_digit((string)$id)) {
   exit;
 }
 
-$status = 'REPLY CHECKING - ORIGINATOR';
+$status = 'FOR CLOSING';
 
 try {
   if (!isset($conn) || !($conn instanceof mysqli)) {
