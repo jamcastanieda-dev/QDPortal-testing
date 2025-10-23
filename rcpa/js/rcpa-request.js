@@ -1960,7 +1960,7 @@
 
       const PRE_STEPS = ['REQUESTED', 'APPROVAL', 'QMS CHECKING', 'ASSIGNEE PENDING'];
       const VALID_CHAIN = [
-        'VALID APPROVAL', 'VALIDATION REPLY', 'REPLY CHECKING - ORIGINATOR',
+        'VALID APPROVAL', 'VALIDATION REPLY',
         'FOR CLOSING', 'FOR CLOSING APPROVAL',
         'EVIDENCE CHECKING', 'EVIDENCE CHECKING - ORIGINATOR',
         'EVIDENCE APPROVAL', 'CLOSED (VALID)'
@@ -1981,7 +1981,7 @@
           case 'VALIDATION REPLY':
           case 'INVALIDATION REPLY':
           case 'EVIDENCE CHECKING': return 'QMS';
-          case 'REPLY CHECKING - ORIGINATOR':
+          // removed: 'REPLY CHECKING - ORIGINATOR'
           case 'EVIDENCE CHECKING - ORIGINATOR':
           case 'INVALID APPROVAL - ORIGINATOR': return 'Originator';
           case 'INVALIDATION REPLY APPROVAL':
@@ -2042,7 +2042,7 @@
         // VALID path
         VALID_APPROVAL: /the\s+assignee\s+supervisor\/manager\s+approved\s+the\s+assignee\s+reply\s+as\s+valid\.?/i,
         VALIDATION_REPLY: /the\s+valid\s+reply\s+by\s+assignee\s+was\s+approved\s+by\s+qms\.?/i,
-        REPLY_CHECKING_ORIG: /the\s+originator\s+approved\s+the\s+valid\s+reply\.?/i,
+        REPLY_CHECKING_ORIG: /the\s+originator\s+approved\s+the\s+valid\s+reply\.?/i, // back-compat only
         FOR_CLOSING: /the\s+assignee\s+request(?:ed)?\s+approval\s+for\s+corrective\s+action\s+evidence\.?/i,
         FOR_CLOSING_APPROVAL: /the\s+assignee\s+supervisor\/manager\s+approved\s+the\s+assignee\s+corrective\s+action\s+evidence\s+approval\.?/i,
         EVIDENCE_CHECKING: /the\s+qms\s+accepted\s+the\s+corrective\s+reply\s+for\s+evidence\s+checking\s*\(originator\)\.?/i,
@@ -2068,8 +2068,8 @@
 
           // VALID path
           case 'VALID APPROVAL': return [PH.VALID_APPROVAL];
-          case 'VALIDATION REPLY': return [PH.VALIDATION_REPLY];
-          case 'REPLY CHECKING - ORIGINATOR': return [PH.REPLY_CHECKING_ORIG];
+          case 'VALIDATION REPLY': return [(s) => PH.VALIDATION_REPLY.test(s) || PH.REPLY_CHECKING_ORIG.test(s)]; // map old -> new
+          // removed: 'REPLY CHECKING - ORIGINATOR'
           case 'FOR CLOSING': return [PH.FOR_CLOSING];
           case 'FOR CLOSING APPROVAL': return [PH.FOR_CLOSING_APPROVAL];
           case 'EVIDENCE CHECKING': return [PH.EVIDENCE_CHECKING];
@@ -2128,10 +2128,12 @@
         resetStatusFlow();
         if (!rcpaNo) return;
 
-        const statusNow = String(document.getElementById('rcpa-view-status')?.value || '')
+        // Back-compat: map removed step to VALIDATION REPLY
+        const raw = String(document.getElementById('rcpa-view-status')?.value || '')
           .trim().toUpperCase();
+        const statusNow = (raw === 'REPLY CHECKING - ORIGINATOR') ? 'VALIDATION REPLY' : raw;
 
-        // 🔒 CLOSED state flags (NEW)
+        // 🔒 CLOSED state flags
         const isClosedValid = statusNow === 'CLOSED (VALID)';
         const isClosedInvalid = statusNow === 'CLOSED (INVALID)';
         const isClosed = isClosedValid || isClosedInvalid;
@@ -2147,7 +2149,6 @@
           rows = Array.isArray(data?.rows) ? data.rows : [];
         } catch { rows = []; }
 
-        // 🔒 KEY CHANGE:
         // If current status is ASSIGNEE PENDING -> never decide a branch.
         let STEPS = PRE_STEPS.slice();
         if (statusNow !== 'ASSIGNEE PENDING') {
@@ -2181,16 +2182,7 @@
           STEPS.forEach((k, i) => { if (i > cutoffIdx) stepData[k] = { name: '—', date: '', ts: 0 }; });
         }
 
-        // 🔒 CLOSED behavior (NEW):
-        // - mark CLOSED node with same actor/date as the specified approval step
-        if (isClosedValid && stepData['EVIDENCE APPROVAL']?.date) {
-          stepData['CLOSED (VALID)'] = { ...stepData['EVIDENCE APPROVAL'] };
-        }
-        if (isClosedInvalid && stepData['INVALID APPROVAL - ORIGINATOR']?.date) {
-          stepData['CLOSED (INVALID)'] = { ...stepData['INVALID APPROVAL - ORIGINATOR'] };
-        }
-
-        // Fill DOM: past -> initials+date; current/future -> default actor + —/TBD
+        // Fill DOM
         const items = fs.querySelectorAll('.flow-step');
         items.forEach(li => {
           const key = li.getAttribute('data-key') || li.querySelector('.flow-label')?.textContent?.trim().toUpperCase();
@@ -2278,6 +2270,7 @@
         viewModal.__clearStatusFlow = resetStatusFlow;
       }
     })();
+
 
     function toggleValidationBlocks(mode) {
       const showNC = mode === 'nc';
