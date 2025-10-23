@@ -494,8 +494,8 @@
     <script src="../../sidebar.js" type="text/javascript"></script>
 
     <!-- BACK END JS -->
-    <script src="../js/rcpa-approval.js"></script>
-    <script src="../js/rcpa-notif-sub-menu-count.js"></script>
+    <script src="../js/rcpa-approval.js?v=1.1"></script>
+    <script src="../js/rcpa-notif-sub-menu-count.js?v=1.1"></script>
 
 
     <!-- CDN JS -->

@@ -1896,7 +1896,7 @@
   });
 })();
 
-// rcpa-task-assignee-corrective.js?v=1.1
+// rcpa-task-assignee-corrective.js
 (function () {
   const ENDPOINT = '../php-backend/rcpa-assignee-tab-counters.php';
   const SSE_URL = '../php-backend/rcpa-assignee-tab-counters-sse.php';

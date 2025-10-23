@@ -630,8 +630,8 @@
     <script src="../../pagination.js" type="text/javascript"></script>
     <script src="../../sidebar.js" type="text/javascript"></script>
 
-    <script src="../js/rcpa-task-qms-approval-reply-invalid.js"></script>
-    <script src="../js/rcpa-notif-sub-menu-count.js"></script>
+    <script src="../js/rcpa-task-qms-approval-reply-invalid.js?v=1.1"></script>
+    <script src="../js/rcpa-notif-sub-menu-count.js?v=1.1"></script>
 
 
     <!-- CDN JS -->

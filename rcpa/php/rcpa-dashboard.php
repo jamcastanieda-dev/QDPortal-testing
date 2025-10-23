@@ -1311,8 +1311,8 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
     <!-- BACKEND JS -->
-    <script src="../js/rcpa-dashboard.js"></script>
-    <script src="../js/rcpa-notif-sub-menu-count.js"></script>
+    <script src="../js/rcpa-dashboard.js?v=1.1"></script>
+    <script src="../js/rcpa-notif-sub-menu-count.js?v=1.1"></script>
 
     <!-- CDN JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
