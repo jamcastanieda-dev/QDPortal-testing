@@ -3,8 +3,7 @@
 // Runs daily and emails assignee groups when close_due_date is exactly
 // 4, 3, 2, 1 weeks, 2 days, 1 day away, or today (28, 21, 14, 7, 2, 1, 0 days).
 // Emails regardless of status EXCEPT when status is "CLOSED (VALID)" or "CLOSED (INVALID)".
-// Includes conformance details (Non-conformance / Potential Non-conformance)
-//   only for the statuses listed by the user (see $detailStatuses).
+// Displays "Description of Findings" from rcpa_request.remarks (instead of Conformance/details).
 // RECIPIENTS:
 //   TO = supervisors in assignee dept/section + assignee_name (if present);
 //   if NO supervisors exist -> everyone in dept/section EXCEPT role 'manager' + assignee_name (if present).
@@ -70,8 +69,8 @@ $qmsEmails = cleanEmails($qmsEmails);
 
 /* ---------------------------------------------------
    Pull rows due at the specified offsets based on close_due_date.
-   Join BOTH detail tables (left join). We'll decide which to display later.
    (Also select r.assignee_name for recipient logic.)
+   NOTE: We no longer pull/join the detail tables; we're showing Remarks only.
 --------------------------------------------------- */
 $sql = "
   SELECT
@@ -79,31 +78,11 @@ $sql = "
       r.assignee,
       r.section,
       r.status,
-      r.conformance,
+      r.remarks,
       r.assignee_name,
       r.close_due_date,
-      DATEDIFF(r.close_due_date, CURDATE()) AS days_left,
-
-      -- Non-conformance fields
-      vn.root_cause                    AS vn_root_cause,
-      vn.correction                    AS vn_correction,
-      vn.correction_target_date        AS vn_correction_target_date,
-      vn.correction_date_completed     AS vn_correction_date_completed,
-      vn.corrective                    AS vn_corrective,
-      vn.corrective_target_date        AS vn_corrective_target_date,
-      vn.corrective_date_completed     AS vn_corrective_date_completed,
-
-      -- Potential Non-conformance fields
-      vp.root_cause                    AS vp_root_cause,
-      vp.preventive_action             AS vp_preventive_action,
-      vp.preventive_target_date        AS vp_preventive_target_date,
-      vp.preventive_date_completed     AS vp_preventive_date_completed
-
+      DATEDIFF(r.close_due_date, CURDATE()) AS days_left
   FROM rcpa_request r
-  LEFT JOIN rcpa_valid_non_conformance vn
-         ON vn.rcpa_no = r.id
-  LEFT JOIN rcpa_valid_potential_conformance vp
-         ON vp.rcpa_no = r.id
   WHERE r.close_due_date IS NOT NULL
     AND r.close_date IS NULL
     AND DATEDIFF(r.close_due_date, CURDATE()) IN (28, 21, 14, 7, 2, 1, 0)
@@ -130,45 +109,21 @@ $st->bind_result(
   $dept,
   $section,
   $status,
-  $conformance,
+  $remarks,
   $assignee_name,
   $due,
-  $days_left,
-  $vn_root_cause,
-  $vn_correction,
-  $vn_correction_target_date,
-  $vn_correction_date_completed,
-  $vn_corrective,
-  $vn_corrective_target_date,
-  $vn_corrective_date_completed,
-  $vp_root_cause,
-  $vp_preventive_action,
-  $vp_preventive_target_date,
-  $vp_preventive_date_completed
+  $days_left
 );
 while ($st->fetch()) {
   $rows[] = [
-    'id'        => (int)$id,
-    'dept'      => (string)$dept,
-    'section'   => (string)$section,
-    'status'    => (string)$status,
-    'conf'      => (string)$conformance,
+    'id'            => (int)$id,
+    'dept'          => (string)$dept,
+    'section'       => (string)$section,
+    'status'        => (string)$status,
+    'remarks'       => (string)$remarks,
     'assignee_name' => (string)$assignee_name,
-    'due'       => (string)$due,
-    'days_left' => (int)$days_left,
-
-    'vn_root_cause'                => $vn_root_cause,
-    'vn_correction'                => $vn_correction,
-    'vn_correction_target_date'    => $vn_correction_target_date,
-    'vn_correction_date_completed' => $vn_correction_date_completed,
-    'vn_corrective'                => $vn_corrective,
-    'vn_corrective_target_date'    => $vn_corrective_target_date,
-    'vn_corrective_date_completed' => $vn_corrective_date_completed,
-
-    'vp_root_cause'                => $vp_root_cause,
-    'vp_preventive_action'         => $vp_preventive_action,
-    'vp_preventive_target_date'    => $vp_preventive_target_date,
-    'vp_preventive_date_completed' => $vp_preventive_date_completed,
+    'due'           => (string)$due,
+    'days_left'     => (int)$days_left,
   ];
 }
 $st->free_result();
@@ -177,23 +132,12 @@ $st->close();
 /* ---------------------------------------------------
    Process each row (idempotent per day & offset)
 --------------------------------------------------- */
-$detailStatuses = [
-  'VALID APPROVAL',
-  'VALIDATION REPLY',
-  'REPLY CHECKING - ORIGINATOR',
-  'FOR CLOSING',
-  'FOR CLOSING APPROVAL',
-  'EVIDENCE CHECKING',
-  'EVIDENCE CHECKING - ORIGINATOR',
-  'EVIDENCE APPROVAL',
-];
-
 foreach ($rows as $r) {
   $id        = $r['id'];
   $dept      = trim($r['dept']);
   $section   = trim($r['section']);
   $status    = trim($r['status']);
-  $conf      = trim($r['conf']);
+  $remarks   = trim($r['remarks'] ?? '');
   $assigneeName = trim($r['assignee_name'] ?? '');
   $due       = $r['due'];
   $daysLeft  = (int)$r['days_left'];
@@ -269,7 +213,6 @@ foreach ($rows as $r) {
      AND email IS NOT NULL
      AND TRIM(email) <> ''
 ");
-
       if ($q) {
         $q->bind_param('s', $dept);
         if ($q->execute()) {
@@ -318,7 +261,6 @@ foreach ($rows as $r) {
      AND TRIM(email) <> ''
    LIMIT 1
 ");
-
       if ($qa) {
         $qa->bind_param('ss', $assigneeName, $dept);
         if ($qa->execute()) {
@@ -365,7 +307,6 @@ foreach ($rows as $r) {
      AND email IS NOT NULL
      AND TRIM(email) <> ''
 ");
-
       if ($qm) {
         $qm->bind_param('s', $dept);
         if ($qm->execute()) {
@@ -413,7 +354,6 @@ foreach ($rows as $r) {
      AND email IS NOT NULL
      AND TRIM(email) <> ''
 ");
-
       if ($qnm) {
         $qnm->bind_param('s', $dept);
         if ($qnm->execute()) {
@@ -437,7 +377,7 @@ foreach ($rows as $r) {
   // CC: all QMS, but avoid duplicates with "To"
   $cc = array_values(array_diff($qmsEmails, $to));
 
-  // Compose email (card layout, with conditional conformance details)
+  // Compose email (card layout)
   $deptDisplay   = $dept . ($section !== '' ? ' - ' . $section : '');
   $subject       = ($daysLeft === 0)
     ? sprintf('RCPA #%d - Close due today (%s)', (int)$id, $deptDisplay)
@@ -452,51 +392,9 @@ foreach ($rows as $r) {
   $taskUrlSafe  = h($taskUrl);
   $taskUrlText  = h($taskUrlDisplay);
   $statusSafe   = h($status);
-  $confSafe     = h($conf);
+  $remarksSafe  = h($remarks);
+  $remarksHtml  = ($remarksSafe !== '') ? $remarksSafe : '-';
   $closeDueSafe = h($closeDueTxt);
-
-  // Build additional details ONLY when status is in $detailStatuses
-  $extraHtmlRows = '';
-  $extraText = '';
-  if (in_array($status, $detailStatuses, true)) {
-    if ($conf === 'Non-conformance') {
-      $rowsMap = [
-        'Root Cause'                 => h($r['vn_root_cause'] ?? ''),
-        'Correction'                 => h($r['vn_correction'] ?? ''),
-        'Correction Target Date'     => h(fmtDate($r['vn_correction_target_date'] ?? null)),
-        'Correction Date Completed'  => h(fmtDate($r['vn_correction_date_completed'] ?? null)),
-        'Corrective Action'          => h($r['vn_corrective'] ?? ''),
-        'Corrective Target Date'     => h(fmtDate($r['vn_corrective_target_date'] ?? null)),
-        'Corrective Date Completed'  => h(fmtDate($r['vn_corrective_date_completed'] ?? null)),
-      ];
-    } elseif ($conf === 'Potential Non-conformance') {
-      $rowsMap = [
-        'Root Cause'                 => h($r['vp_root_cause'] ?? ''),
-        'Preventive Action'          => h($r['vp_preventive_action'] ?? ''),
-        'Preventive Target Date'     => h(fmtDate($r['vp_preventive_target_date'] ?? null)),
-        'Preventive Date Completed'  => h(fmtDate($r['vp_preventive_date_completed'] ?? null)),
-      ];
-    } else {
-      $rowsMap = [];
-    }
-
-    foreach ($rowsMap as $labelKey => $val) {
-      if ($val !== '') {
-        $extraHtmlRows .=
-          '<tr>'
-          . '<td style="padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb;">' . h($labelKey) . '</td>'
-          . '<td style="padding:6px 10px; border:1px solid #e5e7eb;">' . $val . '</td>'
-          . '</tr>';
-        $extraText .= $labelKey . ': ' . html_entity_decode($val, ENT_QUOTES, 'UTF-8') . "\n";
-      }
-    }
-
-    if ($extraHtmlRows !== '') {
-      $extraHtmlRows =
-        '<tr><td colspan="2" style="padding:8px 10px; background:#eef2ff; border:1px solid #e5e7eb;"><strong>Details (' . h($conf) . ')</strong></td></tr>'
-        . $extraHtmlRows;
-    }
-  }
 
   // Accent colors by urgency (badge only). Keep button blue.
   if ($daysLeft === 0) {
@@ -512,7 +410,6 @@ foreach ($rows as $r) {
     $accentLight = '#dbeafe';
     $accentDark  = '#1e40af';
   }
-  $buttonColor = '#2563eb';
 
   // Badge text (e.g., "Close due today" or "Close due in 2 weeks")
   $badgeText = ($daysLeft === 0) ? 'Close due today' : ('Close due in ' . $label);
@@ -583,14 +480,13 @@ foreach ($rows as $r) {
                   <td style="padding:10px; border:1px solid #e5e7eb;">' . $statusSafe . '</td>
                 </tr>
                 <tr>
-                  <td style="padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Conformance</td>
-                  <td style="padding:10px; border:1px solid #e5e7eb;">' . $confSafe . '</td>
+                  <td style="padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Description of Findings</td>
+                  <td style="padding:10px; border:1px solid #e5e7eb;">' . $remarksHtml . '</td>
                 </tr>
                 <tr>
                   <td style="padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Close Due Date</td>
                   <td style="padding:10px; border:1px solid #e5e7eb;">' . $closeDueSafe . '</td>
                 </tr>
-                ' . $extraHtmlRows . '
               </table>
 
               <!-- CTA -->
@@ -640,12 +536,8 @@ foreach ($rows as $r) {
   $altBody .=
     "Assignee: $deptDisplay\n"
     . "Status: $status\n"
-    . "Conformance: $conf\n"
+    . "Description of Findings: " . ($remarks !== '' ? $remarks : '-') . "\n"
     . "Close Due Date: $closeDueTxt\n";
-
-  if ($extraText !== '') {
-    $altBody .= "Details ($conf):\n$extraText";
-  }
 
   $altBody .= "Open QD Portal: $taskUrl\n";
   $altBody .= "If the button doesn't work: $taskUrl\n";

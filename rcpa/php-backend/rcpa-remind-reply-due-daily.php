@@ -4,9 +4,7 @@
 // CC's all users where system_users.department = 'QMS'.
 // Assignee recipients: Prefer ONLY supervisors in the assignee's dept/section + the specific assignee_name (if present).
 // If there are NO supervisors, send to everyone in the same dept/section EXCEPT 'manager' + the specific assignee_name (if present).
-// When status is EXACTLY "VALID APPROVAL":
-//   - If conformance = 'Non-conformance', include details from rcpa_valid_non_conformance
-//   - If conformance = 'Potential Non-conformance', include details from rcpa_valid_potential_conformance
+// Email content shows "Description of Findings" from rcpa_request.remarks (no conformance/target-date/detail rows).
 
 declare(strict_types=1);
 date_default_timezone_set('Asia/Manila');
@@ -80,8 +78,7 @@ $qmsEmails = cleanEmails($qmsEmails);
 
 /* ---------------------------------------------------
    Pull all rows due in 2, 1, or 0 day(s)
-   Join BOTH detail tables (left join), decide which to display later.
-   (Also selecting r.assignee_name for recipient logic.)
+   We only need base fields + remarks now (no detail table joins).
 --------------------------------------------------- */
 $sql = "
   SELECT
@@ -89,31 +86,11 @@ $sql = "
       r.assignee,
       r.section,
       r.status,
-      r.conformance,
+      r.remarks,
       r.assignee_name,
       r.reply_due_date,
-      DATEDIFF(r.reply_due_date, CURDATE()) AS days_left,
-
-      -- Non-conformance fields
-      vn.root_cause                    AS vn_root_cause,
-      vn.correction                    AS vn_correction,
-      vn.correction_target_date        AS vn_correction_target_date,
-      vn.correction_date_completed     AS vn_correction_date_completed,
-      vn.corrective                    AS vn_corrective,
-      vn.corrective_target_date        AS vn_corrective_target_date,
-      vn.corrective_date_completed     AS vn_corrective_date_completed,
-
-      -- Potential Non-conformance fields
-      vp.root_cause                    AS vp_root_cause,
-      vp.preventive_action             AS vp_preventive_action,
-      vp.preventive_target_date        AS vp_preventive_target_date,
-      vp.preventive_date_completed     AS vp_preventive_date_completed
-
+      DATEDIFF(r.reply_due_date, CURDATE()) AS days_left
   FROM rcpa_request r
-  LEFT JOIN rcpa_valid_non_conformance vn
-         ON vn.rcpa_no = r.id
-  LEFT JOIN rcpa_valid_potential_conformance vp
-         ON vp.rcpa_no = r.id
   WHERE r.reply_due_date IS NOT NULL
     AND r.reply_date IS NULL
     AND DATEDIFF(r.reply_due_date, CURDATE()) IN (2,1,0)
@@ -140,45 +117,21 @@ $st->bind_result(
   $dept,
   $section,
   $status,
-  $conformance,
+  $remarks,
   $assignee_name,
   $due,
-  $days_left,
-  $vn_root_cause,
-  $vn_correction,
-  $vn_correction_target_date,
-  $vn_correction_date_completed,
-  $vn_corrective,
-  $vn_corrective_target_date,
-  $vn_corrective_date_completed,
-  $vp_root_cause,
-  $vp_preventive_action,
-  $vp_preventive_target_date,
-  $vp_preventive_date_completed
+  $days_left
 );
 while ($st->fetch()) {
   $rows[] = [
-    'id'        => (int)$id,
-    'dept'      => (string)$dept,
-    'section'   => (string)$section,
-    'status'    => (string)$status,
-    'conf'      => (string)$conformance,
+    'id'            => (int)$id,
+    'dept'          => (string)$dept,
+    'section'       => (string)$section,
+    'status'        => (string)$status,
+    'remarks'       => (string)$remarks,
     'assignee_name' => (string)$assignee_name,
-    'due'       => (string)$due,
-    'days_left' => (int)$days_left,
-
-    'vn_root_cause'                => $vn_root_cause,
-    'vn_correction'                => $vn_correction,
-    'vn_correction_target_date'    => $vn_correction_target_date,
-    'vn_correction_date_completed' => $vn_correction_date_completed,
-    'vn_corrective'                => $vn_corrective,
-    'vn_corrective_target_date'    => $vn_corrective_target_date,
-    'vn_corrective_date_completed' => $vn_corrective_date_completed,
-
-    'vp_root_cause'                => $vp_root_cause,
-    'vp_preventive_action'         => $vp_preventive_action,
-    'vp_preventive_target_date'    => $vp_preventive_target_date,
-    'vp_preventive_date_completed' => $vp_preventive_date_completed,
+    'due'           => (string)$due,
+    'days_left'     => (int)$days_left,
   ];
 }
 $st->free_result();
@@ -203,7 +156,7 @@ foreach ($rows as $r) {
   $dept      = trim($r['dept']);
   $section   = trim($r['section']);
   $status    = trim($r['status']);
-  $conf      = trim($r['conf']);
+  $remarks   = trim($r['remarks'] ?? '');
   $assigneeName = trim($r['assignee_name'] ?? '');
   $due       = $r['due'];
   $daysLeft  = (int)$r['days_left'];
@@ -235,6 +188,7 @@ foreach ($rows as $r) {
        TO = supervisors in assignee dept/section + the assignee_name (if present)
      Fallback plan (if NO supervisors found):
        TO = everyone in dept/section EXCEPT role 'manager' + the assignee_name (if present)
+     When due is today or in 1 day (<=1): also include MANAGER(S).
      CC = QMS (deduped against TO)
   ------------------------------------------- */
   $to = [];
@@ -459,50 +413,8 @@ foreach ($rows as $r) {
   $taskUrlSafe    = h($taskUrl);
   $taskUrlText    = h($taskUrlDisplay);
   $replyDueSafe   = h($replyDueTxt);
-
-  // Build additional details ONLY when status is EXACTLY 'VALID APPROVAL'
-  $extraHtmlRows = '';
-  $extraText = '';
-
-  if ($status === 'VALID APPROVAL') {
-    if ($conf === 'Non-conformance') {
-      $rowsMap = [
-        'Root Cause'                 => h($r['vn_root_cause'] ?? ''),
-        'Correction'                 => h($r['vn_correction'] ?? ''),
-        'Correction Target Date'     => h(fmtDate($r['vn_correction_target_date'] ?? null)),
-        'Correction Date Completed'  => h(fmtDate($r['vn_correction_date_completed'] ?? null)),
-        'Corrective Action'          => h($r['vn_corrective'] ?? ''),
-        'Corrective Target Date'     => h(fmtDate($r['vn_corrective_target_date'] ?? null)),
-        'Corrective Date Completed'  => h(fmtDate($r['vn_corrective_date_completed'] ?? null)),
-      ];
-    } elseif ($conf === 'Potential Non-conformance') {
-      $rowsMap = [
-        'Root Cause'                 => h($r['vp_root_cause'] ?? ''),
-        'Preventive Action'          => h($r['vp_preventive_action'] ?? ''),
-        'Preventive Target Date'     => h(fmtDate($r['vp_preventive_target_date'] ?? null)),
-        'Preventive Date Completed'  => h(fmtDate($r['vp_preventive_date_completed'] ?? null)),
-      ];
-    } else {
-      $rowsMap = [];
-    }
-
-    foreach ($rowsMap as $labelKey => $val) {
-      if ($val !== '') {
-        $extraHtmlRows .=
-          '<tr>'
-          . '<td style="padding:6px 10px; background:#f9fafb; border:1px solid #e5e7eb;">' . h($labelKey) . '</td>'
-          . '<td style="padding:6px 10px; border:1px solid #e5e7eb;">' . $val . '</td>'
-          . '</tr>';
-        $extraText .= $labelKey . ': ' . html_entity_decode($val, ENT_QUOTES, 'UTF-8') . "\n";
-      }
-    }
-
-    if ($extraHtmlRows !== '') {
-      $extraHtmlRows =
-        '<tr><td colspan="2" style="padding:8px 10px; background:#eef2ff; border:1px solid #e5e7eb;"><strong>Details (' . h($conf) . ')</strong></td></tr>'
-        . $extraHtmlRows;
-    }
-  }
+  $remarksSafe    = h($remarks);
+  $remarksHtml    = ($remarksSafe !== '') ? $remarksSafe : '-';
 
   // Accent colors by urgency (badge only)
   if ($daysLeft === 0) {
@@ -518,9 +430,6 @@ foreach ($rows as $r) {
     $accentLight = '#dbeafe';
     $accentDark  = '#1e40af';
   }
-
-  // Button color should stay the same as before
-  $buttonColor = '#2563eb';
 
   $badgeText = ($daysLeft === 0) ? 'Due today' : ('Due in ' . $label);
 
@@ -590,14 +499,13 @@ foreach ($rows as $r) {
                   <td style="padding:10px; border:1px solid #e5e7eb;">' . h($status) . '</td>
                 </tr>
                 <tr>
-                  <td style="padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Conformance</td>
-                  <td style="padding:10px; border:1px solid #e5e7eb;">' . h($conf) . '</td>
+                  <td style="padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Description of Findings</td>
+                  <td style="padding:10px; border:1px solid #e5e7eb;">' . $remarksHtml . '</td>
                 </tr>
                 <tr>
                   <td style="padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">Reply Due Date</td>
                   <td style="padding:10px; border:1px solid #e5e7eb;">' . $replyDueSafe . '</td>
                 </tr>
-                ' . $extraHtmlRows . '
               </table>
 
               <!-- CTA -->
@@ -647,12 +555,8 @@ foreach ($rows as $r) {
   $altBody .=
     "Assignee: $deptDisplay\n"
     . "Status: $status\n"
-    . "Conformance: $conf\n"
+    . "Description of Findings: " . ($remarks !== '' ? $remarks : '-') . "\n"
     . "Reply Due Date: $replyDueTxt\n";
-
-  if ($extraText !== '') {
-    $altBody .= "Details ($conf):\n$extraText";
-  }
 
   // Plain-text links (most clients will auto-link with http://)
   $altBody .= "Open QD Portal: $taskUrl\n";
