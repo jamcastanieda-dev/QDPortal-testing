@@ -40,7 +40,7 @@ try {
     $stmt->close();
 
     // 2) Insert disapproval entry (type = QMS)
-    $disType = "Disapproved by QMS/QA in checking";
+    $disType = "Disapproved by QMS in QMS CHECKING";
     $stmt2 = $conn->prepare('
         INSERT INTO rcpa_disapprove_remarks (rcpa_no, disapprove_type, remarks, created_at)
         VALUES (?, ?, ?, NOW())

@@ -87,7 +87,7 @@ try {
 
     // 3) Insert disapproval record
     $json = $attachments ? json_encode($attachments, JSON_UNESCAPED_SLASHES) : null;
-    $disapproveType = "Disapproved by Assignee Supervisor/Manager in Assignee Corrective Approval";
+    $disapproveType = "Disapproved by Assignee Supervisor/Manager in FOR CLOSING APPROVAL";
 
     $stmt2 = $conn->prepare('
       INSERT INTO rcpa_disapprove_remarks (rcpa_no, disapprove_type, remarks, attachments, created_at)

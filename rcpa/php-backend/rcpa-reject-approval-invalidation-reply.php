@@ -87,7 +87,7 @@ try {
 
     // 3) Insert disapproval record
     $json = $attachments ? json_encode($attachments, JSON_UNESCAPED_SLASHES) : null;
-    $disapproveType = "Disapproved by QMS/QA Supervisor/Manager in INVALIDation reply approval";
+    $disapproveType = "Disapproved by QA Manager in INVALIDATION REPLY APPROVAL";
 
     $stmt2 = $conn->prepare('
       INSERT INTO rcpa_disapprove_remarks (rcpa_no, disapprove_type, remarks, attachments, created_at)
